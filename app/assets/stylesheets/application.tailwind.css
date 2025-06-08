@@ -1,0 +1,202 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+@import 'flatpickr/dist/flatpickr.min.css';
+
+@import './sortable.css';
+
+/* 拖曳排序樣式 */
+.sortable-ghost {
+    @apply opacity-30 bg-blue-50 border-blue-200;
+}
+
+.sortable-chosen {
+    @apply bg-blue-50;
+}
+
+.sortable-drag {
+    @apply opacity-80 shadow-lg bg-white border border-blue-300;
+}
+
+/* 表格行樣式 */
+.table-row {
+    transition: all 0.15s ease;
+}
+
+.table-row:hover {
+    @apply bg-gray-50;
+}
+
+.table-row.sortable-chosen {
+    @apply bg-blue-50;
+}
+
+.table-row.sortable-ghost {
+    @apply opacity-30 bg-blue-100;
+}
+
+.drag-handle {
+    transition: all 0.15s ease;
+}
+
+.drag-handle:hover {
+    @apply bg-gray-100 rounded text-gray-600;
+}
+
+/* 群組標題樣式 */
+.group-header {
+    @apply bg-gray-50;
+}
+
+.group-header.collapsed {
+    @apply bg-gray-100;
+}
+
+.toggle-icon {
+    transition: transform 0.2s ease;
+}
+
+/* 優先序號碼樣式 */
+.priority-number {
+    @apply inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 text-xs font-bold rounded-full;
+}
+
+/* 狀態指示器 */
+.status-indicator {
+    @apply inline-flex items-center justify-center w-5 h-5 rounded-full;
+}
+
+.status-indicator.active {
+    @apply bg-green-100 text-green-600;
+}
+
+.status-indicator.inactive {
+    @apply bg-gray-100 text-gray-400;
+}
+
+/* 桌位類型圖示 */
+.table-type-icon {
+    @apply w-6 h-6 rounded-md flex items-center justify-center;
+}
+
+.table-type-icon.available {
+    @apply bg-green-100 text-green-600;
+}
+
+.table-type-icon.occupied {
+    @apply bg-red-100 text-red-600;
+}
+
+.table-type-icon.reserved {
+    @apply bg-yellow-100 text-yellow-600;
+}
+
+/* 拖曳時的視覺效果 */
+tbody.sorting .table-row {
+    transition: none;
+}
+
+/* 表格響應式設計 */
+@media (max-width: 768px) {
+    .table-responsive {
+        font-size: 0.875rem;
+    }
+
+    .table-responsive th,
+    .table-responsive td {
+        padding: 0.5rem;
+    }
+}
+
+/* 
+This file is in app/assets/stylesheets/application.tailwind.css 
+*/
+
+/* Flatpickr 自定義樣式 */
+/* .flatpickr-container {
+    @apply w-full;
+} */
+
+/* 美化 flatpickr 彈出樣式 */
+.flatpickr-calendar {
+    @apply border border-gray-200 rounded-lg shadow-xl bg-white;
+    max-width: 320px !important;
+    font-family: inherit;
+}
+
+.flatpickr-months {
+    @apply bg-blue-50 rounded-t-lg px-4 py-3;
+}
+
+.flatpickr-current-month {
+    @apply text-gray-900 font-semibold text-lg;
+}
+
+.flatpickr-prev-month,
+.flatpickr-next-month {
+    @apply text-gray-600 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100;
+}
+
+.flatpickr-weekdays {
+    @apply bg-gray-50 border-t border-gray-200;
+}
+
+.flatpickr-weekday {
+    @apply text-gray-700 font-medium text-sm py-2 text-center;
+}
+
+/*
+.flatpickr-day.selected {
+    @apply bg-blue-600 text-white font-semibold;
+}
+
+.flatpickr-day.today {
+    @apply bg-blue-100 text-blue-900 font-medium;
+}
+
+.flatpickr-day.disabled,
+.flatpickr-day.notAllowed {
+    @apply text-gray-300 cursor-not-allowed bg-gray-50;
+}
+
+.flatpickr-day.available {
+    @apply bg-green-100 text-green-800;
+}
+
+.flatpickr-day.available:hover {
+    @apply bg-green-200;
+}
+
+.flatpickr-day:hover:not(.disabled):not(.notAllowed):not(.selected) {
+    @apply bg-blue-50 text-blue-900;
+}
+
+/* input 樣式增強 */
+
+/* Select 元件增強樣式 */
+.custom-select {
+    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
+    background-position: right 0.5rem center;
+    background-repeat: no-repeat;
+    background-size: 1.5em 1.5em;
+}
+
+.time-slot-button {
+    @apply px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg 
+           bg-gradient-to-b from-white to-gray-50 text-gray-700
+           hover:from-blue-50 hover:to-blue-100 hover:border-blue-300 hover:text-blue-800
+           focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-1
+           transition-all duration-200 ease-in-out
+           cursor-pointer;
+}
+
+.time-slot-button:disabled {
+    @apply opacity-50 cursor-not-allowed bg-gradient-to-b from-gray-50 to-gray-100 
+           text-gray-400 border-gray-200
+           hover:from-gray-50 hover:to-gray-100 hover:border-gray-200 hover:text-gray-400;
+}
+
+.time-slot-button.selected {
+    @apply border-blue-500 bg-gradient-to-b from-blue-500 to-blue-600 text-white
+           hover:from-blue-600 hover:to-blue-700 hover:border-blue-600;
+}

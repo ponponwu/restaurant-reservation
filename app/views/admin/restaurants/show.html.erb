@@ -1,0 +1,331 @@
+<div data-controller="restaurant-management" 
+     data-restaurant-management-restaurant-slug-value="<%= @restaurant.slug %>"
+     class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="lg:flex lg:items-center lg:justify-between">
+    <div class="min-w-0 flex-1">
+      <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+        <%= @restaurant.name %>
+      </h2>
+      <div class="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
+        <div class="mt-2 flex items-center text-sm text-gray-500">
+          <svg class="mr-1.5 h-5 w-5 flex-shrink-0 text-gray-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M2 3.5A1.5 1.5 0 013.5 2h1.148a1.5 1.5 0 011.465 1.175l.716 3.223a1.5 1.5 0 01-1.052 1.767l-.933.267c-.41.117-.643.555-.48.95a11.542 11.542 0 006.254 6.254c.395.163.833-.07.95-.48l.267-.933a1.5 1.5 0 011.767-1.052l3.223.716A1.5 1.5 0 0118 15.352V16.5a1.5 1.5 0 01-1.5 1.5H15c-1.149 0-2.263-.15-3.326-.43A13.022 13.022 0 012.43 8.326 13.019 13.019 0 012 5V3.5z" clip-rule="evenodd" />
+          </svg>
+          <%= @restaurant.phone %>
+        </div>
+        <div class="mt-2 flex items-center text-sm text-gray-500">
+          <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                       <%= @restaurant.active? ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+            <%= @restaurant.active? ? '營業中' : '已停業' %>
+          </span>
+        </div>
+      </div>
+    </div>
+    <div class="mt-5 flex lg:mt-0 lg:ml-4 space-x-3">
+      <button type="button" 
+              data-action="click->restaurant-management#openModal"
+              class="inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700">
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+        </svg>
+        餐廳管理
+      </button>
+      <%= link_to admin_restaurant_reservations_path(@restaurant),
+          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        訂位管理
+      <% end %>
+      <%= link_to admin_restaurant_table_groups_path(@restaurant),
+          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm-8 8H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2z"></path>
+        </svg>
+        桌位管理
+      <% end %>
+      <%= link_to admin_blacklists_path,
+          class: "inline-flex items-center rounded-md border border-red-300 bg-red-50 px-4 py-2 text-sm font-medium text-red-700 shadow-sm hover:bg-red-100" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+        </svg>
+        黑名單管理
+      <% end %>
+    </div>
+  </div>
+
+  <!-- 統計卡片 -->
+  <div class="mt-8">
+    <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
+      <!-- 總桌數 -->
+      <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm-8 8H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2z"></path>
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">總桌數</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= @stats[:total_tables] %> 桌</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- 總容量 -->
+      <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">總容量</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= @stats[:total_capacity] %> 人</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- 可用桌數 -->
+      <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-8 w-8 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">可用桌數</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= @stats[:available_tables] %> 桌</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+
+      <!-- 營業時段 -->
+      <div class="overflow-hidden rounded-lg bg-white px-4 py-5 shadow sm:p-6">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <svg class="h-8 w-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">營業時段</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= @stats[:business_periods] %> 個</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 詳細資訊 -->
+  <div class="mt-8 grid grid-cols-1 gap-5 lg:grid-cols-2">
+    <!-- 基本資訊 -->
+    <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+      <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">基本資訊</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">餐廳的基本資料</p>
+      </div>
+      <div class="border-t border-gray-200">
+        <dl>
+          <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-500">餐廳名稱</dt>
+            <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @restaurant.name %></dd>
+          </div>
+          <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-500">電話號碼</dt>
+            <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @restaurant.phone %></dd>
+          </div>
+          <div class="bg-gray-50 px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+            <dt class="text-sm font-medium text-gray-500">地址</dt>
+            <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @restaurant.address %></dd>
+          </div>
+          <% if @restaurant.description.present? %>
+            <div class="bg-white px-4 py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
+              <dt class="text-sm font-medium text-gray-500">描述</dt>
+              <dd class="mt-1 text-sm text-gray-900 sm:col-span-2 sm:mt-0"><%= @restaurant.description %></dd>
+            </div>
+          <% end %>
+        </dl>
+      </div>
+    </div>
+
+    <!-- 管理員列表 -->
+    <div class="overflow-hidden bg-white shadow sm:rounded-lg">
+      <div class="px-4 py-5 sm:px-6">
+        <h3 class="text-lg font-medium leading-6 text-gray-900">管理員</h3>
+        <p class="mt-1 max-w-2xl text-sm text-gray-500">管理此餐廳的人員</p>
+      </div>
+      <div class="border-t border-gray-200">
+        <% if @users.any? %>
+          <ul class="divide-y divide-gray-200">
+            <% @users.each do |user| %>
+              <li class="px-4 py-4 sm:px-6">
+                <div class="flex items-center justify-between">
+                  <div>
+                    <p class="text-sm font-medium text-gray-900"><%= user.full_name %></p>
+                    <p class="text-sm text-gray-500"><%= user.email %></p>
+                  </div>
+                  <div class="flex-shrink-0">
+                    <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                      <%= user.role_display_name %>
+                    </span>
+                  </div>
+                </div>
+              </li>
+            <% end %>
+          </ul>
+          <% if @restaurant.users.count > 5 %>
+            <div class="px-4 py-3 bg-gray-50 text-center">
+              <p class="text-sm text-gray-500">還有 <%= @restaurant.users.count - 5 %> 位管理員...</p>
+            </div>
+          <% end %>
+        <% else %>
+          <div class="px-4 py-5 sm:px-6 text-center">
+            <p class="text-sm text-gray-500">尚未指派管理員</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 餐廳管理 Modal -->
+  <div data-restaurant-management-target="modal"
+       data-action="click->restaurant-management#closeOnBackground"
+       id="managementModal" 
+       class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden z-50">
+    <div class="relative top-10 mx-auto p-0 border w-full max-w-6xl shadow-lg rounded-md bg-white min-h-screen max-h-screen"
+         onclick="event.stopPropagation()">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-6 border-b border-gray-200">
+        <h3 class="text-xl font-semibold text-gray-900">餐廳管理 - <%= @restaurant.name %></h3>
+        <button type="button" 
+                data-action="click->restaurant-management#closeMainModal"
+                class="text-gray-400 hover:text-gray-600">
+          <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+
+      <!-- 選項卡導覽 -->
+      <div class="border-b border-gray-200">
+        <nav class="-mb-px flex space-x-8 px-6" aria-label="Tabs">
+          <button data-action="click->restaurant-management#switchTab"
+                  data-restaurant-management-tab-param="restaurant-info"
+                  data-restaurant-management-target="tab"
+                  class="management-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <svg class="mr-2 h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-4m-5 0H9m0 0H5m4 0V9a2 2 0 012-2h2a2 2 0 012 2v12M13 7a1 1 0 11-2 0 1 1 0 012 0z"></path>
+            </svg>
+            餐廳資訊
+          </button>
+          
+          <button data-action="click->restaurant-management#switchTab"
+                  data-restaurant-management-tab-param="business-periods"
+                  data-restaurant-management-target="tab"
+                  class="management-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <svg class="mr-2 h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            營業時段
+          </button>
+          
+          <button data-action="click->restaurant-management#switchTab"
+                  data-restaurant-management-tab-param="closure-dates"
+                  data-restaurant-management-target="tab"
+                  class="management-tab border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm">
+            <svg class="mr-2 h-5 w-5 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            公休日管理
+          </button>
+        </nav>
+      </div>
+
+      <!-- 選項卡內容 -->
+      <div class="p-6 overflow-y-auto" style="max-height: calc(100vh - 200px);">
+        <!-- 餐廳資訊選項卡 -->
+        <div id="restaurant-info-tab" 
+             class="tab-content hidden"
+             data-restaurant-management-target="tabContent">
+          <div id="restaurant-info-content">
+            <div class="text-center py-8">
+              <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                載入中...
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 營業時段選項卡 -->
+        <div id="business-periods-tab" 
+             class="tab-content hidden"
+             data-restaurant-management-target="tabContent">
+          <div id="business-periods-content">
+            <div class="text-center py-8">
+              <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                載入中...
+              </div>
+            </div>
+          </div>
+        </div>
+        
+        <!-- 公休日管理選項卡 -->
+        <div id="closure-dates-tab" 
+             class="tab-content hidden"
+             data-restaurant-management-target="tabContent">
+          <div id="closure-dates-content">
+            <div class="text-center py-8">
+              <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
+                <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
+                  <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                  <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                載入中...
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 編輯Modal容器 -->
+      <div id="modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-75 overflow-y-auto h-full w-full z-60">
+        <div class="relative top-20 mx-auto p-5 border w-full max-w-2xl shadow-lg rounded-md bg-white">
+          <div class="flex items-center justify-between p-4 border-b">
+            <h3 class="text-lg font-semibold text-gray-900">編輯</h3>
+            <button type="button" 
+                    data-action="click->restaurant-management#closeEditModal" 
+                    class="text-gray-400 hover:text-gray-600">
+              <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+              </svg>
+            </button>
+          </div>
+          <div id="modal-content" class="p-4">
+            <!-- 編輯內容會載入到這裡 -->
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

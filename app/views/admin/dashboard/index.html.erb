@@ -1,0 +1,255 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="md:flex md:items-center md:justify-between mb-8">
+    <div class="flex-1 min-w-0">
+      <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:text-3xl sm:truncate">
+        儀表板
+      </h2>
+      <p class="mt-1 text-sm text-gray-500">
+        歡迎回來，<%= current_user.full_name %>
+      </p>
+    </div>
+    <div class="mt-4 flex md:mt-0 md:ml-4">
+      <span class="inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500">
+        <%= Date.current.strftime("%Y年%m月%d日") %>
+      </span>
+    </div>
+  </div>
+
+  <!-- 統計卡片區域 -->
+  <div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
+    <!-- 總管理員數 -->
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+      <div class="p-5">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z" />
+              </svg>
+            </div>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">總管理員數</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= @stats[:total_users] %></dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-5 py-3">
+        <div class="text-sm">
+          <span class="text-blue-600 font-medium"><%= @stats[:super_admins] %></span>
+          <span class="text-gray-500"> Super Admin・</span>
+          <span class="text-blue-600 font-medium"><%= @stats[:regular_admins] %></span>
+          <span class="text-gray-500"> 一般管理員</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 總餐廳數 -->
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+      <div class="p-5">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+              </svg>
+            </div>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">總餐廳數</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= @stats[:total_restaurants] %></dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-5 py-3">
+        <div class="text-sm">
+          <span class="text-green-600 font-medium"><%= @stats[:active_restaurants] %></span>
+          <span class="text-gray-500"> 營業中・</span>
+          <span class="text-red-600 font-medium"><%= @stats[:inactive_restaurants] %></span>
+          <span class="text-gray-500"> 已停業</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- 系統狀態 -->
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+      <div class="p-5">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 <%= system_status_color(@system_status) %> rounded-md flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">系統狀態</dt>
+              <dd class="text-lg font-medium text-gray-900"><%= system_status_text(@system_status) %></dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-5 py-3">
+        <div class="text-sm text-gray-500">
+          資料庫: <%= @system_status[:database] == 'healthy' ? '正常' : '異常' %>
+        </div>
+      </div>
+    </div>
+
+    <!-- 快速操作 -->
+    <div class="bg-white overflow-hidden shadow rounded-lg">
+      <div class="p-5">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="w-8 h-8 bg-purple-500 rounded-md flex items-center justify-center">
+              <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+              </svg>
+            </div>
+          </div>
+          <div class="ml-5 w-0 flex-1">
+            <dl>
+              <dt class="text-sm font-medium text-gray-500 truncate">快速操作</dt>
+              <dd class="text-lg font-medium text-gray-900">管理功能</dd>
+            </dl>
+          </div>
+        </div>
+      </div>
+      <div class="bg-gray-50 px-5 py-3">
+        <div class="flex space-x-2">
+          <%= link_to new_admin_user_path, class: "text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded hover:bg-blue-200" do %>
+            新增管理員
+          <% end %>
+          <%= link_to new_admin_restaurant_path, class: "text-xs bg-green-100 text-green-800 px-2 py-1 rounded hover:bg-green-200" do %>
+            新增餐廳
+          <% end %>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 主要內容區域 -->
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+    <!-- 最近活動 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">最近活動</h3>
+        <div class="flow-root">
+          <% if @recent_activities.any? %>
+            <ul class="-mb-8">
+              <% @recent_activities.each_with_index do |activity, index| %>
+                <li>
+                  <div class="relative pb-8">
+                    <% unless index == @recent_activities.length - 1 %>
+                      <span class="absolute top-4 left-4 -ml-px h-full w-0.5 bg-gray-200" aria-hidden="true"></span>
+                    <% end %>
+                    <div class="relative flex space-x-3">
+                      <div>
+                        <span class="h-8 w-8 <%= activity_color_class(activity) %> rounded-full flex items-center justify-center ring-8 ring-white">
+                          <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="<%= activity_icon_class(activity) %>" />
+                          </svg>
+                        </span>
+                      </div>
+                      <div class="min-w-0 flex-1 pt-1.5 flex justify-between space-x-4">
+                        <div>
+                          <p class="text-sm text-gray-500"><%= activity[:description] %></p>
+                        </div>
+                        <div class="text-right text-sm whitespace-nowrap text-gray-500">
+                          <time><%= time_ago_in_chinese(activity[:timestamp]) %></time>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </li>
+              <% end %>
+            </ul>
+          <% else %>
+            <div class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+              </svg>
+              <h3 class="mt-2 text-sm font-medium text-gray-900">暫無活動記錄</h3>
+              <p class="mt-1 text-sm text-gray-500">開始建立管理員或餐廳來查看活動記錄</p>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- 系統概覽 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">系統概覽</h3>
+        
+        <!-- 資料統計 -->
+        <div class="space-y-4">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="w-2 h-2 bg-blue-500 rounded-full mr-3"></div>
+              <span class="text-sm text-gray-600">總桌位數</span>
+            </div>
+            <span class="text-sm font-medium text-gray-900"><%= @stats[:total_tables] %> 桌</span>
+          </div>
+          
+          <div class="flex items-center justify-between">
+            <div class="flex items-center">
+              <div class="w-2 h-2 bg-green-500 rounded-full mr-3"></div>
+              <span class="text-sm text-gray-600">總訂位數</span>
+            </div>
+            <span class="text-sm font-medium text-gray-900"><%= @stats[:total_reservations] %> 筆</span>
+          </div>
+        </div>
+
+        <!-- 系統健康狀態 -->
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <h4 class="text-sm font-medium text-gray-900 mb-3">系統健康狀態</h4>
+          <div class="space-y-3">
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-600">資料庫連線</span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                           <%= @system_status[:database] == 'healthy' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                <%= @system_status[:database] == 'healthy' ? '正常' : '異常' %>
+              </span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-600">使用者狀態</span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                           <%= @system_status[:users_health] == 'healthy' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' %>">
+                <%= @system_status[:users_health] == 'healthy' ? '正常' : '需注意' %>
+              </span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <span class="text-sm text-gray-600">餐廳狀態</span>
+              <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium
+                           <%= @system_status[:restaurants_health] == 'healthy' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800' %>">
+                <%= @system_status[:restaurants_health] == 'healthy' ? '正常' : '需注意' %>
+              </span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 快速連結 -->
+        <div class="mt-6 pt-6 border-t border-gray-200">
+          <h4 class="text-sm font-medium text-gray-900 mb-3">快速連結</h4>
+          <div class="grid grid-cols-2 gap-3">
+            <%= link_to admin_users_path, class: "text-center py-2 px-3 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50" do %>
+              管理員管理
+            <% end %>
+            <%= link_to admin_restaurants_path, class: "text-center py-2 px-3 border border-gray-300 rounded-md text-sm text-gray-700 hover:bg-gray-50" do %>
+              餐廳管理
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

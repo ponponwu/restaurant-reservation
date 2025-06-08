@@ -1,0 +1,132 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="lg:flex lg:items-center lg:justify-between">
+    <div class="min-w-0 flex-1">
+      <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+        <%= @restaurant.name %> - 桌位總覽
+      </h2>
+      <div class="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
+        <div class="mt-2 flex items-center text-sm text-gray-500">
+          總共 <%= @tables.count %> 桌，容量 <%= @tables.sum(:max_capacity) %> 人
+        </div>
+      </div>
+    </div>
+    <div class="mt-5 flex lg:mt-0 lg:ml-4 space-x-3">
+      <%= link_to admin_restaurant_table_groups_path(@restaurant),
+          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm-8 8H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2z"></path>
+        </svg>
+        桌位群組管理
+      <% end %>
+      <%= link_to admin_restaurant_path(@restaurant),
+          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        回到餐廳
+      <% end %>
+    </div>
+  </div>
+
+  <!-- 桌位群組列表 -->
+  <div class="mt-8">
+    <% if @table_groups.any? %>
+      <% @table_groups.each do |table_group| %>
+        <div class="mb-8 overflow-hidden bg-white shadow sm:rounded-lg">
+          <div class="px-4 py-5 sm:px-6 bg-gray-50">
+            <div class="flex items-center justify-between">
+              <div>
+                <h3 class="text-lg font-medium leading-6 text-gray-900">
+                  <%= table_group.name %>
+                </h3>
+                <% if table_group.description.present? %>
+                  <p class="mt-1 max-w-2xl text-sm text-gray-500">
+                    <%= table_group.description %>
+                  </p>
+                <% end %>
+              </div>
+              <div class="flex items-center space-x-2">
+                <span class="inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium
+                             <%= table_group.active? ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800' %>">
+                  <%= table_group.active? ? '啟用' : '停用' %>
+                </span>
+                <span class="inline-flex items-center rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-medium text-blue-800">
+                  <%= table_group.restaurant_tables.count %> 桌
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="border-t border-gray-200">
+            <% if table_group.restaurant_tables.any? %>
+              <div class="grid grid-cols-1 gap-4 p-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                <% table_group.restaurant_tables.ordered.each do |table| %>
+                  <div class="relative rounded-lg border border-gray-300 bg-white px-6 py-5 shadow-sm hover:border-gray-400">
+                    <div class="flex items-center justify-between">
+                      <div class="min-w-0 flex-1">
+                        <div class="focus:outline-none">
+                          <span class="absolute inset-0" aria-hidden="true"></span>
+                          <p class="text-sm font-medium text-gray-900">
+                            桌號 <%= table.table_number %>
+                          </p>
+                          <p class="text-sm text-gray-500">
+                            <%= table.capacity_description %>
+                          </p>
+                          <p class="text-xs text-gray-400 mt-1">
+                            <%= table.table_type.humanize %>
+                          </p>
+                        </div>
+                      </div>
+                      <div class="flex-shrink-0">
+                        <span class="inline-flex items-center rounded-full px-2 py-1 text-xs font-medium
+                                     <%= case table.status
+                                         when 'available' then 'bg-green-100 text-green-800'
+                                         when 'occupied' then 'bg-red-100 text-red-800'
+                                         when 'reserved' then 'bg-yellow-100 text-yellow-800'
+                                         when 'maintenance' then 'bg-gray-100 text-gray-800'
+                                         when 'cleaning' then 'bg-blue-100 text-blue-800'
+                                         else 'bg-gray-100 text-gray-800'
+                                         end %>">
+                          <%= case table.status
+                              when 'available' then '可用'
+                              when 'occupied' then '使用中'
+                              when 'reserved' then '已預約'
+                              when 'maintenance' then '維護中'
+                              when 'cleaning' then '清潔中'
+                              else table.status
+                              end %>
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                <% end %>
+              </div>
+            <% else %>
+              <div class="px-6 py-8 text-center">
+                <p class="text-sm text-gray-500">此群組尚未建立桌位</p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    <% else %>
+      <div class="text-center py-12">
+        <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm-8 8H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2z"></path>
+        </svg>
+        <h3 class="mt-2 text-sm font-medium text-gray-900">尚未建立桌位群組</h3>
+        <p class="mt-1 text-sm text-gray-500">開始建立第一個桌位群組來管理餐廳桌位</p>
+        <div class="mt-6">
+          <%= link_to admin_restaurant_table_groups_path(@restaurant),
+              class: "inline-flex items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700" do %>
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            建立桌位群組
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+</div> 

@@ -1,0 +1,22 @@
+<div class="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="bg-white overflow-hidden shadow rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="sm:flex sm:items-center">
+        <div class="sm:flex-auto">
+          <h1 class="text-2xl font-semibold text-gray-900">編輯管理員</h1>
+          <p class="mt-2 text-sm text-gray-700">修改 <%= @user.full_name %> 的資料</p>
+        </div>
+        <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+          <%= link_to admin_users_path,
+              class: "inline-flex items-center justify-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto" do %>
+            返回列表
+          <% end %>
+        </div>
+      </div>
+
+      <%= turbo_frame_tag "user_form", class: "mt-6" do %>
+        <%= render 'form', user: @user %>
+      <% end %>
+    </div>
+  </div>
+</div> 

@@ -1,0 +1,96 @@
+<!-- 每週固定公休設定 -->
+<div id="weekly-closure-section" class="bg-white shadow rounded-lg" data-controller="modal">
+  <div class="px-6 py-5">
+    <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4 flex items-center">
+      <svg class="mr-2 h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+      </svg>
+      每週固定公休設定
+    </h3>
+    
+    <div class="space-y-3">
+      <% 
+        # 取得已設定的每週公休日
+        existing_weekdays = closure_dates.where(recurring: true).pluck(:weekday).compact.to_set
+      %>
+      
+      <% %w[週日 週一 週二 週三 週四 週五 週六].each_with_index do |day, index| %>
+        <% weekday_value = index %>
+        <% is_already_set = existing_weekdays.include?(weekday_value) %>
+        <% existing_closure = closure_dates.where(recurring: true, weekday: weekday_value).first %>
+        
+        <div class="flex items-center justify-between p-4 border rounded-lg <%= is_already_set ? 'border-red-200 bg-red-50' : 'border-gray-200 bg-white' %>"
+             <% if existing_closure %>id="closure_date_<%= existing_closure.id %>"<% end %>>
+          <div class="flex items-center">
+            <div class="w-16 text-sm font-medium text-gray-900">
+              <%= day %>
+            </div>
+            <div class="ml-4">
+              <% if is_already_set %>
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                  已設為公休日
+                </span>
+              <% else %>
+                <span class="text-sm text-gray-600">營業日</span>
+              <% end %>
+            </div>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <% if is_already_set %>
+              <% if existing_closure %>
+                <%= button_to "取消公休", admin_restaurant_settings_restaurant_destroy_closure_date_path(restaurant.slug, existing_closure.id),
+                    method: :delete,
+                    data: { 
+                      action: "click->modal#show",
+                      confirm_title: "取消每週公休",
+                      confirm_message: "確定要取消每週#{day}的公休設定嗎？取消後這一天將恢復為營業日。",
+                      confirm_text: "確認取消",
+                      confirm_type: "warning"
+                    },
+                    class: "inline-flex items-center px-3 py-1 border border-red-300 rounded-md text-xs font-medium text-red-700 bg-white hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500" %>
+              <% end %>
+            <% else %>
+              <%= form_with model: [restaurant, ClosureDate.new], 
+                  url: admin_restaurant_settings_restaurant_closure_dates_path(restaurant.slug), 
+                  local: false, 
+                  class: "inline-block" do |f| %>
+                <%= f.hidden_field :recurring, value: true %>
+                <%= f.hidden_field :all_day, value: true %>
+                <%= f.hidden_field :closure_type, value: 'regular' %>
+                <%= f.hidden_field :date, value: Date.current.strftime('%Y-%m-%d') %>
+                <%= f.hidden_field :reason, value: "每週#{day}固定公休" %>
+                <%= f.hidden_field :weekday, value: weekday_value %>
+                
+                <%= f.submit "設為公休", 
+                    data: {
+                      action: "click->modal#show",
+                      confirm_title: "設定每週公休",
+                      confirm_message: "確定要將每週#{day}設定為公休日嗎？設定後客戶將無法在這一天進行預約。",
+                      confirm_text: "確認設定",
+                      confirm_type: "info"
+                    },
+                    class: "inline-flex items-center px-3 py-1 border border-blue-300 rounded-md text-xs font-medium text-blue-700 bg-white hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" %>
+              <% end %>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+    
+    <div class="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+      <div class="flex items-start">
+        <svg class="h-5 w-5 text-blue-400 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        <div class="ml-2">
+          <h4 class="text-sm font-medium text-blue-800">說明</h4>
+          <p class="text-sm text-blue-700 mt-1">
+            設定每週固定公休日，系統會自動將這些日期排除在可預約日期之外。
+            您可以隨時點擊「取消公休」來恢復營業。
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

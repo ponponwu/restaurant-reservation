@@ -1,0 +1,82 @@
+<div class="min-h-screen bg-gray-100">
+  <div class="container mx-auto px-4 py-8">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-4xl font-bold text-gray-900 text-center mb-8">
+        🍽️ 餐廳訂位系統
+      </h1>
+      
+      <!-- 餐廳前台連結區 -->
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">餐廳線上訂位</h2>
+        <p class="text-gray-600 mb-4">選擇餐廳進行線上訂位</p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <% Restaurant.active.each do |restaurant| %>
+            <div class="border border-gray-200 rounded-lg p-4 hover:border-blue-300 hover:shadow-md transition-all duration-200">
+              <h3 class="text-lg font-semibold text-gray-900 mb-2"><%= restaurant.name %></h3>
+              <% if restaurant.description.present? %>
+                <p class="text-sm text-gray-600 mb-3"><%= truncate(restaurant.description, length: 80) %></p>
+              <% end %>
+              
+              <div class="flex justify-between items-center">
+                <div class="text-sm text-gray-500">
+                  <% if restaurant.phone.present? %>
+                    📞 <%= restaurant.phone %>
+                  <% end %>
+                </div>
+                
+                <%= link_to restaurant_public_path(restaurant.slug),
+                    class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700" do %>
+                  立即訂位
+                  <svg class="ml-2 w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                  </svg>
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+      
+      <div class="bg-white rounded-lg shadow-lg p-6 mb-8">
+        <h2 class="text-2xl font-semibold text-gray-800 mb-4">餐廳管理系統</h2>
+        <p class="text-gray-600 mb-6">
+          這是一個現代化的餐廳訂位管理系統，提供完整的餐廳營運管理功能。
+        </p>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="bg-blue-50 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-blue-800 mb-2">🏪 餐廳管理</h3>
+            <p class="text-blue-600 text-sm">管理餐廳基本資訊、營業時間、桌位配置</p>
+          </div>
+          
+          <div class="bg-green-50 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-green-800 mb-2">📅 訂位管理</h3>
+            <p class="text-green-600 text-sm">處理顧客訂位、桌位分配、時段安排</p>
+          </div>
+          
+          <div class="bg-purple-50 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-purple-800 mb-2">🍽️ 桌位管理</h3>
+            <p class="text-purple-600 text-sm">配置桌位群組、拖拉排序、即時更新</p>
+          </div>
+          
+          <div class="bg-yellow-50 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-yellow-800 mb-2">📊 營運分析</h3>
+            <p class="text-yellow-600 text-sm">訂位統計、營收分析、使用率報告</p>
+          </div>
+        </div>
+      </div>
+      
+      <div class="text-center">
+        <%= link_to admin_root_path, 
+            class: "inline-flex items-center px-6 py-3 border border-transparent text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition duration-150 ease-in-out" do %>
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2z"></path>
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2m-6 4l2 2 4-4"></path>
+          </svg>
+          進入管理後台
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,70 @@
+<div class="shadow sm:overflow-hidden sm:rounded-md">
+  <%= form_with model: [:admin, restaurant],
+      data: { turbo_frame: "restaurant_form" },
+      class: "space-y-6 bg-white py-6 px-4 sm:p-6" do |f| %>
+
+    <!-- 錯誤訊息 -->
+    <% if restaurant.errors.any? %>
+      <div class="rounded-md bg-red-50 p-4">
+        <div class="flex">
+          <div class="flex-shrink-0">
+            <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+              <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+            </svg>
+          </div>
+          <div class="ml-3">
+            <h3 class="text-sm font-medium text-red-800">表單驗證錯誤</h3>
+            <div class="mt-2 text-sm text-red-700">
+              <ul class="list-disc space-y-1 pl-5">
+                <% restaurant.errors.full_messages.each do |message| %>
+                  <li><%= message %></li>
+                <% end %>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    <% end %>
+
+    <div class="grid grid-cols-6 gap-6">
+      <!-- 餐廳名稱 -->
+      <div class="col-span-6 sm:col-span-4">
+        <%= f.label :name, "餐廳名稱", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :name,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:name].any?}" %>
+      </div>
+
+      <!-- 電話號碼 -->
+      <div class="col-span-6 sm:col-span-3">
+        <%= f.label :phone, "電話號碼", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.telephone_field :phone,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:phone].any?}" %>
+      </div>
+
+      <!-- 描述 -->
+      <div class="col-span-6">
+        <%= f.label :description, "餐廳描述", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_area :description, rows: 3,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:description].any?}" %>
+        <p class="mt-2 text-sm text-gray-500">簡短描述餐廳的特色和風格</p>
+      </div>
+
+      <!-- 地址 -->
+      <div class="col-span-6">
+        <%= f.label :address, "地址", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_area :address, rows: 2,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:address].any?}" %>
+      </div>
+    </div>
+
+    <!-- 按鈕區域 -->
+    <div class="flex justify-end space-x-3">
+      <%= link_to admin_restaurants_path,
+          class: "rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" do %>
+        取消
+      <% end %>
+      <%= f.submit (restaurant.persisted? ? "更新餐廳" : "建立餐廳"),
+          class: "inline-flex justify-center rounded-md border border-transparent bg-blue-600 py-2 px-4 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
+    </div>
+  <% end %>
+</div> 

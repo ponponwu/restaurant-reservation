@@ -1,0 +1,21 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+     data-controller="closure-dates"
+     data-closure-dates-restaurant-slug-value="<%= @restaurant.slug %>"
+     data-closure-dates-closure-dates-url-value="<%= admin_restaurant_settings_restaurant_closure_dates_path(@restaurant) %>">
+
+  <!-- Flash 訊息區域 -->
+  <div id="flash_messages"></div>
+  
+  <!-- 主內容包裝器 -->
+  <div id="closure-dates-content">
+    <%= render 'closure_dates_content', restaurant: @restaurant, closure_dates: @closure_dates %>
+  </div>
+  
+  <!-- 標題和說明 -->
+  <div class="mb-8">
+    <h1 class="text-2xl font-bold text-gray-900">公休日設定</h1>
+    <p class="mt-2 text-sm text-gray-600">
+      管理餐廳的每週固定公休日和特別日公休設定
+    </p>
+  </div>
+</div>

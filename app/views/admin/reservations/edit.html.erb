@@ -1,0 +1,128 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+    <!-- 頁面標題和導航 -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <%= link_to admin_restaurant_reservation_path(@restaurant, @reservation), 
+              class: "inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do %>
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            返回詳情
+          <% end %>
+          <h1 class="text-2xl font-bold text-gray-900">編輯訂位</h1>
+        </div>
+        
+        <!-- 當前狀態 -->
+        <div class="flex items-center space-x-3">
+          <% case @reservation.status %>
+          <% when 'pending' %>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800">待確認</span>
+          <% when 'confirmed' %>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-green-100 text-green-800">已確認</span>
+          <% when 'seated' %>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">已就座</span>
+          <% when 'completed' %>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-gray-100 text-gray-800">已完成</span>
+          <% when 'cancelled' %>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">已取消</span>
+          <% when 'no_show' %>
+            <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-red-100 text-red-800">未出席</span>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flash 訊息 -->
+    <div id="flash">
+      <%= render 'shared/flash' %>
+    </div>
+
+    <!-- 編輯表單 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">編輯訂位資訊</h3>
+        <p class="mt-1 text-sm text-gray-600">請修改下方的訂位資訊，所有帶 * 的欄位都是必填的。</p>
+      </div>
+
+      <%= form_with model: [@restaurant, @reservation], local: true, class: "px-6 py-4" do |f| %>
+        <% if @reservation.errors.any? %>
+          <div class="rounded-md bg-red-50 p-4 mb-6">
+            <div class="flex">
+              <div class="flex-shrink-0">
+                <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+                </svg>
+              </div>
+              <div class="ml-3">
+                <h3 class="text-sm font-medium text-red-800">
+                  發現 <%= pluralize(@reservation.errors.count, "個") %> 錯誤：
+                </h3>
+                <div class="mt-2 text-sm text-red-700">
+                  <ul class="list-disc pl-5 space-y-1">
+                    <% @reservation.errors.full_messages.each do |message| %>
+                      <li><%= message %></li>
+                    <% end %>
+                  </ul>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+
+        <div class="space-y-6">
+          <div>
+            <%= f.label :customer_name, "客戶姓名", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.text_field :customer_name, class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+
+          <div>
+            <%= f.label :customer_phone, "電話號碼", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.telephone_field :customer_phone, class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+
+          <div>
+            <%= f.label :reservation_datetime, "訂位時間", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.datetime_local_field :reservation_datetime, class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+
+          <div>
+            <%= f.label :party_size, "人數", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.number_field :party_size, class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+          </div>
+
+          <div class="flex justify-end space-x-3">
+            <%= link_to "取消", admin_restaurant_reservation_path(@restaurant, @reservation), class: "inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" %>
+            <%= f.submit "儲存", class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700" %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+
+    <!-- 危險操作區域 -->
+    <div class="mt-6 bg-white shadow rounded-lg border-l-4 border-red-400">
+      <div class="px-6 py-4">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 text-red-700">危險操作</h3>
+        <div class="mt-2 sm:flex sm:items-start sm:justify-between">
+          <div class="max-w-xl text-sm text-gray-600">
+            <p>刪除此訂位將會永久移除所有相關資料，此操作無法復原。</p>
+          </div>
+          <div class="mt-4 sm:mt-0 sm:ml-6 sm:flex-shrink-0">
+            <%= link_to admin_restaurant_reservation_path(@restaurant, @reservation), 
+                method: :delete,
+                class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-red-700 bg-red-100 hover:bg-red-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500",
+                data: { 
+                  confirm: "確定要刪除這個訂位嗎？此操作無法復原！\n\n客戶：#{@reservation.customer_name}\n電話：#{@reservation.customer_phone}\n時間：#{@reservation.reservation_datetime.strftime('%Y/%m/%d %H:%M')}" 
+                } do %>
+              <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+              </svg>
+              刪除訂位
+            <% end %>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

@@ -1,0 +1,54 @@
+<tr id="restaurant_<%= restaurant.id %>" class="hover:bg-gray-50">
+  <td class="whitespace-nowrap px-6 py-4 text-sm">
+    <div class="flex items-center">
+      <div>
+        <div class="text-sm font-medium text-gray-900"><%= restaurant.name %></div>
+        <% if restaurant.description.present? %>
+          <div class="text-sm text-gray-500 truncate max-w-xs"><%= restaurant.description %></div>
+        <% end %>
+      </div>
+    </div>
+  </td>
+  <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+    <%= restaurant.phone %>
+  </td>
+  <td class="px-6 py-4 text-sm text-gray-500">
+    <div class="max-w-xs truncate">
+      <%= restaurant.address %>
+    </div>
+  </td>
+  <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+      <%= restaurant.users_count %> 人
+    </span>
+  </td>
+  <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
+    <%= button_to toggle_status_admin_restaurant_path(restaurant),
+        method: :patch, remote: true,
+        class: "inline-flex px-2 py-1 text-xs font-semibold rounded-full border-0
+                #{restaurant.active? ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'}" do %>
+      <%= restaurant.active? ? '營業中' : '已停業' %>
+    <% end %>
+  </td>
+  <td class="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
+    <%= link_to admin_restaurant_path(restaurant), 
+        data: { turbo_frame: "_top" },
+        class: "text-blue-600 hover:text-blue-900 mr-4" do %>
+      檢視
+    <% end %>
+    <%= link_to edit_admin_restaurant_path(restaurant), 
+        data: { turbo_frame: "_top" },
+        class: "text-blue-600 hover:text-blue-900 mr-4" do %>
+      編輯
+    <% end %>
+    <%= button_to admin_restaurant_path(restaurant), method: :delete,
+        data: {
+          controller: "confirmation",
+          confirmation_message_value: "確定要刪除餐廳 #{restaurant.name} 嗎？",
+          turbo_method: :delete
+        },
+        class: "text-red-600 hover:text-red-900" do %>
+      刪除
+    <% end %>
+  </td>
+</tr> 

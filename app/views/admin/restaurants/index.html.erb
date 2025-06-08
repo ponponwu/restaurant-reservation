@@ -1,0 +1,62 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <div class="sm:flex sm:items-center">
+    <div class="sm:flex-auto">
+      <h1 class="text-2xl font-semibold text-gray-900">餐廳管理</h1>
+      <p class="mt-2 text-sm text-gray-700">管理系統內所有餐廳資料</p>
+    </div>
+    <div class="mt-4 sm:mt-0 sm:ml-16 sm:flex-none">
+      <%= link_to new_admin_restaurant_path,
+          class: "inline-flex items-center justify-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 sm:w-auto" do %>
+        新增餐廳
+      <% end %>
+    </div>
+  </div>
+
+  <!-- 搜尋區域 -->
+  <%= turbo_frame_tag "search_form", class: "mt-6" do %>
+    <%= form_with url: admin_restaurants_path, method: :get, local: false,
+        data: { turbo_frame: "restaurants_table", turbo_action: "advance" },
+        class: "max-w-md" do |f| %>
+      <div class="flex rounded-md shadow-sm">
+        <%= f.search_field :search,
+            value: params[:search],
+            placeholder: "搜尋餐廳名稱...",
+            class: "flex-1 min-w-0 block w-full px-3 py-2 rounded-none rounded-l-md border-gray-300 focus:ring-blue-500 focus:border-blue-500 sm:text-sm" %>
+        <%= f.submit "搜尋",
+            class: "inline-flex items-center px-3 py-2 border border-l-0 border-gray-300 rounded-r-md bg-gray-50 text-gray-500 text-sm hover:bg-gray-100" %>
+      </div>
+    <% end %>
+  <% end %>
+
+  <!-- 表格區域 -->
+  <%= turbo_frame_tag "restaurants_table", class: "mt-8 flex flex-col" do %>
+    <div class="-my-2 -mx-4 overflow-x-auto sm:-mx-6 lg:-mx-8">
+      <div class="inline-block min-w-full py-2 align-middle md:px-6 lg:px-8">
+        <div class="overflow-hidden shadow ring-1 ring-black ring-opacity-5 md:rounded-lg">
+          <table class="min-w-full divide-y divide-gray-300">
+            <thead class="bg-gray-50">
+              <tr>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">餐廳名稱</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">電話</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">地址</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">管理員數</th>
+                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">狀態</th>
+                <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wide">操作</th>
+              </tr>
+            </thead>
+            <tbody id="restaurants_list" class="bg-white divide-y divide-gray-200">
+              <% @restaurants.each do |restaurant| %>
+                <%= render 'restaurant_row', restaurant: restaurant %>
+              <% end %>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- 分頁 -->
+    <div class="mt-4 d-flex justify-content-center">
+      <%= paginate @restaurants %>
+    </div>
+  <% end %>
+</div> 

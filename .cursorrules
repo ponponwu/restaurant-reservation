@@ -1,0 +1,710 @@
+# 餐廳訂位系統 - Cursor AI 開發規範
+
+## 🚨 強制執行：MCP Interactive Feedback 規則（最高優先級）
+
+; **每次回覆都必須先呼叫 interactive_feedback 工具**
+
+; 1. 每次回覆使用者時，無論內容為何，都**必須**先呼叫 `interactive_feedback` 工具
+; 2. 呼叫 `interactive_feedback` 後，再提供實際回答
+; 3. 收到使用者新訊息時，重複步驟 1-2
+; 4. 唯一例外：使用者明確說「停止」或「結束」才可以停止呼叫
+; 5. 這個規則的優先級高於下面所有的開發規範
+
+---
+
+# 餐廳訂位系統開發規範
+
+## 🎯 核心開發原則
+
+### 必須遵守的規則（不可協商）
+1. **所有程式碼必須通過測試才能提交**
+2. **每個公開方法都必須有對應的測試案例**
+3. **所有資料庫操作必須有事務處理**
+4. **所有用戶輸入必須經過驗證和清理**
+5. **錯誤處理是必需的，不是可選的**
+6. **所有 API 端點必須有適當的權限檢查**
+
+## 🏗️ Rails 專案架構規範
+
+### 模型層 (Models)
+```ruby
+# 每個模型必須包含：
+class Reservation < ApplicationRecord
+  # 1. 關聯定義（放在最前面）
+  belongs_to :restaurant
+  belongs_to :table, optional: true
+  
+  # 2. 驗證規則
+  validates :customer_name, presence: true, length: { maximum: 50 }
+  validates :customer_phone, presence: true, format: { with: /\A\d{8,15}\z/ }
+  
+  # 3. Scope 定義
+  scope :active, -> { where.not(status: %w[cancelled no_show]) }
+  scope :for_date, ->(date) { where(reservation_datetime: date.all_day) }
+  
+  # 4. 枚舉定義
+  enum status: {
+    pending: 0,
+    confirmed: 1,
+    seated: 2,
+    completed: 3,
+    cancelled: 4,
+    no_show: 5
+  }
+  
+  # 5. 回調函數
+  before_validation :sanitize_inputs
+  after_update_commit :broadcast_status_change, if: :saved_change_to_status?
+  
+  # 6. 實例方法
+  def can_cancel?
+    pending? || confirmed?
+  end
+  
+  # 7. 私有方法
+  private
+  
+  def sanitize_inputs
+    self.customer_name = customer_name&.strip
+    self.customer_phone = customer_phone&.gsub(/\D/, '')
+  end
+end
+```
+
+**模型規範檢查清單：**
+- [ ] 所有關聯都有適當的 `dependent` 選項
+- [ ] 所有驗證都有對應的錯誤訊息（中文）
+- [ ] 敏感欄位使用 `attr_encrypted` 或類似保護
+- [ ] 包含必要的資料庫索引
+- [ ] 有對應的 RSpec 測試，覆蓋率 > 90%
+
+### 控制器層 (Controllers)
+```ruby
+# 控制器標準結構
+class Admin::ReservationsController < AdminController
+  # 1. 權限檢查（必須放在最前面）
+  before_action :authenticate_user!
+  load_and_authorize_resource
+  
+  # 2. 實例變數設定
+  before_action :set_reservation, only: [:show, :edit, :update, :destroy]
+  before_action :set_current_restaurant
+  
+  # 3. 動作方法
+  def index
+    @q = current_restaurant.reservations.ransack(params[:q])
+    @pagy, @reservations = pagy(@q.result.includes(:table, :business_period))
+    
+    respond_to do |format|
+      format.html
+      format.turbo_stream
+    end
+  end
+  
+  def create
+    @reservation = ReservationService.new(current_restaurant)
+                                   .create_reservation(reservation_params)
+    
+    if @reservation.persisted?
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.prepend('reservations', 
+                               partial: 'reservation', 
+                               locals: { reservation: @reservation }),
+            turbo_stream.update('flash', 
+                               partial: 'shared/flash', 
+                               locals: { message: '訂位建立成功' })
+          ]
+        end
+        format.html { redirect_to admin_reservations_path, notice: '訂位建立成功' }
+      end
+    else
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.update('reservation_form',
+                                                  partial: 'form',
+                                                  locals: { reservation: @reservation })
+        end
+        format.html { render :new, status: :unprocessable_entity }
+      end
+    end
+  end
+  
+  private
+  
+  def reservation_params
+    params.require(:reservation).permit(
+      :customer_name, :customer_phone, :customer_email,
+      :party_size, :reservation_datetime, :special_requests
+    )
+  end
+  
+  def set_reservation
+    @reservation = current_restaurant.reservations.find(params[:id])
+  end
+end
+```
+
+**控制器規範檢查清單：**
+- [ ] 所有動作都有適當的權限檢查
+- [ ] 使用 Strong Parameters 過濾參數
+- [ ] 錯誤處理包含適當的 HTTP 狀態碼
+- [ ] 支援 Turbo Stream 和 HTML 格式回應
+- [ ] 所有重要動作都記錄到 log
+- [ ] 有對應的 RSpec 請求測試
+
+### 服務層 (Services)
+```ruby
+# 服務類別標準結構
+class ReservationService
+  # 1. 初始化和依賴注入
+  def initialize(restaurant)
+    @restaurant = restaurant
+    @notification_service = NotificationService.new
+  end
+  
+  # 2. 公開介面方法
+  def create_reservation(params)
+    ActiveRecord::Base.transaction do
+      reservation = build_reservation(params)
+      
+      if reservation.save
+        allocate_table(reservation)
+        send_confirmation(reservation)
+        reservation
+      else
+        raise ActiveRecord::Rollback
+      end
+    end
+  rescue => e
+    Rails.logger.error("Failed to create reservation: #{e.message}")
+    handle_service_error(e)
+  end
+  
+  def cancel_reservation(reservation, reason = nil)
+    return ServiceResult.failure('無法取消此訂位') unless reservation.can_cancel?
+    
+    ActiveRecord::Base.transaction do
+      reservation.update!(status: :cancelled, notes: reason)
+      release_table(reservation)
+      process_waiting_list
+      send_cancellation_notice(reservation)
+    end
+    
+    ServiceResult.success(reservation)
+  rescue => e
+    Rails.logger.error("Failed to cancel reservation: #{e.message}")
+    ServiceResult.failure(e.message)
+  end
+  
+  private
+  
+  # 3. 私有輔助方法
+  def build_reservation(params)
+    @restaurant.reservations.build(params).tap do |reservation|
+      reservation.status = :pending
+    end
+  end
+  
+  def allocate_table(reservation)
+    TableAllocationService.new(@restaurant).call(reservation)
+  end
+end
+
+# 服務結果包裝類別
+class ServiceResult
+  attr_reader :data, :errors, :success
+  
+  def self.success(data = nil)
+    new(success: true, data: data)
+  end
+  
+  def self.failure(errors)
+    new(success: false, errors: Array(errors))
+  end
+  
+  def initialize(success:, data: nil, errors: [])
+    @success = success
+    @data = data
+    @errors = errors
+  end
+  
+  def success?
+    @success
+  end
+  
+  def failure?
+    !@success
+  end
+end
+```
+
+**服務層規範檢查清單：**
+- [ ] 所有業務邏輯都包在事務中
+- [ ] 錯誤處理和日誌記錄完整
+- [ ] 回傳標準化的結果物件
+- [ ] 單一職責原則，每個服務只處理一個業務領域
+- [ ] 有完整的單元測試覆蓋
+
+## 🎨 Hotwire 前端規範
+
+### Turbo Frame 使用規範
+```erb
+<!-- 正確的 Turbo Frame 結構 -->
+<%= turbo_frame_tag "reservation_#{reservation.id}", 
+                    class: "reservation-frame",
+                    data: { reservation_id: reservation.id } do %>
+  <div class="reservation-card">
+    <%= render 'reservation_content', reservation: reservation %>
+  </div>
+<% end %>
+
+<!-- 表單必須指定正確的 target -->
+<%= form_with model: [@restaurant, @reservation],
+              local: false,
+              data: { turbo_frame: "reservation_form" } do |f| %>
+  <!-- 表單內容 -->
+<% end %>
+```
+
+### Stimulus 控制器規範
+```javascript
+// app/javascript/controllers/reservation_controller.js
+import { Controller } from "@hotwired/stimulus"
+
+export default class extends Controller {
+  // 1. 靜態屬性定義
+  static targets = ["form", "status", "tableSelect"]
+  static values = { 
+    reservationId: Number,
+    checkAvailabilityUrl: String 
+  }
+  static classes = ["loading", "error", "success"]
+  
+  // 2. 生命週期方法
+  connect() {
+    this.initializeForm()
+    this.bindEvents()
+  }
+  
+  disconnect() {
+    this.cleanup()
+  }
+  
+  // 3. 動作方法（對應 data-action）
+  async submitForm(event) {
+    event.preventDefault()
+    
+    try {
+      this.showLoading()
+      const response = await this.sendRequest()
+      this.handleSuccess(response)
+    } catch (error) {
+      this.handleError(error)
+    } finally {
+      this.hideLoading()
+    }
+  }
+  
+  // 4. 私有輔助方法
+  showLoading() {
+    this.element.classList.add(this.loadingClass)
+  }
+  
+  hideLoading() {
+    this.element.classList.remove(this.loadingClass)
+  }
+  
+  async sendRequest() {
+    const formData = new FormData(this.formTarget)
+    
+    return fetch(this.checkAvailabilityUrlValue, {
+      method: 'POST',
+      body: formData,
+      headers: {
+        'X-CSRF-Token': this.getCSRFToken()
+      }
+    })
+  }
+  
+  getCSRFToken() {
+    return document.querySelector('[name="csrf-token"]').content
+  }
+}
+```
+
+**Hotwire 規範檢查清單：**
+- [ ] 所有 Turbo Frame 都有唯一的 ID
+- [ ] Stimulus 控制器遵循命名慣例
+- [ ] 錯誤處理和載入狀態管理完整
+- [ ] 所有 AJAX 請求都包含 CSRF token
+- [ ] 響應式設計，支援行動裝置
+
+## 🧪 測試規範
+
+### RSpec 測試結構
+```ruby
+# spec/models/reservation_spec.rb
+RSpec.describe Reservation, type: :model do
+  # 1. 測試設定
+  let(:restaurant) { create(:restaurant) }
+  let(:reservation) { build(:reservation, restaurant: restaurant) }
+  
+  # 2. 驗證測試
+  describe 'validations' do
+    it { should validate_presence_of(:customer_name) }
+    it { should validate_presence_of(:customer_phone) }
+    it { should validate_numericality_of(:party_size).is_greater_than(0) }
+    
+    it 'validates phone format' do
+      reservation.customer_phone = '123'
+      expect(reservation).not_to be_valid
+      
+      reservation.customer_phone = '0912345678'
+      expect(reservation).to be_valid
+    end
+  end
+  
+  # 3. 關聯測試
+  describe 'associations' do
+    it { should belong_to(:restaurant) }
+    it { should belong_to(:table).optional }
+    it { should have_many(:table_combinations) }
+  end
+  
+  # 4. Scope 測試
+  describe 'scopes' do
+    let!(:active_reservation) { create(:reservation, status: :confirmed) }
+    let!(:cancelled_reservation) { create(:reservation, status: :cancelled) }
+    
+    it 'returns only active reservations' do
+      expect(Reservation.active).to include(active_reservation)
+      expect(Reservation.active).not_to include(cancelled_reservation)
+    end
+  end
+  
+  # 5. 實例方法測試
+  describe '#can_cancel?' do
+    it 'returns true for pending reservations' do
+      reservation.status = :pending
+      expect(reservation.can_cancel?).to be true
+    end
+    
+    it 'returns false for completed reservations' do
+      reservation.status = :completed
+      expect(reservation.can_cancel?).to be false
+    end
+  end
+end
+
+# spec/services/reservation_service_spec.rb
+RSpec.describe ReservationService do
+  let(:restaurant) { create(:restaurant) }
+  let(:service) { described_class.new(restaurant) }
+  let(:valid_params) { attributes_for(:reservation) }
+  
+  describe '#create_reservation' do
+    context 'with valid parameters' do
+      it 'creates a new reservation' do
+        expect {
+          service.create_reservation(valid_params)
+        }.to change(Reservation, :count).by(1)
+      end
+      
+      it 'sends confirmation notification' do
+        expect_any_instance_of(NotificationService)
+          .to receive(:send_confirmation)
+        
+        service.create_reservation(valid_params)
+      end
+    end
+    
+    context 'with invalid parameters' do
+      let(:invalid_params) { valid_params.merge(customer_name: '') }
+      
+      it 'does not create reservation' do
+        expect {
+          service.create_reservation(invalid_params)
+        }.not_to change(Reservation, :count)
+      end
+    end
+  end
+end
+```
+
+### 系統測試範例
+```ruby
+# spec/system/admin/reservations_spec.rb
+RSpec.describe 'Admin Reservations', type: :system do
+  let(:admin) { create(:user, :admin) }
+  let(:restaurant) { create(:restaurant) }
+  
+  before do
+    sign_in admin
+    visit admin_reservations_path
+  end
+  
+  describe 'creating a reservation' do
+    it 'creates new reservation with valid data', js: true do
+      click_button '新增訂位'
+      
+      within '#reservation_form' do
+        fill_in '客戶姓名', with: '張小明'
+        fill_in '電話號碼', with: '0912345678'
+        fill_in '人數', with: '4'
+        fill_in '訂位時間', with: 1.day.from_now.strftime('%Y-%m-%d %H:%M')
+        
+        click_button '建立訂位'
+      end
+      
+      expect(page).to have_content('訂位建立成功')
+      expect(page).to have_content('張小明')
+    end
+  end
+  
+  describe 'searching reservations' do
+    let!(:reservation) { create(:reservation, customer_name: '王小華', restaurant: restaurant) }
+    
+    it 'filters reservations by customer name' do
+      fill_in 'q_customer_name_cont', with: '王小華'
+      click_button '搜尋'
+      
+      expect(page).to have_content('王小華')
+    end
+  end
+end
+```
+
+**測試規範檢查清單：**
+- [ ] 模型測試覆蓋率 > 95%
+- [ ] 控制器測試覆蓋率 > 90%
+- [ ] 服務層測試覆蓋率 > 95%
+- [ ] 重要功能有對應的系統測試
+- [ ] 所有邊界條件都有測試覆蓋
+- [ ] 使用 FactoryBot 建立測試資料
+- [ ] 測試名稱清楚描述測試情境
+
+## 🔒 安全性規範
+
+### 輸入驗證與清理
+```ruby
+# 所有使用者輸入都必須經過清理
+module Sanitizable
+  extend ActiveSupport::Concern
+  
+  def sanitize_string(input)
+    return nil if input.blank?
+    ActionController::Base.helpers.sanitize(input.strip)
+  end
+  
+  def sanitize_phone(phone)
+    return nil if phone.blank?
+    phone.gsub(/\D/, '').presence
+  end
+  
+  def sanitize_email(email)
+    return nil if email.blank?
+    email.strip.downcase.presence
+  end
+end
+```
+
+### 權限檢查
+```ruby
+# 所有控制器動作都必須有權限檢查
+class AdminController < ApplicationController
+  before_action :authenticate_user!
+  before_action :ensure_admin_access
+  
+  private
+  
+  def ensure_admin_access
+    redirect_to root_path unless current_user.admin? || current_user.manager?
+  end
+end
+```
+
+**安全性檢查清單：**
+- [ ] 所有使用者輸入都經過 sanitize
+- [ ] SQL 注入防護（使用 ActiveRecord）
+- [ ] XSS 防護（所有輸出都經過 escape）
+- [ ] CSRF 保護已啟用
+- [ ] 敏感資料已加密
+- [ ] API 端點有適當的速率限制
+
+## 📊 效能規範
+
+### 資料庫查詢優化
+```ruby
+# 避免 N+1 查詢
+# ❌ 錯誤寫法
+def index
+  @reservations = current_restaurant.reservations
+  # 在視圖中呼叫 reservation.table.table_number 會產生 N+1
+end
+
+# ✅ 正確寫法
+def index
+  @reservations = current_restaurant.reservations
+                                   .includes(:table, :business_period, :customer)
+end
+
+# 複雜查詢使用 scope
+class Reservation < ApplicationRecord
+  scope :with_associations, -> { 
+    includes(:table, :business_period)
+      .joins(:table)
+      .select('reservations.*, tables.table_number, tables.capacity') 
+  }
+end
+```
+
+### 快取策略
+```ruby
+# 視圖片段快取
+<% cache [@restaurant, 'dashboard_stats'], expires_in: 5.minutes do %>
+  <%= render 'dashboard_stats' %>
+<% end %>
+
+# 模型快取
+def expensive_calculation
+  Rails.cache.fetch("reservation_stats:#{id}", expires_in: 1.hour) do
+    # 複雜運算邏輯
+  end
+end
+```
+
+**效能檢查清單：**
+- [ ] 沒有 N+1 查詢問題
+- [ ] 適當使用資料庫索引
+- [ ] 慢查詢已優化（< 100ms）
+- [ ] 適當的快取策略
+- [ ] 圖片已優化和壓縮
+- [ ] CSS/JS 已最小化
+
+## 📝 程式碼品質規範
+
+### 命名慣例
+```ruby
+# 變數命名要有意義
+# ❌ 不好的命名
+def calc(r, p)
+  r * p * 0.1
+end
+
+# ✅ 好的命名
+def calculate_service_charge(reservation_count, price_per_person)
+  reservation_count * price_per_person * SERVICE_CHARGE_RATE
+end
+
+# 布林值使用適當前綴
+def can_cancel_reservation?
+  # logic
+end
+
+def has_available_tables?
+  # logic
+end
+
+def is_during_business_hours?
+  # logic
+end
+```
+
+### 註解規範
+```ruby
+# 複雜業務邏輯需要註解說明
+class TableAllocationService
+  # 根據餐廳設定的桌位群組優先級和桌位排序，
+  # 自動分配最適合的桌位給訂位
+  # 
+  # @param reservation [Reservation] 待分配的訂位
+  # @return [Table, nil] 分配到的桌位，若無可用桌位則回傳 nil
+  def allocate_optimal_table(reservation)
+    suitable_tables = find_suitable_tables(reservation)
+    return nil if suitable_tables.empty?
+    
+    # 優先選擇容量最接近人數的桌位，避免資源浪費
+    select_best_match(suitable_tables, reservation.party_size)
+  end
+end
+```
+
+## 🚀 部署與維護規範
+
+### Git 工作流程
+```bash
+# 分支命名規範
+feature/reservation-auto-assignment
+bugfix/table-allocation-conflict
+hotfix/security-vulnerability
+refactor/service-layer-optimization
+
+# 提交訊息格式
+feat: 實作自動桌位分配功能
+fix: 修復併桌功能的衝突檢查
+docs: 更新 API 文件
+style: 統一程式碼格式
+refactor: 重構訂位服務層
+test: 增加桌位分配服務測試
+chore: 更新依賴套件版本
+```
+
+### CI/CD 檢查項目
+```yaml
+# .github/workflows/ci.yml 必須包含的檢查
+- 運行所有測試套件
+- 檢查程式碼覆蓋率 (> 85%)
+- 執行 RuboCop 程式碼品質檢查
+- 檢查安全性漏洞 (Brakeman)
+- 執行資料庫遷移測試
+- 檢查 Bundle audit
+```
+
+## 📋 Code Review 檢查清單
+
+提交 PR 前必須確認：
+
+### 功能完整性
+- [ ] 功能按照需求規格實作完成
+- [ ] 所有邊界情況都已處理
+- [ ] 錯誤處理機制完整
+- [ ] 使用者體驗流暢
+
+### 程式碼品質
+- [ ] 遵循 Rails 最佳實踐
+- [ ] 程式碼可讀性良好
+- [ ] 沒有重複程式碼 (DRY 原則)
+- [ ] 適當的抽象化層級
+
+### 測試覆蓋
+- [ ] 所有新功能都有對應測試
+- [ ] 測試涵蓋正常和異常情況
+- [ ] 測試執行時間合理 (< 5分鐘)
+- [ ] 測試穩定不會隨機失敗
+
+### 安全性
+- [ ] 沒有安全性漏洞
+- [ ] 使用者輸入都經過驗證
+- [ ] 權限檢查正確實作
+- [ ] 敏感資料已適當保護
+
+### 效能
+- [ ] 沒有明顯的效能問題
+- [ ] 資料庫查詢已優化
+- [ ] 適當使用快取機制
+- [ ] 資源使用合理
+
+---
+
+## 💡 開發最佳實踐提醒
+
+1. **先寫測試，再寫程式碼** (TDD)
+2. **小步提交，頻繁整合**
+3. **程式碼審查是學習機會，不是批評**
+4. **文件和程式碼同樣重要**
+5. **效能優化基於實際測量，不是猜測**
+6. **安全性是設計階段就要考慮的，不是事後補強**
+7. **使用者體驗比技術炫技更重要**
+

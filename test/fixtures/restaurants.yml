@@ -1,0 +1,7 @@
+one:
+  name: "Test Restaurant"
+  slug: test-restaurant
+  description: "A test restaurant"
+  address: "123 Test St, Taipei"
+  phone: "02-12345678"
+  time_zone: "Asia/Taipei"

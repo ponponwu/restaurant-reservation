@@ -1,0 +1,230 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="lg:flex lg:items-center lg:justify-between mb-8">
+    <div class="min-w-0 flex-1">
+      <h2 class="text-2xl font-bold leading-7 text-gray-900 sm:truncate sm:text-3xl sm:tracking-tight">
+        <%= @restaurant.name %> - 訂位管理
+      </h2>
+      <div class="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
+        <div class="mt-2 flex items-center text-sm text-gray-500">
+          總共 <%= @reservations.count %> 筆訂位記錄
+        </div>
+      </div>
+    </div>
+    <div class="mt-5 flex lg:mt-0 lg:ml-4 space-x-3">
+      <%= link_to calendar_admin_restaurant_reservations_path(@restaurant),
+          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        行事曆檢視
+      <% end %>
+      <%= link_to admin_restaurant_path(@restaurant),
+          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        回到餐廳
+      <% end %>
+    </div>
+  </div>
+
+  <!-- Flash 訊息 -->
+  <div id="flash">
+    <%= render 'shared/flash' %>
+  </div>
+
+  <!-- Flash 訊息 -->
+  <div id="flash">
+    <%= render 'shared/flash' %>
+  </div>
+
+  <!-- 主要內容區域 - 使用側邊欄佈局 -->
+  <div class="flex flex-col lg:flex-row gap-6 lg:gap-8" style="min-height: 500px;">
+    <!-- 側邊欄 - 30% 寬度 -->
+    <div class="w-full lg:w-80 xl:w-96 lg:flex-shrink-0 space-y-6">
+      <!-- 日曆選擇器 -->
+      <div class="bg-white shadow sm:rounded-lg" 
+           data-controller="calendar" 
+           data-calendar-current-url-value="<%= admin_restaurant_reservations_path(@restaurant) %>"
+           data-turbo-permanent>
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">選擇日期</h3>
+          <div class="calendar-container">
+            <!-- 日曆標題 -->
+            <div class="flex items-center justify-between mb-4">
+              <button type="button" class="p-2 hover:bg-gray-100 rounded-full" data-action="click->calendar#previousMonth">
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+                </svg>
+              </button>
+              <h4 class="text-lg font-semibold text-gray-900" data-calendar-target="monthYear"></h4>
+              <button type="button" class="p-2 hover:bg-gray-100 rounded-full" data-action="click->calendar#nextMonth">
+                <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+                </svg>
+              </button>
+            </div>
+            
+            <!-- 星期標題 -->
+            <div class="grid grid-cols-7 gap-1 mb-2">
+              <div class="text-center text-xs font-medium text-gray-500 py-2">日</div>
+              <div class="text-center text-xs font-medium text-gray-500 py-2">一</div>
+              <div class="text-center text-xs font-medium text-gray-500 py-2">二</div>
+              <div class="text-center text-xs font-medium text-gray-500 py-2">三</div>
+              <div class="text-center text-xs font-medium text-gray-500 py-2">四</div>
+              <div class="text-center text-xs font-medium text-gray-500 py-2">五</div>
+              <div class="text-center text-xs font-medium text-gray-500 py-2">六</div>
+            </div>
+            
+            <!-- 日期網格 -->
+            <div class="grid grid-cols-7 gap-1" data-calendar-target="daysGrid">
+              <!-- 動態生成的日期 -->
+            </div>
+            
+            <!-- 選中的日期顯示 -->
+            <div class="mt-4 pt-4 border-t border-gray-200">
+              <div class="text-sm text-gray-600">
+                選中日期：<span class="font-medium text-gray-900" data-calendar-target="selectedDate">今天</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <!-- 搜尋和篩選區域 -->
+      <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">搜尋篩選</h3>
+          <%= search_form_for @q, url: admin_restaurant_reservations_path(@restaurant), 
+                              local: true, class: "space-y-4" do |f| %>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">客戶姓名</label>
+              <%= f.text_field :customer_name_cont, 
+                              placeholder: "搜尋客戶姓名", 
+                              class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">電話號碼</label>
+              <%= f.text_field :customer_phone_cont, 
+                              placeholder: "搜尋電話號碼", 
+                              class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">訂位狀態</label>
+              <%= f.select :status_eq, 
+                          options_for_select([
+                            ['全部狀態', ''],
+                            ['待確認', 'pending'],
+                            ['已確認', 'confirmed'],
+                            ['已就座', 'seated'],
+                            ['已完成', 'completed'],
+                            ['已取消', 'cancelled'],
+                            ['未出席', 'no_show']
+                          ], params.dig(:q, :status_eq)), 
+                          { prompt: "選擇狀態" }, 
+                          { class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" } %>
+            </div>
+            <div>
+              <label class="block text-sm font-medium text-gray-700 mb-1">開始日期</label>
+              <%= f.date_field :reservation_datetime_gteq, 
+                              class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+            </div>
+            <div class="flex space-x-2">
+              <%= f.submit "搜尋", class: "flex-1 inline-flex justify-center items-center rounded-md border border-transparent bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
+              <%= link_to "清除", admin_restaurant_reservations_path(@restaurant), 
+                          class: "flex-1 inline-flex justify-center items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" %>
+            </div>
+          <% end %>
+        </div>
+      </div>
+
+      <!-- 訂位統計 -->
+      <div class="bg-white shadow sm:rounded-lg">
+        <div class="px-4 py-5 sm:p-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">統計總覽</h3>
+          <div class="space-y-4">
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-blue-500 rounded-md flex items-center justify-center mr-3">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700">總訂位</span>
+              </div>
+              <span class="text-lg font-semibold text-gray-900"><%= @reservations.count %></span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-yellow-500 rounded-md flex items-center justify-center mr-3">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l2.828 2.829a1 1 0 101.415-1.415L11 9.586V6z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700">待確認</span>
+              </div>
+              <span class="text-lg font-semibold text-yellow-600"><%= @reservations.where(status: :pending).count %></span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-green-500 rounded-md flex items-center justify-center mr-3">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700">已確認</span>
+              </div>
+              <span class="text-lg font-semibold text-green-600"><%= @reservations.where(status: :confirmed).count %></span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-blue-600 rounded-md flex items-center justify-center mr-3">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 9a3 3 0 100-6 3 3 0 000 6zm-7 9a7 7 0 1114 0H3z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700">已就座</span>
+              </div>
+              <span class="text-lg font-semibold text-blue-600"><%= @reservations.where(status: :seated).count %></span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-gray-500 rounded-md flex items-center justify-center mr-3">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700">已完成</span>
+              </div>
+              <span class="text-lg font-semibold text-gray-600"><%= @reservations.where(status: :completed).count %></span>
+            </div>
+            
+            <div class="flex items-center justify-between">
+              <div class="flex items-center">
+                <div class="w-8 h-8 bg-red-500 rounded-md flex items-center justify-center mr-3">
+                  <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clip-rule="evenodd"></path>
+                  </svg>
+                </div>
+                <span class="text-sm font-medium text-gray-700">取消/未到</span>
+              </div>
+              <span class="text-lg font-semibold text-red-600"><%= @reservations.where(status: [:cancelled, :no_show]).count %></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 主要內容區域 - 70% 寬度 -->
+    <div class="w-full lg:flex-1 lg:min-w-0">
+      <!-- 訂位列表 -->
+      <div class="bg-white shadow overflow-hidden sm:rounded-lg reservation-list" id="reservations-container">
+        <%= render 'reservations_table', reservations: @reservations %>
+    </div>
+  </div>
+</div> 

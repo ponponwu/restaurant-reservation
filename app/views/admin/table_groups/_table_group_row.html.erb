@@ -1,0 +1,52 @@
+<!-- 桌位群組標題行 -->
+<tr id="group_<%= table_group.id %>" class="bg-gray-50 group-header hover:bg-gray-100" 
+    data-group-sortable-id="<%= table_group.id %>"
+    data-sort-order="<%= table_group.sort_order %>">
+  <td class="px-6 py-4 whitespace-nowrap">
+    <div class="flex items-center">
+      <!-- 群組拖曳手柄 -->
+      <div class="group-drag-handle mr-2 cursor-grab active:cursor-grabbing text-gray-400 hover:text-gray-600">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8h16M4 16h16"></path>
+        </svg>
+      </div>
+      <svg class="toggle-icon w-4 h-4 mr-2 text-gray-500 transition-transform duration-200 cursor-pointer" 
+           style="transform: rotate(90deg);" 
+           fill="none" stroke="currentColor" viewBox="0 0 24 24"
+           onclick="toggleTableGroup(<%= table_group.id %>)">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+      </svg>
+      <span class="text-sm font-medium text-gray-900"><%= table_group.name %></span>
+      <span class="ml-2 text-xs text-gray-500">(<%= table_group.restaurant_tables.active.count %> 桌位)</span>
+    </div>
+  </td>
+  <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-500" colspan="6">
+    <%= table_group.description if table_group.description.present? %>
+  </td>
+  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <div class="flex items-center space-x-2">
+      <%= link_to new_admin_restaurant_table_group_table_path(@restaurant, table_group),
+          data: { turbo_frame: "modal" },
+          class: "text-blue-600 hover:text-blue-900",
+          title: "新增桌位" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+      <% end %>
+      
+      <%= link_to edit_admin_restaurant_table_group_path(@restaurant, table_group),
+          data: { turbo_frame: "modal" },
+          class: "text-gray-600 hover:text-gray-900",
+          title: "編輯群組" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+      <% end %>
+    </div>
+  </td>
+</tr>
+
+<!-- 桌位列表 -->
+<% table_group.restaurant_tables.active.ordered.each do |table| %>
+  <%= render 'admin/table_groups/table_row', table: table, table_group: table_group, global_priorities: (defined?(@global_priorities) ? @global_priorities : {}) %>
+<% end %> 

@@ -1,0 +1,294 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">預約規則管理</h1>
+        <p class="mt-2 text-sm text-gray-600">設定預約限制、押金政策和特殊規則</p>
+      </div>
+      <div>
+        <%= link_to admin_restaurant_settings_restaurant_index_path(@restaurant),
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          返回設定首頁
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選項卡導覽 -->
+  <%= render 'shared/settings_tabs', current_tab: 'reservation_policies', restaurant: @restaurant %>
+
+  <%= form_with model: [@restaurant, @reservation_policy], url: admin_restaurant_settings_restaurant_reservation_policies_path(@restaurant), local: false, class: "space-y-8" do |f| %>
+    
+    <!-- 基本預約限制 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-6">基本預約限制</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <%= f.label :advance_booking_days, "提前預約天數", class: "block text-sm font-medium text-gray-700" %>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <%= f.number_field :advance_booking_days, 
+                  class: "block w-full pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                  min: 1, max: 365 %>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span class="text-gray-500 sm:text-sm">天</span>
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-gray-500">客戶最多可以提前多少天預約</p>
+          </div>
+          
+          <div>
+            <%= f.label :minimum_advance_hours, "最少提前時間", class: "block text-sm font-medium text-gray-700" %>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <%= f.number_field :minimum_advance_hours, 
+                  class: "block w-full pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                  min: 1, max: 72 %>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span class="text-gray-500 sm:text-sm">小時</span>
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-gray-500">客戶至少需要提前多少小時預約</p>
+          </div>
+          
+          <div>
+            <%= f.label :min_party_size, "最少用餐人數", class: "block text-sm font-medium text-gray-700" %>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <%= f.number_field :min_party_size, 
+                  class: "block w-full pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                  min: 1, max: 20 %>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span class="text-gray-500 sm:text-sm">人</span>
+              </div>
+            </div>
+          </div>
+          
+          <div>
+            <%= f.label :max_party_size, "最多用餐人數", class: "block text-sm font-medium text-gray-700" %>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <%= f.number_field :max_party_size, 
+                  class: "block w-full pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                  min: 1, max: 50 %>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span class="text-gray-500 sm:text-sm">人</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 押金設定 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900">押金設定</h3>
+          <label class="flex items-center">
+            <%= f.check_box :deposit_required, 
+                class: "rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50",
+                onchange: "toggleDepositFields(this.checked)" %>
+            <span class="ml-2 text-sm text-gray-700">啟用押金</span>
+          </label>
+        </div>
+        
+        <div id="depositFields" class="<%= 'hidden' unless @reservation_policy.deposit_required? %>">
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <%= f.label :deposit_type, "押金類型", class: "block text-sm font-medium text-gray-700" %>
+              <%= f.select :deposit_type, 
+                  options_for_select([
+                    ['固定金額', 'fixed'],
+                    ['按人數計算', 'per_person'],
+                    ['按百分比計算', 'percentage']
+                  ], @reservation_policy.deposit_type), 
+                  { prompt: '請選擇押金類型' },
+                  { class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500",
+                    onchange: "updateDepositFields(this.value)" } %>
+            </div>
+            
+            <div>
+              <%= f.label :deposit_amount, "押金金額", class: "block text-sm font-medium text-gray-700" %>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm">$</span>
+                </div>
+                <%= f.number_field :deposit_amount, 
+                    class: "block w-full pl-7 pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                    min: 0, step: 0.01 %>
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span id="depositUnit" class="text-gray-500 sm:text-sm">
+                    <%= @reservation_policy.deposit_type == 'percentage' ? '%' : 'TWD' %>
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            <div>
+              <%= f.label :deposit_deadline_hours, "押金繳費期限", class: "block text-sm font-medium text-gray-700" %>
+              <div class="mt-1 relative rounded-md shadow-sm">
+                <%= f.number_field :deposit_deadline_hours, 
+                    class: "block w-full pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                    min: 1, max: 168 %>
+                <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                  <span class="text-gray-500 sm:text-sm">小時</span>
+                </div>
+              </div>
+              <p class="mt-1 text-sm text-gray-500">預約後多少小時內需要繳交押金</p>
+            </div>
+            
+            <div>
+              <%= f.label :refund_policy, "退款政策", class: "block text-sm font-medium text-gray-700" %>
+              <%= f.select :refund_policy, 
+                  options_for_select([
+                    ['不可退款', 'non_refundable'],
+                    ['24小時前可退款', '24_hours'],
+                    ['48小時前可退款', '48_hours'],
+                    ['72小時前可退款', '72_hours'],
+                    ['一週前可退款', '1_week']
+                  ], @reservation_policy.refund_policy), 
+                  { prompt: '請選擇退款政策' },
+                  { class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" } %>
+            </div>
+          </div>
+          
+          <div class="mt-6">
+            <%= f.label :deposit_notes, "押金說明", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.text_area :deposit_notes, 
+                placeholder: "例如：押金將於用餐後退還，如未到場將不予退還",
+                rows: 3,
+                class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 特殊規則 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-6">特殊規則</h3>
+        
+        <div class="space-y-6">
+          <div>
+            <%= f.label :special_rules, "特殊預約規則", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.text_area :special_rules, 
+                placeholder: "例如：大型聚餐需要提前3天預約、兒童需要兒童座椅等",
+                rows: 4,
+                class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+          </div>
+          
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div>
+              <label class="flex items-center">
+                <%= f.check_box :allow_same_day_booking, 
+                    class: "rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" %>
+                <span class="ml-2 text-sm text-gray-700">允許當日預約</span>
+              </label>
+            </div>
+            
+            <div>
+              <label class="flex items-center">
+                <%= f.check_box :require_phone_verification, 
+                    class: "rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" %>
+                <span class="ml-2 text-sm text-gray-700">需要電話驗證</span>
+              </label>
+            </div>
+            
+            <div>
+              <label class="flex items-center">
+                <%= f.check_box :auto_confirm_reservations, 
+                    class: "rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" %>
+                <span class="ml-2 text-sm text-gray-700">自動確認預約</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 取消政策 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-4 py-5 sm:p-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900 mb-6">取消政策</h3>
+        
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <%= f.label :cancellation_deadline_hours, "取消期限", class: "block text-sm font-medium text-gray-700" %>
+            <div class="mt-1 relative rounded-md shadow-sm">
+              <%= f.number_field :cancellation_deadline_hours, 
+                  class: "block w-full pr-12 border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500",
+                  min: 1, max: 168 %>
+              <div class="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
+                <span class="text-gray-500 sm:text-sm">小時</span>
+              </div>
+            </div>
+            <p class="mt-1 text-sm text-gray-500">用餐前多少小時內不可取消</p>
+          </div>
+          
+          <div>
+            <%= f.label :no_show_policy, "未到場政策", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.select :no_show_policy, 
+                options_for_select([
+                  ['無特殊處理', 'none'],
+                  ['記錄黑名單', 'blacklist'],
+                  ['收取費用', 'charge_fee'],
+                  ['扣除押金', 'forfeit_deposit']
+                ], @reservation_policy.no_show_policy), 
+                { prompt: '請選擇未到場政策' },
+                { class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" } %>
+          </div>
+        </div>
+        
+        <div class="mt-6">
+          <%= f.label :cancellation_policy, "取消政策說明", class: "block text-sm font-medium text-gray-700" %>
+          <%= f.text_area :cancellation_policy, 
+              placeholder: "例如：用餐前24小時可免費取消，24小時內取消將收取50%費用",
+              rows: 3,
+              class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+        </div>
+      </div>
+    </div>
+
+    <!-- 儲存按鈕 -->
+    <div class="flex justify-end space-x-3">
+      <%= link_to admin_restaurant_settings_restaurant_index_path(@restaurant),
+          class: "px-6 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50" do %>
+        取消
+      <% end %>
+      
+      <%= f.submit "儲存設定", 
+          class: "px-6 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700" %>
+    </div>
+  <% end %>
+</div>
+
+<script>
+function toggleDepositFields(enabled) {
+  const depositFields = document.getElementById('depositFields');
+  if (enabled) {
+    depositFields.classList.remove('hidden');
+  } else {
+    depositFields.classList.add('hidden');
+  }
+}
+
+function updateDepositFields(depositType) {
+  const depositUnit = document.getElementById('depositUnit');
+  if (depositType === 'percentage') {
+    depositUnit.textContent = '%';
+  } else {
+    depositUnit.textContent = 'TWD';
+  }
+}
+
+// 初始化頁面時檢查押金設定
+document.addEventListener('DOMContentLoaded', function() {
+  const depositCheckbox = document.querySelector('input[name="reservation_policy[deposit_required]"]');
+  if (depositCheckbox && !depositCheckbox.checked) {
+    document.getElementById('depositFields').classList.add('hidden');
+  }
+});
+</script>

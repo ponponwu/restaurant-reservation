@@ -1,0 +1,70 @@
+<%= turbo_frame_tag "blacklist_#{blacklist.id}" do %>
+  <div class="bg-white border border-gray-200 rounded-lg p-4 space-y-3">
+    <!-- 第一列：客戶姓名和狀態 -->
+    <div class="flex justify-between items-start">
+      <div>
+        <h3 class="font-medium text-gray-900"><%= blacklist.customer_name %></h3>
+        <p class="text-sm text-gray-500"><%= blacklist.display_phone %></p>
+      </div>
+      <% if blacklist.active? %>
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-800">
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+          </svg>
+          啟用中
+        </span>
+      <% else %>
+        <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-800">
+          <svg class="w-3 h-3 mr-1" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8 10a2 2 0 114 0 2 2 0 01-4 0z" clip-rule="evenodd" />
+          </svg>
+          已停用
+        </span>
+      <% end %>
+    </div>
+    
+    <!-- 第二列：原因和詳細資訊 -->
+    <div class="space-y-2">
+      <% if blacklist.reason.present? %>
+        <div>
+          <span class="text-xs text-gray-500">原因：</span>
+          <span class="text-sm text-gray-900"><%= blacklist.reason %></span>
+        </div>
+      <% end %>
+      
+      <div class="flex justify-between text-xs text-gray-500">
+        <span>添加者：<%= blacklist.added_by_name.presence || '系統' %></span>
+        <span><%= blacklist.created_at.strftime('%m/%d %H:%M') %></span>
+      </div>
+    </div>
+    
+    <!-- 第三列：操作按鈕 -->
+    <div class="flex justify-end space-x-2 pt-2 border-t border-gray-100">
+      <%= button_to toggle_active_admin_blacklist_path(blacklist), 
+                    method: :patch,
+                    local: false,
+                    form_class: "inline",
+                    class: "text-xs px-3 py-1 rounded transition-colors #{blacklist.active? ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}" do %>
+        <%= blacklist.active? ? '停用' : '啟用' %>
+      <% end %>
+      
+      <%= link_to edit_admin_blacklist_path(blacklist), 
+                  class: "text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors",
+                  data: { turbo_frame: "blacklist_form" } do %>
+        編輯
+      <% end %>
+      
+      <%= button_to admin_blacklist_path(blacklist), 
+                    method: :delete,
+                    local: false,
+                    form_class: "inline",
+                    class: "text-xs px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors",
+                    data: { 
+                      confirm: "確定要刪除這筆黑名單記錄嗎？",
+                      turbo_method: :delete 
+                    } do %>
+        刪除
+      <% end %>
+    </div>
+  </div>
+<% end %> 

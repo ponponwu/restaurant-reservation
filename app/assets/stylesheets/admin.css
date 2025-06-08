@@ -1,0 +1,53 @@
+/* 拖曳排序樣式 */
+.sortable-ghost {
+    opacity: 0.4;
+    background: #f3f4f6;
+}
+
+.sortable-chosen {
+    transform: rotate(2deg);
+}
+
+.sortable-drag {
+    transform: rotate(5deg);
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.group-drag-handle {
+    transition: color 0.2s ease;
+}
+
+.group-drag-handle:hover {
+    color: #3b82f6 !important;
+}
+
+.drag-handle {
+    transition: color 0.2s ease;
+}
+
+.drag-handle:hover {
+    color: #3b82f6 !important;
+}
+
+/* 優先順序數字樣式 */
+.priority-number {
+    transition: all 0.2s ease;
+}
+
+/* 群組標題行樣式 */
+.group-header {
+    transition: background-color 0.2s ease;
+}
+
+.group-header:hover {
+    background-color: #e5e7eb !important;
+}
+
+/* 桌位行樣式 */
+.table-row {
+    transition: background-color 0.2s ease;
+}
+
+.table-row:hover {
+    background-color: #f9fafb !important;
+}

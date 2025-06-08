@@ -1,0 +1,191 @@
+<div class="min-h-screen bg-gray-50">
+  <!-- 返回餐廳頁面 -->
+  <div class="bg-white border-b border-gray-200">
+    <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
+      <%= link_to restaurant_public_path(@restaurant.slug),
+          class: "inline-flex items-center text-sm text-gray-600 hover:text-gray-900" do %>
+        <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+        </svg>
+        返回 <%= @restaurant.name %>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- 主要內容 -->
+  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div class="bg-white rounded-lg shadow-sm overflow-hidden">
+      <!-- 表單標題 -->
+      <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
+        <h1 class="text-2xl font-bold text-gray-900">預約 <%= @restaurant.name %></h1>
+        <p class="mt-1 text-sm text-gray-600">
+          <span class="font-medium"><%= @selected_date.strftime('%Y年%m月%d日') %></span>
+          <span class="mx-2">•</span>
+          <span><%= %w[星期日 星期一 星期二 星期三 星期四 星期五 星期六][@selected_date.wday] %></span>
+          <% if @selected_time.present? %>
+            <span class="mx-2">•</span>
+            <span class="font-medium"><%= @selected_time %></span>
+          <% end %>
+          <span class="mx-2">•</span>
+          <span><%= @adults %>位成人<%= @children.to_i > 0 ? "，#{@children}位兒童" : "" %></span>
+        </p>
+      </div>
+
+      <!-- 訂位表單 -->
+      <div class="p-6">
+        <%= form_with model: [@restaurant, @reservation], 
+            url: restaurant_reservations_path(@restaurant.slug),
+            local: true,
+            class: "space-y-6" do |form| %>
+          
+          <!-- 錯誤訊息顯示 -->
+          <% if @reservation.errors.any? %>
+            <div class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
+              <div class="flex">
+                <div class="flex-shrink-0">
+                  <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+                    <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                  </svg>
+                </div>
+                <div class="ml-3">
+                  <h3 class="text-sm font-medium text-red-800">
+                    預約時發生錯誤
+                  </h3>
+                  <div class="mt-2 text-sm text-red-700">
+                    <ul class="list-disc pl-5 space-y-1">
+                      <% @reservation.errors.full_messages.each do |message| %>
+                        <li><%= message %></li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            </div>
+          <% end %>
+
+          <!-- 隱藏欄位 -->
+          <%= hidden_field_tag :date, @selected_date %>
+          <%= hidden_field_tag :adults, @adults %>
+          <%= hidden_field_tag :children, @children %>
+          <%= hidden_field_tag :time_slot, @selected_time %>
+          <%= hidden_field_tag :business_period_id, @business_period_id %>
+          
+          <!-- 預約資訊確認 -->
+          <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
+            <h3 class="text-lg font-medium text-blue-900 mb-3">預約資訊確認</h3>
+            <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+              <div>
+                <span class="text-blue-700 font-medium">日期</span>
+                <p class="text-blue-900"><%= @selected_date.strftime('%Y年%m月%d日') %></p>
+                <p class="text-blue-600"><%= %w[星期日 星期一 星期二 星期三 星期四 星期五 星期六][@selected_date.wday] %></p>
+              </div>
+              <div>
+                <span class="text-blue-700 font-medium">時間</span>
+                <p class="text-blue-900 text-lg font-semibold"><%= @selected_time %></p>
+              </div>
+              <div>
+                <span class="text-blue-700 font-medium">人數</span>
+                <p class="text-blue-900">
+                  <%= @adults %>位成人<%= @children.to_i > 0 ? " + #{@children}位兒童" : "" %>
+                </p>
+                <p class="text-blue-600">共 <%= @adults.to_i + @children.to_i %> 人</p>
+              </div>
+            </div>
+            <div class="mt-3 pt-3 border-t border-blue-200">
+              <p class="text-xs text-blue-600">
+                如需修改預約資訊，請
+                <%= link_to "返回上一頁", restaurant_public_path(@restaurant.slug), 
+                    class: "text-blue-700 hover:text-blue-800 underline font-medium" %>
+                重新選擇
+              </p>
+            </div>
+          </div>
+
+          <!-- 顧客資訊 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- 姓名 -->
+            <div>
+              <%= form.label :customer_name, class: "block text-sm font-medium text-gray-700 mb-2" do %>
+                聯絡人姓名 <span class="text-red-500">*</span>
+              <% end %>
+              <%= form.text_field :customer_name,
+                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if @reservation.errors[:customer_name].any?}",
+                  placeholder: "請輸入聯絡人姓名",
+                  required: true %>
+              <% if @reservation.errors[:customer_name].any? %>
+                <p class="mt-1 text-sm text-red-600"><%= @reservation.errors[:customer_name].first %></p>
+              <% end %>
+            </div>
+
+            <!-- 電話 -->
+            <div>
+              <%= form.label :customer_phone, class: "block text-sm font-medium text-gray-700 mb-2" do %>
+                聯絡電話 <span class="text-red-500">*</span>
+              <% end %>
+              <%= form.telephone_field :customer_phone,
+                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if @reservation.errors[:customer_phone].any?}",
+                  placeholder: "請輸入聯絡電話",
+                  required: true %>
+              <% if @reservation.errors[:customer_phone].any? %>
+                <p class="mt-1 text-sm text-red-600"><%= @reservation.errors[:customer_phone].first %></p>
+              <% end %>
+            </div>
+
+            <!-- Email -->
+            <div>
+              <%= form.label :customer_email, class: "block text-sm font-medium text-gray-700 mb-2" do %>
+                電子郵件 <span class="text-gray-500">(選填)</span>
+              <% end %>
+              <%= form.email_field :customer_email,
+                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if @reservation.errors[:customer_email].any?}",
+                  placeholder: "user@example.com" %>
+              <% if @reservation.errors[:customer_email].any? %>
+                <p class="mt-1 text-sm text-red-600"><%= @reservation.errors[:customer_email].first %></p>
+              <% end %>
+            </div>
+
+
+
+            <!-- 特殊需求 -->
+            <div class="md:col-span-2">
+              <%= form.label :special_requests, class: "block text-sm font-medium text-gray-700 mb-2" do %>
+                特殊需求 <span class="text-gray-500">(選填)</span>
+              <% end %>
+              <%= form.text_area :special_requests,
+                  rows: 3,
+                  class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+                  placeholder: "例如：慶生、素食、輪椅通道等特殊需求" %>
+              <p class="mt-1 text-sm text-gray-500">餐廳將盡力配合您的需求</p>
+            </div>
+          </div>
+
+          <!-- 提交按鈕 -->
+          <div class="pt-6 border-t border-gray-200">
+            <div class="flex flex-col sm:flex-row sm:justify-between gap-3">
+              <%= link_to restaurant_public_path(@restaurant.slug),
+                  class: "inline-flex items-center justify-center px-4 py-2 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 order-2 sm:order-1" do %>
+                取消預約
+              <% end %>
+              
+              <%= form.submit "送出預約申請",
+                  class: "inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 order-1 sm:order-2" %>
+            </div>
+          </div>
+
+          <!-- 注意事項 -->
+          <div class="bg-gray-50 rounded-lg p-4">
+            <h4 class="text-sm font-medium text-gray-900 mb-2">預約須知：</h4>
+            <ul class="text-sm text-gray-600 space-y-1">
+              <li>• 預約申請送出後，餐廳會在營業時間內與您聯絡確認</li>
+              <li>• 請確實提供正確的聯絡資訊</li>
+              <li>• 如需取消或變更，請直接聯絡餐廳</li>
+              <% if @restaurant.reservation_policy&.cancellation_hours.present? %>
+                <li>• 請於用餐前 <%= @restaurant.reservation_policy.cancellation_hours %> 小時取消，避免收取費用</li>
+              <% end %>
+            </ul>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div> 

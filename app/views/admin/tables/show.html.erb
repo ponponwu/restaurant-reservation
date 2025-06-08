@@ -1,0 +1,107 @@
+<div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">桌位詳情</h1>
+        <p class="mt-2 text-sm text-gray-600">檢視桌位 <%= @table.table_number %> 的詳細資訊</p>
+      </div>
+      <div class="flex space-x-3">
+        <%= link_to edit_admin_restaurant_table_group_table_path(@restaurant, @table_group, @table),
+            class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700" do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+          </svg>
+          編輯桌位
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 桌位詳細資訊卡片 -->
+  <div class="bg-white shadow rounded-lg overflow-hidden">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h3 class="text-lg leading-6 font-medium text-gray-900">基本資訊</h3>
+    </div>
+    
+    <div class="px-6 py-4">
+      <dl class="grid grid-cols-1 gap-x-4 gap-y-6 sm:grid-cols-2">
+        <div>
+          <dt class="text-sm font-medium text-gray-500">桌號</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @table.table_number %></dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">所屬群組</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @table.table_group.name %></dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">桌位類型</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @table.table_type.humanize %></dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">當前狀態</dt>
+          <dd class="mt-1">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= 
+              case @table.status 
+              when 'available' then 'bg-green-100 text-green-800'
+              when 'occupied', 'reserved' then 'bg-red-100 text-red-800'
+              when 'maintenance' then 'bg-yellow-100 text-yellow-800'
+              when 'cleaning' then 'bg-blue-100 text-blue-800'
+              else 'bg-gray-100 text-gray-800'
+              end
+            %>">
+              <%= @table.status.humanize %>
+            </span>
+          </dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">標準容量</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= @table.capacity %> 人</dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">容量範圍</dt>
+          <dd class="mt-1 text-sm text-gray-900">
+            <%= @table.min_capacity || @table.capacity %> - <%= @table.max_capacity || @table.capacity %> 人
+          </dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">排序順序</dt>
+          <dd class="mt-1 text-sm text-gray-900">第 <%= @table.sort_order %> 順位</dd>
+        </div>
+        
+        <div>
+          <dt class="text-sm font-medium text-gray-500">可併桌</dt>
+          <dd class="mt-1">
+            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= @table.can_combine? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
+              <%= @table.can_combine? ? '是' : '否' %>
+            </span>
+          </dd>
+        </div>
+        
+        <% if @table.metadata.present? %>
+        <div class="sm:col-span-2">
+          <dt class="text-sm font-medium text-gray-500">額外資訊</dt>
+          <dd class="mt-1 text-sm text-gray-900"><%= simple_format(@table.metadata) %></dd>
+        </div>
+        <% end %>
+      </dl>
+    </div>
+  </div>
+
+  <!-- 返回按鈕 -->
+  <div class="mt-6">
+    <%= link_to admin_restaurant_table_groups_path(@restaurant),
+        class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+      <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+      </svg>
+      返回桌位群組
+    <% end %>
+  </div>
+</div> 

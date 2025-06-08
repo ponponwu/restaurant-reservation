@@ -1,0 +1,12 @@
+# 特別公休日範例
+special_closure:
+  closure_date: 2025-12-25
+  reason: "聖誕節公休"
+  restaurant: one
+  
+# 每週固定公休日範例
+weekly_closure:
+  closure_date: 2025-01-01 # 僅作為參考日期，實際以 recurring_pattern 為準
+  reason: "每週一公休"
+  recurring_pattern: '{"type":"weekly","weekday":1}'
+  restaurant: one

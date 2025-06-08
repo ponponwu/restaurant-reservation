@@ -1,0 +1,6 @@
+lunch:
+  name: "Lunch"
+  start_time: "11:30:00"
+  end_time: "14:30:00"
+  days_of_week: { "monday": true, "tuesday": true, "wednesday": true, "thursday": true, "friday": true, "saturday": true, "sunday": true }
+  restaurant: one
