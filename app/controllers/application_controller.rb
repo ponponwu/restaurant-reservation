@@ -5,6 +5,7 @@ class ApplicationController < ActionController::Base
   # 移除強制登入要求，讓系統可以不登入使用
   # before_action :authenticate_user!, except: [:index, :show, :new, :create]
   before_action :configure_permitted_parameters, if: :devise_controller?
+  before_action :check_password_change_required
   
   # 設定當前餐廳（如果需要）
   before_action :set_current_restaurant
@@ -25,6 +26,39 @@ class ApplicationController < ActionController::Base
   end
   
   protected
+  
+  # Devise 登入後跳轉邏輯
+  def after_sign_in_path_for(resource)
+    # 如果需要修改密碼，跳轉到密碼修改頁面
+    if resource.needs_password_change?
+      admin_password_change_path
+    else
+      # 根據角色決定跳轉頁面
+      case resource.role
+      when 'super_admin'
+        admin_root_path
+      when 'manager'
+        if resource.restaurant
+          admin_restaurant_reservations_path(resource.restaurant)
+        else
+          admin_root_path
+        end
+      when 'employee'
+        if resource.restaurant
+          admin_restaurant_reservations_path(resource.restaurant)
+        else
+          admin_root_path
+        end
+      else
+        admin_root_path
+      end
+    end
+  end
+  
+  # Devise 登出後跳轉邏輯
+  def after_sign_out_path_for(resource_or_scope)
+    root_path
+  end
   
   def configure_permitted_parameters
     devise_parameter_sanitizer.permit(:sign_up, keys: [:first_name, :last_name, :role])
@@ -54,5 +88,15 @@ class ApplicationController < ActionController::Base
     # unless current_user&.can_manage_restaurant?
     #   redirect_to admin_root_path, alert: '您沒有權限執行此操作'
     # end
+  end
+
+  def check_password_change_required
+    return unless user_signed_in?
+    return if devise_controller?
+    return if controller_name == 'password_changes'
+    
+    if current_user.needs_password_change?
+      redirect_to admin_password_change_path
+    end
   end
 end

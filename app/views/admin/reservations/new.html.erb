@@ -1,0 +1,79 @@
+<div class="min-h-screen bg-gray-50">
+  <div class="max-w-4xl mx-auto py-6 sm:px-6 lg:px-8">
+    <!-- 頁面標題和導航 -->
+    <div class="mb-6">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          <%= link_to admin_restaurant_reservations_path(@restaurant), 
+              class: "inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500" do %>
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path>
+            </svg>
+            返回訂位列表
+          <% end %>
+          <h1 class="text-2xl font-bold text-gray-900">新增訂位</h1>
+        </div>
+        
+        <!-- 狀態指示 -->
+        <div class="flex items-center space-x-3">
+          <span class="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-blue-100 text-blue-800">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            建立新訂位
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Flash 訊息容器 -->
+    <div id="flash" class="mb-4"></div>
+
+    <!-- 新增表單 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-4 border-b border-gray-200">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">訂位資訊</h3>
+        <p class="mt-1 text-sm text-gray-600">
+          請填寫下方的訂位資訊，所有帶 * 的欄位都是必填的。
+          <span class="text-blue-600">管理員可以無視容量限制建立訂位。</span>
+        </p>
+      </div>
+
+      <div class="px-6 py-4">
+        <%= turbo_frame_tag "reservation_form" do %>
+          <%= render 'form', reservation: @reservation %>
+        <% end %>
+      </div>
+    </div>
+
+    <!-- 可用性檢查結果 -->
+    <div id="availability_check" class="mt-6 hidden">
+      <div class="bg-white shadow rounded-lg p-6">
+        <h4 class="text-lg font-medium text-gray-900 mb-4">桌位可用性檢查</h4>
+        <div id="availability_results"></div>
+      </div>
+    </div>
+
+    <!-- 幫助資訊 -->
+    <div class="mt-6 bg-blue-50 border border-blue-200 rounded-lg p-4">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-blue-400" fill="currentColor" viewBox="0 0 20 20">
+            <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-blue-800">建立訂位說明</h3>
+          <div class="mt-2 text-sm text-blue-700">
+            <ul class="list-disc pl-5 space-y-1">
+              <li><strong>自動分配：</strong>如果不指定桌位，系統會自動尋找最適合的桌位或併桌組合</li>
+              <li><strong>手動指定：</strong>可以直接選擇特定桌位，適用於特殊需求</li>
+              <li><strong>管理員權限：</strong>可以啟用強制模式來忽略容量限制和時間衝突</li>
+              <li><strong>人數調整：</strong>修改總人數時會自動調整大人和小孩的比例</li>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div> 

@@ -1,6 +1,7 @@
 class Admin::ReservationsController < Admin::BaseController
   before_action :set_restaurant
-  before_action :set_reservation, only: [:show, :edit, :update, :destroy, :confirm, :cancel, :seat, :complete, :no_show]
+  before_action :set_reservation, only: [:show, :edit, :update, :destroy, :confirm, :cancel, :complete, :no_show]
+  before_action :set_form_data, only: [:new, :edit, :create, :update]
 
   def index
     @q = @restaurant.reservations.ransack(params[:q])
@@ -39,12 +40,125 @@ class Admin::ReservationsController < Admin::BaseController
   def edit
   end
 
-  def update
-    if @reservation.update(reservation_params)
-      redirect_to admin_restaurant_reservation_path(@restaurant, @reservation),
-                  notice: '訂位已更新成功'
+  def new
+    @reservation = @restaurant.reservations.build
+  end
+
+  def create
+    @reservation = @restaurant.reservations.build(reservation_params)
+    
+    # 處理大人數和小孩數的自動調整
+    if @reservation.adults_count.blank? && @reservation.children_count.blank?
+      @reservation.adults_count = [@reservation.party_size - (@reservation.children_count || 0), 1].max
+      @reservation.children_count ||= 0
+    end
+    
+    # 設定預設狀態為已確認
+    @reservation.status = :confirmed
+    
+    # 嘗試自動分配桌位（如果沒有手動指定）
+    unless @reservation.table_id.present?
+      allocate_table_for_reservation(@reservation)
+    end
+    
+    if @reservation.save
+      respond_to do |format|
+        format.html do
+          redirect_to admin_restaurant_reservation_path(@restaurant, @reservation),
+                      notice: '訂位建立成功'
+        end
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.prepend('reservations-list',
+                               partial: 'reservation_row',
+                               locals: { reservation: @reservation }),
+            turbo_stream.update('flash',
+                               partial: 'shared/flash',
+                               locals: { message: '訂位建立成功', type: 'success' })
+          ]
+        end
+      end
     else
-      render :edit, status: :unprocessable_entity
+      respond_to do |format|
+        format.html { render :new, status: :unprocessable_entity }
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.update('reservation_form',
+                                                  partial: 'form',
+                                                  locals: { reservation: @reservation })
+        end
+      end
+    end
+  end
+
+  def update
+    # 儲存原始人數，用於檢查是否需要重新分配桌位
+    original_party_size = @reservation.party_size
+    original_datetime = @reservation.reservation_datetime
+    
+    # 處理大人數和小孩數的自動調整
+    params_to_update = reservation_params
+    
+    # 如果只更新了 party_size，需要調整 adults_count 和 children_count
+    if params_to_update[:party_size].present?
+      new_party_size = params_to_update[:party_size].to_i
+      current_total = @reservation.adults_count.to_i + @reservation.children_count.to_i
+      
+      # 如果新的總人數與現有的大人+小孩數不同，需要調整
+      if new_party_size != current_total
+        # 保持小孩數不變，調整大人數
+        children_count = @reservation.children_count.to_i
+        adults_count = [new_party_size - children_count, 1].max # 至少要有1個大人
+        
+        # 如果計算出的大人數加小孩數超過新的總人數，則調整小孩數
+        if adults_count + children_count > new_party_size
+          children_count = [new_party_size - adults_count, 0].max
+        end
+        
+        params_to_update = params_to_update.merge(
+          adults_count: adults_count,
+          children_count: children_count
+        )
+      end
+    end
+    
+    # 檢查是否有 admin_override 參數
+    admin_override = params[:admin_override] == 'true'
+    
+    if @reservation.update(params_to_update)
+      # 檢查是否需要重新分配桌位
+      new_party_size = @reservation.party_size
+      new_datetime = @reservation.reservation_datetime
+      
+      if (new_party_size != original_party_size || new_datetime != original_datetime) && !admin_override
+        # 嘗試重新分配桌位
+        reallocate_table_for_reservation(@reservation)
+      end
+      
+      respond_to do |format|
+        format.html do
+          redirect_to admin_restaurant_reservation_path(@restaurant, @reservation),
+                      notice: '訂位已更新成功'
+        end
+        format.turbo_stream do
+          render turbo_stream: [
+            turbo_stream.replace("reservation_#{@reservation.id}",
+                               partial: 'reservation_row',
+                               locals: { reservation: @reservation }),
+            turbo_stream.update('flash',
+                               partial: 'shared/flash',
+                               locals: { message: '訂位已更新成功', type: 'success' })
+          ]
+        end
+      end
+    else
+      respond_to do |format|
+        format.html { render :edit, status: :unprocessable_entity }
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.update('flash',
+                                                  partial: 'shared/flash',
+                                                  locals: { message: @reservation.errors.full_messages.join(', '), type: 'error' })
+        end
+      end
     end
   end
 
@@ -55,56 +169,18 @@ class Admin::ReservationsController < Admin::BaseController
   end
 
   # 狀態管理方法
-  def confirm
-    if @reservation.update(status: :confirmed)
-      respond_to do |format|
-        format.html { redirect_to admin_restaurant_reservations_path(@restaurant), notice: '訂位已確認' }
-        format.turbo_stream do
-          render turbo_stream: [
-            turbo_stream.replace("reservation_#{@reservation.id}", 
-                               partial: "reservation_row", 
-                               locals: { reservation: @reservation }),
-            turbo_stream.update("flash", 
-                               partial: "shared/flash", 
-                               locals: { notice: "訂位已確認" })
-          ]
-        end
-        format.json { render json: { status: 'success', message: '訂位已確認' } }
-      end
-    else
-      respond_to do |format|
-        format.html { redirect_to admin_restaurant_reservations_path(@restaurant), alert: '確認訂位失敗' }
-        format.turbo_stream do
-          render turbo_stream: turbo_stream.update("flash", 
-                                                  partial: "shared/flash", 
-                                                  locals: { alert: "確認訂位失敗：#{@reservation.errors.full_messages.join(', ')}" })
-        end
-        format.json { render json: { status: 'error', message: '確認訂位失敗', errors: @reservation.errors.full_messages } }
-      end
-    end
-  end
-
   def cancel
     if @reservation.update(status: :cancelled)
       respond_to do |format|
         format.html { redirect_to admin_restaurant_reservations_path(@restaurant), notice: '訂位已取消' }
-        format.turbo_stream do
-          render turbo_stream: [
-            turbo_stream.replace("reservation_#{@reservation.id}", 
-                               partial: "reservation_row", 
-                               locals: { reservation: @reservation }),
-            turbo_stream.update("flash", 
-                               partial: "shared/flash", 
-                               locals: { notice: "訂位已取消" })
-          ]
-        end
+        format.turbo_stream # 使用 cancel.turbo_stream.erb 模板
         format.json { render json: { status: 'success', message: '訂位已取消' } }
       end
     else
       respond_to do |format|
         format.html { redirect_to admin_restaurant_reservations_path(@restaurant), alert: '取消訂位失敗' }
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update("flash", 
+          render turbo_stream: turbo_stream.update("flash_messages", 
                                                   partial: "shared/flash", 
                                                   locals: { alert: "取消訂位失敗：#{@reservation.errors.full_messages.join(', ')}" })
         end
@@ -113,85 +189,18 @@ class Admin::ReservationsController < Admin::BaseController
     end
   end
 
-  def seat
-    if @reservation.update(status: :seated)
-      respond_to do |format|
-        format.html { redirect_to admin_restaurant_reservations_path(@restaurant), notice: '已安排就座' }
-        format.turbo_stream do
-          render turbo_stream: [
-            turbo_stream.replace("reservation_#{@reservation.id}", 
-                               partial: "reservation_row", 
-                               locals: { reservation: @reservation }),
-            turbo_stream.update("flash", 
-                               partial: "shared/flash", 
-                               locals: { notice: "已安排就座" })
-          ]
-        end
-        format.json { render json: { status: 'success', message: '已安排就座' } }
-      end
-    else
-      respond_to do |format|
-        format.html { redirect_to admin_restaurant_reservations_path(@restaurant), alert: '安排就座失敗' }
-        format.turbo_stream do
-          render turbo_stream: turbo_stream.update("flash", 
-                                                  partial: "shared/flash", 
-                                                  locals: { alert: "安排就座失敗：#{@reservation.errors.full_messages.join(', ')}" })
-        end
-        format.json { render json: { status: 'error', message: '安排就座失敗', errors: @reservation.errors.full_messages } }
-      end
-    end
-  end
-
-  def complete
-    if @reservation.update(status: :completed)
-      respond_to do |format|
-        format.html { redirect_to admin_restaurant_reservations_path(@restaurant), notice: '訂位已完成' }
-        format.turbo_stream do
-          render turbo_stream: [
-            turbo_stream.replace("reservation_#{@reservation.id}", 
-                               partial: "reservation_row", 
-                               locals: { reservation: @reservation }),
-            turbo_stream.update("flash", 
-                               partial: "shared/flash", 
-                               locals: { notice: "訂位已完成" })
-          ]
-        end
-        format.json { render json: { status: 'success', message: '訂位已完成' } }
-      end
-    else
-      respond_to do |format|
-        format.html { redirect_to admin_restaurant_reservations_path(@restaurant), alert: '完成訂位失敗' }
-        format.turbo_stream do
-          render turbo_stream: turbo_stream.update("flash", 
-                                                  partial: "shared/flash", 
-                                                  locals: { alert: "完成訂位失敗：#{@reservation.errors.full_messages.join(', ')}" })
-        end
-        format.json { render json: { status: 'error', message: '完成訂位失敗', errors: @reservation.errors.full_messages } }
-      end
-    end
-  end
-
   def no_show
     if @reservation.update(status: :no_show)
       respond_to do |format|
         format.html { redirect_to admin_restaurant_reservations_path(@restaurant), notice: '已標記為未出席' }
-        format.turbo_stream do
-          render turbo_stream: [
-            turbo_stream.replace("reservation_#{@reservation.id}", 
-                               partial: "reservation_row", 
-                               locals: { reservation: @reservation }),
-            turbo_stream.update("flash", 
-                               partial: "shared/flash", 
-                               locals: { notice: "已標記為未出席" })
-          ]
-        end
+        format.turbo_stream # 使用 no_show.turbo_stream.erb 模板
         format.json { render json: { status: 'success', message: '已標記為未出席' } }
       end
     else
       respond_to do |format|
         format.html { redirect_to admin_restaurant_reservations_path(@restaurant), alert: '標記未出席失敗' }
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update("flash", 
+          render turbo_stream: turbo_stream.update("flash_messages", 
                                                   partial: "shared/flash", 
                                                   locals: { alert: "標記未出席失敗：#{@reservation.errors.full_messages.join(', ')}" })
         end
@@ -259,6 +268,11 @@ class Admin::ReservationsController < Admin::BaseController
     @reservation = @restaurant.reservations.find(params[:id])
   end
 
+  def set_form_data
+    @business_periods = @restaurant.business_periods.active
+    @available_tables = @restaurant.restaurant_tables.active.ordered
+  end
+
   def reservation_params
     params.require(:reservation).permit(
       :customer_name, :customer_phone, :customer_email,
@@ -267,5 +281,66 @@ class Admin::ReservationsController < Admin::BaseController
       :special_requests, :table_id,
       :business_period_id
     )
+  end
+
+  # 為訂位分配桌位
+  def allocate_table_for_reservation(reservation)
+    allocator = ReservationAllocatorService.new(reservation)
+    allocated_table = allocator.allocate_table
+    
+    if allocated_table
+      if allocated_table.is_a?(Array)
+        # 併桌情況 - 創建 TableCombination
+        combination = TableCombination.new(
+          reservation: reservation,
+          name: "併桌 #{allocated_table.map(&:table_number).join('+')}"
+        )
+        
+        # 建立桌位關聯
+        allocated_table.each do |table|
+          combination.table_combination_tables.build(restaurant_table: table)
+        end
+        
+        if combination.save
+          Rails.logger.info "分配併桌給訂位 #{reservation.id}: #{allocated_table.map(&:table_number).join(', ')}"
+          # 設定主桌位（用於相容性）
+          reservation.table = allocated_table.first
+        else
+          Rails.logger.error "創建併桌組合失敗: #{combination.errors.full_messages.join(', ')}"
+        end
+      else
+        # 單桌情況
+        reservation.table = allocated_table
+        Rails.logger.info "分配桌位 #{allocated_table.table_number} 給訂位 #{reservation.id}"
+      end
+    else
+      Rails.logger.warn "無法為訂位 #{reservation.id} 找到合適的桌位"
+    end
+  end
+
+  # 重新分配桌位
+  def reallocate_table_for_reservation(reservation)
+    # 先清除現有的桌位分配
+    old_table = reservation.table
+    old_combination = reservation.table_combination
+    
+    reservation.table = nil
+    reservation.table_combination&.destroy
+    
+    # 嘗試重新分配
+    allocate_table_for_reservation(reservation)
+    
+    # 如果重新分配失敗，恢復原有分配（如果有的話）
+    unless reservation.table.present? || reservation.table_combination.present?
+      if old_table
+        reservation.table = old_table
+        Rails.logger.warn "重新分配桌位失敗，恢復原桌位 #{old_table.table_number}"
+      elsif old_combination
+        # 併桌的恢復比較複雜，暫時記錄即可
+        Rails.logger.warn "重新分配桌位失敗，原為併桌無法恢復"
+      end
+    end
+    
+    reservation.save
   end
 end 

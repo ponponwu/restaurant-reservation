@@ -12,6 +12,7 @@ FactoryBot.define do
     status { 'available' }
     operational_status { 'normal' }
     active { true }
+    can_combine { false }
 
     trait :window_round_table do
       table_number { '窗邊圓桌' }

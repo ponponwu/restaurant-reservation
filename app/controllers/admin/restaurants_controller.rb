@@ -103,12 +103,38 @@ class Admin::RestaurantsController < AdminController
   end
 
   def toggle_status
+    # 檢查權限
+    unless current_user.super_admin?
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.update('flash_messages', 
+                                                  partial: 'shared/flash', 
+                                                  locals: { message: '您沒有權限修改餐廳狀態', type: 'error' })
+        end
+        format.html { redirect_to admin_restaurants_path, alert: '您沒有權限修改餐廳狀態' }
+        format.json { render json: { success: false, message: '權限不足' } }
+      end
+      return
+    end
+
     @restaurant.update!(active: !@restaurant.active?)
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: turbo_stream.replace("restaurant_#{@restaurant.id}", partial: 'restaurant_row', locals: { restaurant: @restaurant })
+        render turbo_stream: [
+          turbo_stream.replace("restaurant_#{@restaurant.id}", 
+                              partial: 'restaurant_row', 
+                              locals: { restaurant: @restaurant }),
+          turbo_stream.update('flash_messages', 
+                             partial: 'shared/flash', 
+                             locals: { 
+                               message: "餐廳已#{@restaurant.active? ? '啟用' : '停用'}", 
+                               type: 'success' 
+                             })
+        ]
       end
+      format.html { redirect_to admin_restaurants_path, notice: "餐廳已#{@restaurant.active? ? '啟用' : '停用'}" }
+      format.json { render json: { success: true, active: @restaurant.active? } }
     end
   end
 

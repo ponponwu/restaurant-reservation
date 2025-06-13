@@ -1,5 +1,6 @@
 class RestaurantsController < ApplicationController
   before_action :set_restaurant
+  before_action :check_reservation_enabled, only: [:available_days, :available_dates, :available_times]
   
   # 明確載入服務類別
   unless defined?(ReservationAllocatorService)
@@ -116,12 +117,13 @@ class RestaurantsController < ApplicationController
     end
     
     party_size = params[:party_size].to_i
+    phone_number = params[:phone] # 添加手機號碼參數
     
     # 如果沒有提供 adults 和 children，則使用 party_size 作為 adults
     adults = params[:adults]&.to_i || party_size
     children = params[:children]&.to_i || 0
     
-    Rails.logger.info "Available times request: date=#{date}, party_size=#{party_size}, adults=#{adults}, children=#{children}"
+    Rails.logger.info "Available times request: date=#{date}, party_size=#{party_size}, adults=#{adults}, children=#{children}, phone=#{phone_number}"
     
     if party_size <= 0 || party_size > 12
       Rails.logger.info "Rejected party_size #{party_size} (out of range)"
@@ -131,21 +133,41 @@ class RestaurantsController < ApplicationController
     
     Rails.logger.info "Party size check passed"
     
-    if date < Date.current
-      Rails.logger.info "Rejected date #{date} because it's before #{Date.current}"
-      render json: { error: '不能預約過去的日期' }, status: :bad_request
+    # 強化日期檢查：不能預定當天或過去的日期
+    if date <= Date.current
+      Rails.logger.info "Rejected date #{date} because it's not after #{Date.current} (same-day booking disabled)"
+      render json: { error: '不可預定當天或過去的日期' }, status: :unprocessable_entity
       return
     end
     
     Rails.logger.info "Date check passed"
+    
+    # 檢查手機號碼訂位限制
+    reservation_policy = @restaurant.reservation_policy
+    phone_limit_exceeded = false
+    phone_limit_message = nil
+    remaining_bookings = nil
+    
+    if phone_number.present? && reservation_policy
+      phone_limit_exceeded = reservation_policy.phone_booking_limit_exceeded?(phone_number)
+      remaining_bookings = reservation_policy.remaining_bookings_for_phone(phone_number)
+      
+      if phone_limit_exceeded
+        phone_limit_message = "訂位次數已達上限。#{reservation_policy.formatted_phone_limit_policy}。您目前剩餘 #{remaining_bookings} 次訂位機會。"
+        Rails.logger.info "Phone booking limit exceeded for #{phone_number}"
+      end
+    end
     
     # 檢查餐廳當天是否營業
     Rails.logger.info "Checking if restaurant is closed on #{date}"
     if @restaurant.closed_on_date?(date)
       Rails.logger.info "Restaurant is closed on #{date}"
       render json: { 
-        time_slots: [],
-        message: '餐廳當天公休'
+        available_times: [],
+        message: '餐廳當天公休',
+        phone_limit_exceeded: phone_limit_exceeded,
+        phone_limit_message: phone_limit_message,
+        remaining_bookings: remaining_bookings
       }
       return
     end
@@ -158,7 +180,10 @@ class RestaurantsController < ApplicationController
     Rails.logger.info "Got #{time_slots.size} time slots, rendering response"
     
     render json: {
-      time_slots: time_slots.sort_by { |slot| slot[:time] }
+      available_times: time_slots.sort_by { |slot| slot[:time] },
+      phone_limit_exceeded: phone_limit_exceeded,
+      phone_limit_message: phone_limit_message,
+      remaining_bookings: remaining_bookings || reservation_policy&.max_bookings_per_phone
     }
   rescue => e
     Rails.logger.error "Available times error: #{e.message}\n#{e.backtrace.join("\n")}"
@@ -176,7 +201,7 @@ class RestaurantsController < ApplicationController
 
   def get_available_dates_with_allocator(party_size, adults, children)
     available_dates = []
-    start_date = Date.current
+    start_date = Date.current + 1.day  # 從明天開始，不能預定當天
     end_date = 60.days.from_now
     
     (start_date..end_date).each do |date|
@@ -269,5 +294,17 @@ class RestaurantsController < ApplicationController
     
     # 如果 90 天內都沒有空位，回傳 90 天後的日期
     end_date.to_s
+  end
+
+  def check_reservation_enabled
+    reservation_policy = @restaurant.reservation_policy
+    
+    unless reservation_policy&.accepts_online_reservations?
+      render json: { 
+        error: reservation_policy&.reservation_disabled_message || "線上訂位功能暫停",
+        reservation_enabled: false,
+        message: "很抱歉，#{@restaurant.name} 目前暫停接受線上訂位。如需訂位，請直接致電餐廳洽詢。"
+      }, status: :service_unavailable
+    end
   end
 end 

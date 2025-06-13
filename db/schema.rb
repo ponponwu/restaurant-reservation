@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_08_130331) do
+ActiveRecord::Schema[7.1].define(version: 2025_06_12_072243) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -19,10 +19,10 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_08_130331) do
     t.string "customer_name", null: false
     t.string "customer_phone", null: false
     t.text "reason"
-    t.bigint "added_by_id", null: false
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.bigint "added_by_id", default: 1, null: false
     t.index ["active"], name: "index_blacklists_on_active"
     t.index ["added_by_id"], name: "index_blacklists_on_added_by_id"
     t.index ["customer_phone"], name: "index_blacklists_on_customer_phone"
@@ -81,7 +81,17 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_08_130331) do
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
     t.integer "cancellation_hours", default: 24
+    t.integer "max_bookings_per_phone", default: 5, comment: "單一手機號碼在限制期間內的最大訂位次數"
+    t.integer "phone_limit_period_days", default: 30, comment: "手機號碼訂位限制的期間天數"
+    t.boolean "reservation_enabled", default: true, null: false, comment: "是否啟用線上訂位功能"
+    t.boolean "unlimited_dining_time", default: false, null: false, comment: "是否為無限用餐時間"
+    t.integer "default_dining_duration_minutes", default: 120, comment: "預設用餐時間（分鐘）"
+    t.integer "buffer_time_minutes", default: 15, null: false, comment: "緩衝時間（分鐘）"
+    t.boolean "allow_table_combinations", default: true, null: false, comment: "是否允許併桌"
+    t.integer "max_combination_tables", default: 3, null: false, comment: "最大併桌數量"
+    t.index ["allow_table_combinations"], name: "index_reservation_policies_on_allow_table_combinations"
     t.index ["restaurant_id"], name: "index_reservation_policies_on_restaurant_id"
+    t.index ["unlimited_dining_time"], name: "index_reservation_policies_on_unlimited_dining_time"
   end
 
   create_table "reservation_slots", force: :cascade do |t|
@@ -207,6 +217,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_08_130331) do
     t.datetime "deleted_at"
     t.bigint "restaurant_id"
     t.integer "role", default: 2, null: false
+    t.datetime "password_changed_at"
     t.index ["active"], name: "index_users_on_active"
     t.index ["deleted_at"], name: "index_users_on_deleted_at"
     t.index ["email"], name: "index_users_on_email", unique: true

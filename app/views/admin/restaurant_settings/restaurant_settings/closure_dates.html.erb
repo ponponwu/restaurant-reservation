@@ -3,19 +3,34 @@
      data-closure-dates-restaurant-slug-value="<%= @restaurant.slug %>"
      data-closure-dates-closure-dates-url-value="<%= admin_restaurant_settings_restaurant_closure_dates_path(@restaurant) %>">
 
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">公休日設定</h1>
+        <p class="mt-2 text-sm text-gray-600">管理餐廳的每週固定公休日和特別日公休設定</p>
+      </div>
+      <div>
+        <%= link_to admin_restaurant_settings_restaurant_index_path(@restaurant),
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50",
+            data: { turbo_prefetch: false } do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          返回設定首頁
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選項卡導覽 -->
+  <%= render 'shared/settings_tabs', current_tab: 'closure_dates', restaurant: @restaurant %>
+
   <!-- Flash 訊息區域 -->
-  <div id="flash_messages"></div>
+  <div id="flash_messages" class="mb-4"></div>
   
   <!-- 主內容包裝器 -->
   <div id="closure-dates-content">
     <%= render 'closure_dates_content', restaurant: @restaurant, closure_dates: @closure_dates %>
-  </div>
-  
-  <!-- 標題和說明 -->
-  <div class="mb-8">
-    <h1 class="text-2xl font-bold text-gray-900">公休日設定</h1>
-    <p class="mt-2 text-sm text-gray-600">
-      管理餐廳的每週固定公休日和特別日公休設定
-    </p>
   </div>
 </div>

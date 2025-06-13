@@ -8,6 +8,11 @@ FactoryBot.define do
     active { true }
     deleted_at { nil }
     
+    # 自動創建 reservation_policy
+    after(:create) do |restaurant|
+      restaurant.create_reservation_policy unless restaurant.reservation_policy
+    end
+    
     trait :inactive do
       active { false }
     end

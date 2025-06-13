@@ -918,6 +918,332 @@ RSpec.describe ReservationAllocatorService, type: :service do
     end
   end
 
+  # 無限用餐時間桌位分配測試
+  describe '無限用餐時間桌位分配' do
+    let(:unlimited_restaurant) { create(:restaurant) }
+    let(:unlimited_lunch_period) { create(:business_period, restaurant: unlimited_restaurant, name: '午餐', start_time: '11:30', end_time: '14:30') }
+    let(:unlimited_dinner_period) { create(:business_period, restaurant: unlimited_restaurant, name: '晚餐', start_time: '17:30', end_time: '21:30') }
+    
+    let(:unlimited_test_group) { create(:table_group, restaurant: unlimited_restaurant, name: '測試群組', sort_order: 0) }
+    let(:unlimited_other_group) { create(:table_group, restaurant: unlimited_restaurant, name: '其他群組', sort_order: 1) }
+    
+    let(:test_time) { 1.day.from_now.change(hour: 12, min: 0) }
+    
+    before do
+      # 設定無限用餐時間模式
+      policy = unlimited_restaurant.reservation_policy || unlimited_restaurant.create_reservation_policy
+      policy.update!(unlimited_dining_time: true)
+      
+      # 創建測試桌位
+      @t4_table = create(:restaurant_table,
+                        restaurant: unlimited_restaurant,
+                        table_group: unlimited_test_group,
+                        table_number: 'T4',
+                        capacity: 4,
+                        min_capacity: 2,
+                        max_capacity: 6,
+                        table_type: 'square',
+                        sort_order: 0,
+                        can_combine: true,
+                        operational_status: 'normal')
+      
+      @t2_table = create(:restaurant_table,
+                        restaurant: unlimited_restaurant,
+                        table_group: unlimited_test_group,
+                        table_number: 'T2',
+                        capacity: 2,
+                        min_capacity: 1,
+                        max_capacity: 3,
+                        table_type: 'square',
+                        sort_order: 1,
+                        can_combine: true,
+                        operational_status: 'normal')
+      
+      @o1_table = create(:restaurant_table,
+                        restaurant: unlimited_restaurant,
+                        table_group: unlimited_other_group,
+                        table_number: 'O1',
+                        capacity: 4,
+                        min_capacity: 2,
+                        max_capacity: 6,
+                        table_type: 'round',
+                        sort_order: 0,
+                        can_combine: false,
+                        operational_status: 'normal')
+      
+      # 更新餐廳總容量
+      unlimited_restaurant.update!(total_capacity: 10)
+    end
+
+    describe '基本分配邏輯' do
+      it '按 sort_order 排序選擇第一個適合的桌位' do
+        reservation = build(:reservation,
+                           restaurant: unlimited_restaurant,
+                           business_period: unlimited_lunch_period,
+                           party_size: 4,
+                           adults_count: 4,
+                           children_count: 0,
+                           reservation_datetime: test_time)
+
+        service = described_class.new(reservation)
+        result = service.allocate_table
+
+        expect(result).to eq(@t4_table)
+        expect(result.table_number).to eq('T4')
+      end
+
+      it '當第一選擇不適合時，選擇其他適合的桌位' do
+        reservation = build(:reservation,
+                           restaurant: unlimited_restaurant,
+                           business_period: unlimited_lunch_period,
+                           party_size: 2,
+                           adults_count: 2,
+                           children_count: 0,
+                           reservation_datetime: test_time)
+
+        service = described_class.new(reservation)
+        result = service.allocate_table
+
+        expect(result).to eq(@t2_table)
+        expect(result.table_number).to eq('T2')
+      end
+    end
+
+    describe '每餐期每桌唯一性' do
+      before do
+        # 在同一餐期預訂 T4 桌位
+        @existing_reservation = create(:reservation,
+                                      restaurant: unlimited_restaurant,
+                                      business_period: unlimited_lunch_period,
+                                      table: @t4_table,
+                                      party_size: 4,
+                                      adults_count: 4,
+                                      children_count: 0,
+                                      reservation_datetime: test_time,
+                                      status: 'confirmed')
+      end
+
+      it '同一餐期不能重複預訂已被佔用的桌位' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 4,
+          adults: 4,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        booking_check = service.check_table_booking_in_period(@t4_table, test_time)
+        
+        expect(booking_check[:has_booking]).to be true
+        expect(booking_check[:existing_booking]).to eq(@existing_reservation)
+      end
+
+      it '同一餐期會自動分配其他可用桌位' do
+        reservation = build(:reservation,
+                           restaurant: unlimited_restaurant,
+                           business_period: unlimited_lunch_period,
+                           party_size: 4,
+                           adults_count: 4,
+                           children_count: 0,
+                           reservation_datetime: test_time)
+
+        service = described_class.new(reservation)
+        result = service.allocate_table
+
+        expect(result).to eq(@o1_table)  # 應該分配到 O1 桌位
+        expect(result.table_number).to eq('O1')
+      end
+
+      it '不同餐期可以重用同一桌位' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 4,
+          adults: 4,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_dinner_period.id
+        })
+
+        booking_check = service.check_table_booking_in_period(@t4_table, test_time)
+        
+        expect(booking_check[:has_booking]).to be false
+        expect(booking_check[:existing_booking]).to be_nil
+      end
+    end
+
+    describe '同群組併桌限制' do
+      it '只允許同群組內的桌位併桌' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 6,
+          adults: 6,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        combinable_tables = service.find_combinable_tables
+        
+        if combinable_tables.present?
+          expect(combinable_tables).to include(@t4_table, @t2_table)
+          expect(combinable_tables.sum(&:capacity)).to be >= 6
+          
+          # 檢查都在同一群組
+          group_ids = combinable_tables.map(&:table_group_id).uniq
+          expect(group_ids.count).to eq(1)
+          expect(group_ids.first).to eq(unlimited_test_group.id)
+        end
+      end
+
+      it '不允許跨群組併桌' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 8,
+          adults: 8,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        combinable_tables = service.find_combinable_tables
+        
+        # 應該找不到跨群組的併桌方案
+        if combinable_tables
+          group_ids = combinable_tables.map(&:table_group_id).uniq
+          expect(group_ids.count).to eq(1)
+        end
+      end
+    end
+
+    describe '可用性檢查 API' do
+      it '正確回報 2 人聚餐的可用性' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 2,
+          adults: 2,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        availability = service.check_availability
+        
+        expect(availability[:has_availability]).to be true
+        expect(availability[:available_tables].count).to be >= 2
+      end
+
+      it '正確回報 4 人聚餐的可用性' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 4,
+          adults: 4,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        availability = service.check_availability
+        
+        expect(availability[:has_availability]).to be true
+        expect(availability[:available_tables].count).to be >= 2
+      end
+
+      it '正確回報超大聚餐無可用性' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 20,
+          adults: 20,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        availability = service.check_availability
+        
+        expect(availability[:has_availability]).to be false
+        expect(availability[:available_tables]).to be_empty
+      end
+    end
+
+    describe '容量檢查' do
+      it '不會因為容量檢查而阻止合理的預訂' do
+        reservation = build(:reservation,
+                           restaurant: unlimited_restaurant,
+                           business_period: unlimited_lunch_period,
+                           party_size: 4,
+                           adults_count: 4,
+                           children_count: 0,
+                           reservation_datetime: test_time)
+
+        service = described_class.new(reservation)
+        
+        expect(service.send(:exceeds_restaurant_capacity?)).to be false
+        expect(service.allocate_table).to be_present
+      end
+
+      it '正確計算餐期內的已預訂容量' do
+        # 創建一些現有預訂
+        create(:reservation,
+               restaurant: unlimited_restaurant,
+               business_period: unlimited_lunch_period,
+               party_size: 4,
+               adults_count: 4,
+               children_count: 0,
+               reservation_datetime: test_time,
+               status: 'confirmed')
+
+        reservation = build(:reservation,
+                           restaurant: unlimited_restaurant,
+                           business_period: unlimited_lunch_period,
+                           party_size: 4,
+                           adults_count: 4,
+                           children_count: 0,
+                           reservation_datetime: test_time + 1.hour)
+
+        service = described_class.new(reservation)
+        
+        # 應該仍然可以預訂，因為總容量是 10，已預訂 4，還剩 6
+        expect(service.send(:exceeds_restaurant_capacity?)).to be false
+      end
+    end
+
+    describe '錯誤處理' do
+      it '當沒有 business_period_id 時不會崩潰' do
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 4,
+          adults: 4,
+          children: 0,
+          reservation_datetime: test_time
+          # 故意不提供 business_period_id
+        })
+
+        expect { service.allocate_table }.not_to raise_error
+        expect(service.send(:exceeds_restaurant_capacity?)).to be false
+      end
+
+      it '當桌位不支援併桌時正確處理' do
+        # 設定所有桌位都不支援併桌
+        [@t4_table, @t2_table, @o1_table].each do |table|
+          table.update!(can_combine: false)
+        end
+
+        service = described_class.new({
+          restaurant: unlimited_restaurant,
+          party_size: 6,
+          adults: 6,
+          children: 0,
+          reservation_datetime: test_time,
+          business_period_id: unlimited_lunch_period.id
+        })
+
+        combinable_tables = service.find_combinable_tables
+        expect(combinable_tables).to be_nil
+      end
+    end
+  end
+
   private
 
   def setup_test_tables

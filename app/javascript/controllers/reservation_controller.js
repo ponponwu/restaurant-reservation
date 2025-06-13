@@ -129,6 +129,34 @@ export default class extends Controller {
             const response = await fetch(apiUrl)
             console.log('🔥 API response status:', response.status)
 
+            // 檢查是否是訂位功能關閉的回應
+            if (response.status === 503) {
+                const errorData = await response.json()
+                console.log('🔥 Reservation service unavailable:', errorData)
+
+                // 顯示訂位功能停用的訊息
+                if (this.hasTimeSlotsTarget) {
+                    this.timeSlotsTarget.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                            <div class="flex justify-center mb-4">
+                                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-red-800 mb-2">線上訂位暫停服務</h3>
+                            <p class="text-red-700">${errorData.message || errorData.error}</p>
+                        </div>
+                    `
+                }
+
+                // 隱藏日期選擇器
+                if (this.hasDateTarget) {
+                    this.dateTarget.style.display = 'none'
+                }
+
+                return
+            }
+
             if (!response.ok) {
                 throw new Error(`API request failed: ${response.status}`)
             }
@@ -146,6 +174,35 @@ export default class extends Controller {
             const availabilityResponse = await fetch(
                 `/restaurants/${this.restaurantSlugValue}/reservations/availability_status`
             )
+
+            // 檢查第二個 API 是否也是訂位功能關閉
+            if (availabilityResponse.status === 503) {
+                const errorData = await availabilityResponse.json()
+                console.log('🔥 Availability service unavailable:', errorData)
+
+                // 顯示訂位功能停用的訊息
+                if (this.hasTimeSlotsTarget) {
+                    this.timeSlotsTarget.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                            <div class="flex justify-center mb-4">
+                                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-red-800 mb-2">線上訂位暫停服務</h3>
+                            <p class="text-red-700">${errorData.message || errorData.error}</p>
+                        </div>
+                    `
+                }
+
+                // 隱藏日期選擇器
+                if (this.hasDateTarget) {
+                    this.dateTarget.style.display = 'none'
+                }
+
+                return
+            }
+
             const availabilityData = await availabilityResponse.json()
 
             // 顯示預訂全滿的提示

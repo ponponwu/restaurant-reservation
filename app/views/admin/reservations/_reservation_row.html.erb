@@ -1,0 +1,209 @@
+<!-- 桌面版表格行 -->
+<tr id="reservation_<%= reservation.id %>" class="hover:bg-gray-50">
+  <td class="px-4 py-4 whitespace-nowrap">
+    <div class="flex items-center">
+      <div class="min-w-0 flex-1">
+        <div class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></div>
+        <div class="text-sm text-gray-500 truncate">
+          <%= reservation.customer_phone %>
+        </div>
+      </div>
+    </div>
+  </td>
+  <td class="px-3 py-4 whitespace-nowrap">
+    <div class="text-sm text-gray-900">
+      <%= reservation.reservation_datetime.strftime('%m/%d') %>
+    </div>
+    <div class="text-sm text-gray-500">
+      <%= reservation.reservation_datetime.strftime('%H:%M') %>
+    </div>
+  </td>
+  <td class="px-2 py-4 whitespace-nowrap text-center">
+    <div class="text-sm font-medium text-gray-900">
+      <%= reservation.party_size %>
+    </div>
+  </td>
+  <td class="px-2 py-4 whitespace-nowrap text-center text-sm text-gray-900">
+    <%= reservation.table&.table_number || '-' %>
+  </td>
+  <td class="px-3 py-4 whitespace-nowrap text-center">
+    <% case reservation.status %>
+    <% when 'confirmed' %>
+      <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-800">已確認</span>
+    <% when 'cancelled' %>
+      <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800">已取消</span>
+    <% when 'no_show' %>
+      <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800">未出席</span>
+    <% end %>
+  </td>
+  <td class="px-2 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <div class="flex items-center justify-end space-x-1">
+      <%= link_to admin_restaurant_reservation_path(@restaurant, reservation), 
+          class: "text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50",
+          title: "查看" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        </svg>
+      <% end %>
+      
+      <%= link_to edit_admin_restaurant_reservation_path(@restaurant, reservation), 
+          class: "text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-50",
+          title: "編輯" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+      <% end %>
+
+      <% if reservation.status == 'confirmed' %>
+        <%= button_to cancel_admin_restaurant_reservation_path(@restaurant, reservation), 
+            method: :patch,
+            class: "text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50",
+            title: "取消",
+            data: { 
+              turbo_confirm: "確定要取消這個訂位嗎？",
+              disable_with: "處理中..."
+            },
+            form_class: "inline" do %>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        <% end %>
+      <% end %>
+
+      <% if reservation.status == 'confirmed' %>
+        <%= button_to no_show_admin_restaurant_reservation_path(@restaurant, reservation), 
+            method: :patch,
+            class: "text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50",
+            title: "標記未出席",
+            data: { 
+              turbo_confirm: "確定要標記為未出席嗎？",
+              disable_with: "處理中..."
+            },
+            form_class: "inline" do %>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+        <% end %>
+      <% end %>
+
+      <%= link_to new_admin_blacklist_path(customer_phone: reservation.customer_phone, customer_name: reservation.customer_name), 
+          class: "text-red-700 hover:text-red-900 p-1 rounded hover:bg-red-50",
+          title: "加入黑名單",
+          target: "_blank" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+        </svg>
+      <% end %>
+    </div>
+  </td>
+</tr>
+
+<!-- 手機版卡片 -->
+<div id="reservation_mobile_<%= reservation.id %>" class="bg-white border border-gray-200 rounded-lg shadow-sm p-3 hidden">
+  <!-- 第一行：客戶資訊和狀態 -->
+  <div class="flex items-center justify-between mb-2">
+    <div class="flex-1 min-w-0">
+      <div class="flex items-center space-x-2">
+        <h4 class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></h4>
+        <span class="text-xs text-gray-500">|</span>
+        <span class="text-xs text-gray-500 truncate"><%= reservation.customer_phone %></span>
+      </div>
+    </div>
+    <div class="ml-2 flex-shrink-0">
+      <% case reservation.status %>
+      <% when 'confirmed' %>
+        <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-green-100 text-green-800">已確認</span>
+      <% when 'cancelled' %>
+        <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800">已取消</span>
+      <% when 'no_show' %>
+        <span class="inline-flex px-2 py-0.5 text-xs font-semibold rounded bg-red-100 text-red-800">未出席</span>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- 第二行：訂位詳情和操作 -->
+  <div class="flex items-center justify-between">
+    <div class="flex items-center space-x-4 text-sm text-gray-600">
+      <div class="flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+        </svg>
+        <span><%= reservation.reservation_datetime.strftime('%m/%d %H:%M') %></span>
+      </div>
+      <div class="flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path>
+        </svg>
+        <span><%= reservation.party_size %>人</span>
+      </div>
+      <div class="flex items-center space-x-1">
+        <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+        </svg>
+        <span><%= reservation.table&.table_number || '-' %></span>
+      </div>
+    </div>
+
+    <!-- 操作按鈕 -->
+    <div class="flex items-center space-x-1">
+      <%= link_to admin_restaurant_reservation_path(@restaurant, reservation), 
+          class: "text-blue-600 hover:text-blue-900 p-1.5 rounded hover:bg-blue-50",
+          title: "查看" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"></path>
+        </svg>
+      <% end %>
+      
+      <%= link_to edit_admin_restaurant_reservation_path(@restaurant, reservation), 
+          class: "text-gray-600 hover:text-gray-900 p-1.5 rounded hover:bg-gray-50",
+          title: "編輯" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+      <% end %>
+
+      <% if reservation.status == 'confirmed' %>
+        <%= button_to cancel_admin_restaurant_reservation_path(@restaurant, reservation), 
+            method: :patch,
+            class: "text-red-600 hover:text-red-900 p-1.5 rounded hover:bg-red-50",
+            title: "取消",
+            data: { 
+              turbo_confirm: "確定要取消這個訂位嗎？",
+              disable_with: "處理中..."
+            },
+            form_class: "inline" do %>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        <% end %>
+      <% end %>
+
+      <% if reservation.status == 'confirmed' %>
+        <%= button_to no_show_admin_restaurant_reservation_path(@restaurant, reservation), 
+            method: :patch,
+            class: "text-red-600 hover:text-red-900 p-1.5 rounded hover:bg-red-50",
+            title: "標記未出席",
+            data: { 
+              turbo_confirm: "確定要標記為未出席嗎？",
+              disable_with: "處理中..."
+            },
+            form_class: "inline" do %>
+          <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+          </svg>
+        <% end %>
+      <% end %>
+
+      <%= link_to new_admin_blacklist_path(customer_phone: reservation.customer_phone, customer_name: reservation.customer_name), 
+          class: "text-red-700 hover:text-red-900 p-1.5 rounded hover:bg-red-50",
+          title: "加入黑名單",
+          target: "_blank" do %>
+        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+        </svg>
+      <% end %>
+    </div>
+  </div>
+</div> 

@@ -14,14 +14,19 @@ class Admin::TablesController < AdminController
   def new
     @table_group = @restaurant.table_groups.find(params[:table_group_id]) if params[:table_group_id]
     @table = (@table_group || @restaurant).restaurant_tables.build(
-      sort_order: RestaurantTable.next_sort_order_in_group(@table_group),
       restaurant: @restaurant
     )
+    @table.sort_order = @restaurant.restaurant_tables.maximum(:sort_order).to_i + 1
   end
 
   def create
     @table = @table_group.restaurant_tables.build(table_params)
     @table.restaurant = @restaurant
+    
+    # 確保設定正確的全域排序順序
+    if @table.sort_order.blank? || @table.sort_order <= 0
+      @table.sort_order = @restaurant.restaurant_tables.maximum(:sort_order).to_i + 1
+    end
 
     if @table.save
       respond_to do |format|
@@ -29,19 +34,34 @@ class Admin::TablesController < AdminController
           render turbo_stream: [
             turbo_stream.remove('modal'),
             turbo_stream.update('flash_messages', partial: 'shared/flash', locals: { message: '桌位建立成功', type: 'success' }),
-            turbo_stream.replace("group_#{@table.table_group.id}", partial: 'admin/table_groups/table_group_row', locals: { table_group: @table.table_group.reload, global_priorities: {} })
+            # 只添加新的桌位行，而不是替換整個群組
+            turbo_stream.after("group_#{@table.table_group.id}", 
+                              partial: 'admin/table_groups/table_row', 
+                              locals: { 
+                                table: @table, 
+                                table_group: @table.table_group, 
+                                global_priorities: {} 
+                              })
           ]
         end
         format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '桌位建立成功' }
       end
     else
+      # 優先使用 turbo_stream 回應，避免跳頁
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: turbo_stream.update('modal', 
                                                   partial: 'new', 
                                                   locals: { table: @table })
         end
-        format.html { render :new, status: :unprocessable_entity }
+        format.html do
+          # 如果是 turbo_frame 請求，渲染 modal 內容
+          if turbo_frame_request?
+            render 'new', layout: false
+          else
+            render :new, status: :unprocessable_entity
+          end
+        end
       end
     end
   end
@@ -56,19 +76,33 @@ class Admin::TablesController < AdminController
           render turbo_stream: [
             turbo_stream.remove('modal'),
             turbo_stream.update('flash_messages', partial: 'shared/flash', locals: { message: '桌位更新成功', type: 'success' }),
-            turbo_stream.replace("group_#{@table.table_group.id}", partial: 'admin/table_groups/table_group_row', locals: { table_group: @table.table_group.reload, global_priorities: {} })
+            turbo_stream.replace("table_#{@table.id}", 
+                                partial: 'admin/table_groups/table_row', 
+                                locals: { 
+                                  table: @table, 
+                                  table_group: @table.table_group, 
+                                  global_priorities: {} 
+                                })
           ]
         end
         format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '桌位更新成功' }
       end
     else
+      # 優先使用 turbo_stream 回應，避免跳頁
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: turbo_stream.update('modal', 
                                                   partial: 'edit', 
                                                   locals: { table: @table })
         end
-        format.html { render :edit, status: :unprocessable_entity }
+        format.html do
+          # 如果是 turbo_frame 請求，渲染 modal 內容
+          if turbo_frame_request?
+            render 'edit', layout: false
+          else
+            render :edit, status: :unprocessable_entity
+          end
+        end
       end
     end
   end
@@ -84,10 +118,16 @@ class Admin::TablesController < AdminController
         format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), alert: '無法刪除：此桌位有訂位記錄' }
       end
     else
+      table_id = @table.id
       @table.destroy
       respond_to do |format|
         format.turbo_stream do
-          redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '桌位已刪除'
+          render turbo_stream: [
+            turbo_stream.remove("table_#{table_id}"),
+            turbo_stream.update('flash_messages', 
+                               partial: 'shared/flash', 
+                               locals: { message: '桌位已刪除', type: 'success' })
+          ]
         end
         format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '桌位已刪除' }
       end

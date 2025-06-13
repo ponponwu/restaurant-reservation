@@ -9119,6 +9119,321 @@ var confirmation_controller_default = class extends Controller {
   }
 };
 
+// app/javascript/controllers/flash_controller.js
+var flash_controller_default = class extends Controller {
+  static values = {
+    message: String,
+    type: String,
+    autoHide: Boolean,
+    redirectAfter: Boolean,
+    hideDelay: Number
+  };
+  connect() {
+    console.log("\uFFFD\uFFFD Flash \u63A7\u5236\u5668\u5DF2\u9023\u63A5!", {
+      autoHide: this.autoHideValue,
+      redirectAfter: this.redirectAfterValue,
+      hideDelay: this.hideDelayValue
+    });
+    this.showFlash();
+    if (this.autoHideValue) {
+      const delay = this.hideDelayValue || 800;
+      console.log(`\u23F0 \u5C07\u5728 ${delay}ms \u5F8C\u81EA\u52D5\u96B1\u85CF`);
+      setTimeout(() => {
+        this.hide();
+      }, delay);
+    }
+  }
+  showFlash() {
+    console.log("\u2728 \u986F\u793A Flash \u52D5\u756B");
+    this.element.style.opacity = "0";
+    this.element.style.transform = "translateX(100%)";
+    this.element.style.transition = "all 0.3s ease-out";
+    setTimeout(() => {
+      this.element.style.opacity = "1";
+      this.element.style.transform = "translateX(0)";
+    }, 100);
+  }
+  hide() {
+    console.log("\u{1F6AA} \u958B\u59CB\u96B1\u85CF Flash");
+    this.element.style.transition = "all 0.3s ease-in";
+    this.element.style.opacity = "0";
+    this.element.style.transform = "translateX(100%)";
+    setTimeout(() => {
+      if (this.redirectAfterValue) {
+        console.log("\u{1F504} \u91CD\u65B0\u8F09\u5165\u9801\u9762");
+        window.location.reload();
+      } else {
+        console.log("\u{1F5D1}\uFE0F \u79FB\u9664 Flash \u5143\u7D20");
+        this.element.remove();
+      }
+    }, 300);
+  }
+  // 手動關閉按鈕
+  close() {
+    console.log("\u274C \u624B\u52D5\u95DC\u9589 Flash");
+    this.hide();
+  }
+};
+
+// app/javascript/controllers/hello_controller.js
+var hello_controller_default = class extends Controller {
+  connect() {
+    this.element.textContent = "Hello World!";
+  }
+};
+
+// app/javascript/controllers/modal_controller.js
+var modal_controller_default = class extends Controller {
+  static targets = ["overlay", "content", "title", "message", "confirmBtn", "icon", "iconContainer"];
+  connect() {
+    this.pendingForm = null;
+    this.pendingAction = null;
+    window.showModalFlash = (message, type) => {
+      this.showFlash(message, type);
+    };
+    this.boundHandleModalClose = this.handleModalClose.bind(this);
+    document.addEventListener("click", this.boundHandleModalClose);
+  }
+  disconnect() {
+    if (this.boundHandleModalClose) {
+      document.removeEventListener("click", this.boundHandleModalClose);
+    }
+  }
+  // 處理 modal 關閉按鈕的全域點擊事件
+  handleModalClose(event) {
+    const closestActionElement = event.target.closest('[data-action*="modal#close"]');
+    if (closestActionElement) {
+      event.preventDefault();
+      this.close();
+    }
+  }
+  // 顯示確認對話框
+  show(event) {
+    event.preventDefault();
+    const button = event.currentTarget;
+    const form = button.closest("form");
+    const title = button.dataset.confirmTitle || "\u78BA\u8A8D\u64CD\u4F5C";
+    const message = button.dataset.confirmMessage || "\u60A8\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
+    const confirmText = button.dataset.confirmText || "\u78BA\u8A8D";
+    const type = button.dataset.confirmType || "danger";
+    const modal = document.getElementById("confirmation-modal");
+    const titleElement = modal?.querySelector('[data-modal-target="title"]');
+    const messageElement = modal?.querySelector('[data-modal-target="message"]');
+    const confirmBtnElement = modal?.querySelector('[data-modal-target="confirmBtn"]');
+    const overlayElement = modal?.querySelector('[data-modal-target="overlay"]');
+    const contentElement = modal?.querySelector('[data-modal-target="content"]');
+    if (!modal || !titleElement || !messageElement || !confirmBtnElement) {
+      console.error("\u274C Modal elements not found");
+      return;
+    }
+    titleElement.textContent = title;
+    messageElement.textContent = message;
+    confirmBtnElement.textContent = confirmText;
+    this.setModalStyleForElement(modal, type);
+    this.pendingForm = form;
+    this.pendingAction = () => {
+      if (form) {
+        form.submit();
+      } else {
+        const href = button.href;
+        if (href) {
+          window.location.href = href;
+        }
+      }
+    };
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    requestAnimationFrame(() => {
+      overlayElement?.classList.add("opacity-100");
+      contentElement?.classList.add("opacity-100", "translate-y-0", "sm:scale-100");
+    });
+  }
+  // 關閉對話框
+  close() {
+    const confirmationModal = document.getElementById("confirmation-modal");
+    if (confirmationModal && !confirmationModal.classList.contains("hidden")) {
+      const overlayElement = confirmationModal?.querySelector('[data-modal-target="overlay"]');
+      const contentElement = confirmationModal?.querySelector('[data-modal-target="content"]');
+      if (overlayElement && contentElement) {
+        overlayElement.classList.remove("opacity-100");
+        contentElement.classList.remove("opacity-100", "translate-y-0", "sm:scale-100");
+      }
+      setTimeout(() => {
+        if (confirmationModal) {
+          confirmationModal.classList.add("hidden");
+          confirmationModal.classList.remove("flex");
+        }
+        this.pendingForm = null;
+        this.pendingAction = null;
+      }, 200);
+      return;
+    }
+    const modalContainer = document.getElementById("modal-container");
+    if (modalContainer && !modalContainer.classList.contains("hidden")) {
+      modalContainer.classList.add("hidden");
+      const modalContent = document.getElementById("modal-content");
+      if (modalContent) {
+        modalContent.innerHTML = "";
+      }
+    }
+  }
+  // 確認操作
+  confirm() {
+    if (this.pendingAction) {
+      this.pendingAction();
+      this.close();
+    } else {
+      this.close();
+    }
+  }
+  // 設定 modal 的樣式（圖示和顏色）- 使用元素參數
+  setModalStyleForElement(modal, type) {
+    const iconContainer = modal.querySelector('[data-modal-target="iconContainer"]');
+    const icon = modal.querySelector('[data-modal-target="icon"]');
+    const confirmBtn = modal.querySelector('[data-modal-target="confirmBtn"]');
+    if (!iconContainer || !icon || !confirmBtn) {
+      console.error("\u274C Modal style elements not found");
+      return;
+    }
+    this.applyModalStyle(iconContainer, icon, confirmBtn, type);
+  }
+  // 設定 modal 的樣式（圖示和顏色）- 原始方法
+  setModalStyle(type) {
+    const iconContainer = this.iconContainerTarget;
+    const icon = this.iconTarget;
+    const confirmBtn = this.confirmBtnTarget;
+    this.applyModalStyle(iconContainer, icon, confirmBtn, type);
+  }
+  // 通用的樣式套用方法
+  applyModalStyle(iconContainer, icon, confirmBtn, type) {
+    iconContainer.className = "mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10";
+    confirmBtn.className = "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm";
+    switch (type) {
+      case "danger":
+        iconContainer.classList.add("bg-red-100");
+        icon.classList.add("text-red-600");
+        confirmBtn.classList.add("bg-red-600", "hover:bg-red-700", "focus:ring-red-500");
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />';
+        break;
+      case "warning":
+        iconContainer.classList.add("bg-yellow-100");
+        icon.classList.add("text-yellow-600");
+        confirmBtn.classList.add("bg-yellow-600", "hover:bg-yellow-700", "focus:ring-yellow-500");
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+        break;
+      case "info":
+        iconContainer.classList.add("bg-blue-100");
+        icon.classList.add("text-blue-600");
+        confirmBtn.classList.add("bg-blue-600", "hover:bg-blue-700", "focus:ring-blue-500");
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+        break;
+      default:
+        iconContainer.classList.add("bg-gray-100");
+        icon.classList.add("text-gray-600");
+        confirmBtn.classList.add("bg-gray-600", "hover:bg-gray-700", "focus:ring-gray-500");
+    }
+  }
+  // 鍵盤事件處理
+  keydown(event) {
+    if (event.key === "Escape") {
+      this.close();
+    } else if (event.key === "Enter") {
+      this.confirm();
+    }
+  }
+  // 顯示 flash 訊息
+  showFlash(message, type = "success") {
+    const flashContainer = document.getElementById("modal-flash-messages");
+    const flashContent = document.getElementById("modal-flash-content");
+    const flashIcon = document.getElementById("modal-flash-icon");
+    const flashText = document.getElementById("modal-flash-text");
+    if (!flashContainer || !flashContent || !flashIcon || !flashText) return;
+    flashContent.className = "rounded-md p-4";
+    flashIcon.innerHTML = "";
+    switch (type) {
+      case "success":
+        flashContent.classList.add("bg-green-50", "border", "border-green-200");
+        flashIcon.classList.add("text-green-400");
+        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>';
+        flashText.classList.add("text-green-800");
+        break;
+      case "error":
+        flashContent.classList.add("bg-red-50", "border", "border-red-200");
+        flashIcon.classList.add("text-red-400");
+        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>';
+        flashText.classList.add("text-red-800");
+        break;
+      case "warning":
+        flashContent.classList.add("bg-yellow-50", "border", "border-yellow-200");
+        flashIcon.classList.add("text-yellow-400");
+        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>';
+        flashText.classList.add("text-yellow-800");
+        break;
+    }
+    flashText.textContent = message;
+    flashContainer.classList.remove("hidden");
+    setTimeout(() => {
+      flashContainer.classList.add("hidden");
+    }, 3e3);
+  }
+  // 隱藏 flash 訊息
+  hideFlash() {
+    const flashContainer = document.getElementById("modal-flash-messages");
+    if (flashContainer) {
+      flashContainer.classList.add("hidden");
+    }
+  }
+  testClick() {
+    alert("Stimulus modal controller \u5DE5\u4F5C\u6B63\u5E38\uFF01");
+  }
+  // 遠程載入 Modal 內容
+  openRemote(event) {
+    event.preventDefault();
+    const link = event.currentTarget;
+    const url = link.href;
+    const modalContainer = document.getElementById("modal-container");
+    const modalContent = document.getElementById("modal-content");
+    if (!modalContainer || !modalContent) {
+      console.error("\u274C Modal container not found");
+      return;
+    }
+    modalContent.innerHTML = `
+            <div class="p-6 text-center">
+                <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-gray-500">\u8F09\u5165\u4E2D...</p>
+            </div>
+        `;
+    modalContainer.classList.remove("hidden");
+    fetch(url, {
+      headers: {
+        Accept: "text/html",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    }).then((response) => {
+      console.log("\u{1F4E1} Response status:", response.status);
+      console.log("\u{1F4E1} Response headers:", response.headers.get("Content-Type"));
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.text();
+    }).then((html) => {
+      console.log("\u2705 HTML loaded successfully, length:", html.length);
+      modalContent.innerHTML = html;
+    }).catch((error2) => {
+      console.error("\u{1F4A5} \u8F09\u5165\u5931\u6557\u8A73\u7D30\u932F\u8AA4:", error2);
+      modalContent.innerHTML = `
+                <div class="p-6 text-center">
+                    <p class="text-red-500">\u8F09\u5165\u5931\u6557\uFF1A${error2.message}</p>
+                    <p class="text-sm text-gray-500 mt-2">\u8ACB\u6AA2\u67E5\u63A7\u5236\u53F0\u4E86\u89E3\u8A73\u7D30\u932F\u8AA4</p>
+                </div>
+            `;
+    });
+  }
+};
+
 // node_modules/flatpickr/dist/esm/types/options.js
 var HOOKS = [
   "onChange",
@@ -11474,7 +11789,9 @@ var reservation_calendar_controller_default = class extends Controller {
     "afternoonSlotsGrid",
     "eveningSlots",
     "eveningSlotsGrid",
-    "nextStepButton"
+    "nextStepButton",
+    "phoneInput",
+    "phoneLimitWarning"
   ];
   static values = {
     restaurantSlug: String
@@ -11513,6 +11830,14 @@ var reservation_calendar_controller_default = class extends Controller {
     const weekdays = ["\u65E5", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D"];
     return weekdays[date.getDay()];
   }
+  // 檢查日期是否是今天或之前
+  isDateBeforeOrToday(date) {
+    const today = /* @__PURE__ */ new Date();
+    today.setHours(0, 0, 0, 0);
+    const checkDate = new Date(date);
+    checkDate.setHours(0, 0, 0, 0);
+    return checkDate <= today;
+  }
   // 當大人或小孩人數改變時
   updatePartySize() {
     const adults = parseInt(this.adultSelectTarget.value);
@@ -11533,12 +11858,21 @@ var reservation_calendar_controller_default = class extends Controller {
         `/restaurant/${this.restaurantSlugValue}/available_dates?party_size=${this.partySize}`
       );
       if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 503 && errorData.disabled) {
+          this.showError("\u7DDA\u4E0A\u8A02\u4F4D\u529F\u80FD\u66AB\u505C\u670D\u52D9\uFF0C\u5982\u9700\u8A02\u4F4D\u8ACB\u76F4\u63A5\u81F4\u96FB\u9910\u5EF3");
+          return;
+        }
         throw new Error("\u8F09\u5165\u5931\u6557");
       }
       const data = await response.json();
       this.availableDates = data.available_dates || [];
       this.businessPeriods = data.business_periods || [];
-      console.log("\u8F09\u5165\u7684\u53EF\u7528\u65E5\u671F:", this.availableDates);
+      this.availableDates = this.availableDates.filter((dateStr) => {
+        const date = this.parseLocalDate(dateStr);
+        return !this.isDateBeforeOrToday(date);
+      });
+      console.log("\u8F09\u5165\u7684\u53EF\u7528\u65E5\u671F (\u904E\u6FFE\u5F8C):", this.availableDates);
       if (this.availableDates.length === 0) {
         this.showFullBookedState(data.full_booked_until);
       } else {
@@ -11572,50 +11906,121 @@ var reservation_calendar_controller_default = class extends Controller {
     this.calendarInputTarget.style.width = "100%";
     this.calendarInputTarget.style.maxWidth = "400px";
     this.calendarInputTarget.style.margin = "0 auto";
+    const chineseTraditional = {
+      weekdays: {
+        // 確保星期順序正確：星期日開始
+        shorthand: ["\u65E5", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D"],
+        longhand: ["\u661F\u671F\u65E5", "\u661F\u671F\u4E00", "\u661F\u671F\u4E8C", "\u661F\u671F\u4E09", "\u661F\u671F\u56DB", "\u661F\u671F\u4E94", "\u661F\u671F\u516D"]
+      },
+      months: {
+        shorthand: ["1\u6708", "2\u6708", "3\u6708", "4\u6708", "5\u6708", "6\u6708", "7\u6708", "8\u6708", "9\u6708", "10\u6708", "11\u6708", "12\u6708"],
+        longhand: [
+          "\u4E00\u6708",
+          "\u4E8C\u6708",
+          "\u4E09\u6708",
+          "\u56DB\u6708",
+          "\u4E94\u6708",
+          "\u516D\u6708",
+          "\u4E03\u6708",
+          "\u516B\u6708",
+          "\u4E5D\u6708",
+          "\u5341\u6708",
+          "\u5341\u4E00\u6708",
+          "\u5341\u4E8C\u6708"
+        ]
+      },
+      firstDayOfWeek: 0,
+      // 星期日開始
+      rangeSeparator: " \u5230 ",
+      weekAbbreviation: "\u9031",
+      scrollTitle: "\u6EFE\u52D5\u5207\u63DB",
+      toggleTitle: "\u9EDE\u64CA\u5207\u63DB 12/24 \u5C0F\u6642\u5236"
+    };
+    const tomorrow = /* @__PURE__ */ new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    tomorrow.setHours(0, 0, 0, 0);
     this.flatpickrInstance = esm_default(this.calendarInputTarget, {
       locale: chineseTraditional,
       dateFormat: "Y-m-d",
-      minDate: "today",
+      minDate: tomorrow,
+      // 設定最小日期為明天
       maxDate: (/* @__PURE__ */ new Date()).fp_incr(60),
       // 60天後
-      enable: enabledDates,
+      enable: enabledDates.length > 0 ? enabledDates : [],
       // 使用修正後的日期陣列
       disableMobile: true,
       inline: true,
       // 直接顯示日曆，不需要 input
+      // 自定義日期禁用邏輯
+      disable: [
+        // 禁用今天及之前的所有日期
+        {
+          from: new Date(1900, 0, 1),
+          // 從很久以前開始
+          to: /* @__PURE__ */ new Date()
+          // 到今天為止
+        }
+      ],
       onChange: (selectedDates) => {
         if (selectedDates.length > 0) {
-          this.selectDate(selectedDates[0]);
+          const selectedDate = selectedDates[0];
+          if (this.isDateBeforeOrToday(selectedDate)) {
+            this.showError("\u4E0D\u53EF\u9810\u5B9A\u7576\u5929\u6216\u904E\u53BB\u7684\u65E5\u671F");
+            this.flatpickrInstance.clear();
+            return;
+          }
+          this.selectDate(selectedDate);
         }
       },
       onReady: () => {
         this.hideLoading();
         console.log("Flatpickr ready - calendar initialized successfully");
-        setTimeout(() => {
-          const calendarElement = this.calendarInputTarget.querySelector(".flatpickr-calendar");
-          if (calendarElement) {
-            const weekdayHeaders = calendarElement.querySelectorAll(".flatpickr-weekday");
-            console.log(
-              "Weekday headers:",
-              Array.from(weekdayHeaders).map((el) => el.textContent)
-            );
-            enabledDates.slice(0, 3).forEach((date) => {
-              const dateStr = this.formatDateToLocal(date);
-              const dayOfWeek = date.getDay();
-              const weekdayNames = ["\u65E5", "\u4E00", "\u4E8C", "\u4E09", "\u56DB", "\u4E94", "\u516D"];
-              console.log(`\u6AA2\u67E5: ${dateStr} \u61C9\u8A72\u662F\u661F\u671F${weekdayNames[dayOfWeek]}`);
-            });
-          }
-        }, 100);
+        this.addDisabledDateStyles();
+      },
+      onDayCreate: (dObj, dStr, fp, dayElem) => {
+        const date = dayElem.dateObj;
+        if (this.isDateBeforeOrToday(date)) {
+          dayElem.classList.add("disabled-date");
+          dayElem.title = "\u4E0D\u53EF\u9810\u5B9A\u7576\u5929\u6216\u904E\u53BB\u7684\u65E5\u671F";
+          dayElem.style.opacity = "0.3";
+          dayElem.style.cursor = "not-allowed";
+          dayElem.style.textDecoration = "line-through";
+        }
       }
     });
+  }
+  // 添加禁用日期的自定義樣式
+  addDisabledDateStyles() {
+    const style = document.createElement("style");
+    style.textContent = `
+            .flatpickr-calendar .disabled-date {
+                opacity: 0.3 !important;
+                cursor: not-allowed !important;
+                text-decoration: line-through !important;
+                background-color: #f3f4f6 !important;
+                color: #9ca3af !important;
+            }
+            
+            .flatpickr-calendar .disabled-date:hover {
+                background-color: #f3f4f6 !important;
+                color: #9ca3af !important;
+            }
+            
+            .flatpickr-calendar .flatpickr-disabled {
+                opacity: 0.3 !important;
+                cursor: not-allowed !important;
+            }
+        `;
+    if (!document.querySelector("#flatpickr-disabled-styles")) {
+      style.id = "flatpickr-disabled-styles";
+      document.head.appendChild(style);
+    }
   }
   // 顯示載入狀態
   showLoading() {
     this.loadingStateTarget.classList.remove("hidden");
     this.calendarInputTarget.style.display = "none";
     this.fullBookedStateTarget.classList.add("hidden");
-    this.timeSlotsContainerTarget.classList.add("hidden");
   }
   // 隱藏載入狀態
   hideLoading() {
@@ -11627,161 +12032,780 @@ var reservation_calendar_controller_default = class extends Controller {
     this.calendarInputTarget.style.display = "block";
     this.fullBookedStateTarget.classList.add("hidden");
   }
-  // 顯示客滿狀態
+  // 顯示完全預約滿的狀態
   showFullBookedState(fullBookedUntil) {
     this.loadingStateTarget.classList.add("hidden");
     this.calendarInputTarget.style.display = "none";
     this.fullBookedStateTarget.classList.remove("hidden");
-    this.timeSlotsContainerTarget.classList.add("hidden");
-    if (fullBookedUntil) {
-      const date = this.parseLocalDate(fullBookedUntil.split("T")[0]);
+    if (fullBookedUntil && this.hasFullBookedUntilDateTarget) {
+      const date = this.parseLocalDate(fullBookedUntil);
       const formattedDate = `${date.getMonth() + 1}\u6708${date.getDate()}\u65E5`;
       this.fullBookedUntilDateTarget.textContent = formattedDate;
     }
   }
-  // 選擇日期 - 修正日期處理方式
+  // 選擇日期
   selectDate(date) {
-    const year = date.getFullYear();
-    const month = date.getMonth();
-    const day = date.getDate();
-    this.selectedDate = new Date(year, month, day, 0, 0, 0);
-    this.selectedTime = null;
-    console.log("\u9078\u64C7\u7684\u65E5\u671F:", this.selectedDate, "\u683C\u5F0F\u5316\u70BA:", this.formatDateToLocal(this.selectedDate));
-    this.updateSelectedDateDisplay();
-    this.loadAvailableTimeSlots();
-  }
-  // 更新選中日期顯示
-  updateSelectedDateDisplay() {
-    if (!this.selectedDate) {
-      this.selectedDateDisplayTarget.classList.add("hidden");
+    if (this.isDateBeforeOrToday(date)) {
+      this.showError("\u4E0D\u53EF\u9810\u5B9A\u7576\u5929\u6216\u904E\u53BB\u7684\u65E5\u671F");
       return;
     }
+    console.log("\u9078\u64C7\u65E5\u671F:", date);
+    this.selectedDate = date;
+    this.updateSelectedDateDisplay();
+    this.loadAvailableTimeSlots();
+    this.dateTimeSectionTarget.classList.remove("hidden");
+  }
+  // 更新選擇的日期顯示
+  updateSelectedDateDisplay() {
+    if (!this.selectedDate) return;
     const month = this.selectedDate.getMonth() + 1;
     const day = this.selectedDate.getDate();
-    const year = this.selectedDate.getFullYear();
     const weekday = this.getLocalWeekdayName(this.selectedDate);
-    this.selectedDateTextTarget.textContent = `${month}\u6708${day}\u65E5`;
-    this.selectedWeekdayTextTarget.textContent = `\u9031${weekday}`;
-    this.selectedDateDisplayTarget.classList.remove("hidden");
-    console.log(`\u66F4\u65B0\u986F\u793A: ${month}\u6708${day}\u65E5 \u9031${weekday}`);
+    if (this.hasSelectedDateTextTarget) {
+      this.selectedDateTextTarget.textContent = `${month}\u6708${day}\u65E5`;
+    }
+    if (this.hasSelectedWeekdayTextTarget) {
+      this.selectedWeekdayTextTarget.textContent = `\u661F\u671F${weekday}`;
+    }
+    if (this.hasSelectedDateDisplayTarget) {
+      this.selectedDateDisplayTarget.textContent = `${month}\u6708${day}\u65E5 \u661F\u671F${weekday}`;
+    }
   }
   // 載入可用時段
   async loadAvailableTimeSlots() {
+    if (!this.selectedDate) return;
     try {
       const dateString = this.formatDateToLocal(this.selectedDate);
       const response = await fetch(
         `/restaurant/${this.restaurantSlugValue}/available_times?date=${dateString}&party_size=${this.partySize}`
       );
       if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 503 && errorData.disabled) {
+          this.showError("\u7DDA\u4E0A\u8A02\u4F4D\u529F\u80FD\u66AB\u505C\u670D\u52D9");
+          return;
+        }
+        if (response.status === 422) {
+          this.showError(errorData.error || "\u7121\u6CD5\u53D6\u5F97\u53EF\u7528\u6642\u6BB5");
+          return;
+        }
         throw new Error("\u8F09\u5165\u6642\u6BB5\u5931\u6557");
       }
       const data = await response.json();
-      this.renderTimeSlots(data.time_slots || []);
-      this.timeSlotsContainerTarget.classList.remove("hidden");
+      this.renderTimeSlots(data.available_times || []);
     } catch (error2) {
-      console.error("\u8F09\u5165\u6642\u6BB5\u5931\u6557:", error2);
+      console.error("\u8F09\u5165\u53EF\u7528\u6642\u6BB5\u5931\u6557:", error2);
       this.showError("\u8F09\u5165\u6642\u6BB5\u5931\u6557\uFF0C\u8ACB\u7A0D\u5F8C\u518D\u8A66");
     }
   }
-  // 渲染時段
+  // 渲染時段按鈕
   renderTimeSlots(timeSlots) {
-    this.afternoonSlotsGridTarget.innerHTML = "";
-    this.eveningSlotsGridTarget.innerHTML = "";
-    const afternoonSlots = timeSlots.filter((slot) => {
+    console.log("\u6E32\u67D3\u6642\u6BB5:", timeSlots);
+    if (this.hasAfternoonSlotsGridTarget) this.afternoonSlotsGridTarget.innerHTML = "";
+    if (this.hasEveningSlotsGridTarget) this.eveningSlotsGridTarget.innerHTML = "";
+    let hasAfternoon = false;
+    let hasEvening = false;
+    timeSlots.forEach((slot) => {
+      const button = this.createTimeSlotButton(slot);
       const hour = parseInt(slot.time.split(":")[0]);
-      return hour >= 11 && hour < 17;
+      if (hour < 17) {
+        if (this.hasAfternoonSlotsGridTarget) {
+          this.afternoonSlotsGridTarget.appendChild(button);
+          hasAfternoon = true;
+        }
+      } else {
+        if (this.hasEveningSlotsGridTarget) {
+          this.eveningSlotsGridTarget.appendChild(button);
+          hasEvening = true;
+        }
+      }
     });
-    const eveningSlots = timeSlots.filter((slot) => {
-      const hour = parseInt(slot.time.split(":")[0]);
-      return hour >= 17;
-    });
-    if (afternoonSlots.length > 0) {
-      afternoonSlots.forEach((slot) => {
-        const button = this.createTimeSlotButton(slot);
-        this.afternoonSlotsGridTarget.appendChild(button);
-      });
-      this.afternoonSlotsTarget.classList.remove("hidden");
-    } else {
-      this.afternoonSlotsTarget.classList.add("hidden");
+    if (this.hasAfternoonSlotsTarget) {
+      this.afternoonSlotsTarget.style.display = hasAfternoon ? "block" : "none";
     }
-    if (eveningSlots.length > 0) {
-      eveningSlots.forEach((slot) => {
-        const button = this.createTimeSlotButton(slot);
-        this.eveningSlotsGridTarget.appendChild(button);
-      });
-      this.eveningSlotsTarget.classList.remove("hidden");
-    } else {
-      this.eveningSlotsTarget.classList.add("hidden");
+    if (this.hasEveningSlotsTarget) {
+      this.eveningSlotsTarget.style.display = hasEvening ? "block" : "none";
+    }
+    if (this.hasTimeSlotsContainerTarget) {
+      this.timeSlotsContainerTarget.classList.remove("hidden");
     }
   }
-  // 建立時段按鈕
+  // 創建時段按鈕
   createTimeSlotButton(slot) {
     const button = document.createElement("button");
     button.type = "button";
-    button.className = "time-slot-button";
     button.textContent = slot.time;
-    if (slot.available) {
-      button.addEventListener("click", () => this.selectTimeSlot(slot));
-    } else {
-      button.disabled = true;
-    }
+    button.className = "px-4 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-500 hover:bg-blue-50 transition-colors";
+    button.dataset.time = slot.time;
+    button.dataset.action = "click->reservation-calendar#selectTimeSlot";
+    button.dataset.slot = JSON.stringify(slot);
     return button;
   }
   // 選擇時段
-  selectTimeSlot(slot) {
+  selectTimeSlot(event) {
+    const button = event.target;
+    const slot = JSON.parse(button.dataset.slot);
     this.selectedTime = slot;
+    console.log("\u9078\u64C7\u6642\u6BB5:", slot);
     this.updateTimeSlotButtons();
-    this.nextStepButtonTarget.disabled = false;
-    this.nextStepButtonTarget.className = "w-full bg-blue-600 text-white py-3 px-6 rounded-lg font-medium hover:bg-blue-700 cursor-pointer transition-colors duration-200";
+    if (this.hasNextStepButtonTarget) {
+      this.nextStepButtonTarget.disabled = false;
+    }
   }
   // 更新時段按鈕狀態
   updateTimeSlotButtons() {
     const allButtons = [
-      ...this.afternoonSlotsGridTarget.querySelectorAll("button"),
-      ...this.eveningSlotsGridTarget.querySelectorAll("button")
+      ...this.hasAfternoonSlotsGridTarget ? this.afternoonSlotsGridTarget.querySelectorAll("button") : [],
+      ...this.hasEveningSlotsGridTarget ? this.eveningSlotsGridTarget.querySelectorAll("button") : []
     ];
     allButtons.forEach((button) => {
-      if (this.selectedTime && button.textContent === this.selectedTime.time) {
-        button.className = "time-slot-button selected";
+      if (this.selectedTime && button.dataset.time === this.selectedTime.time) {
+        button.className = "px-4 py-2 border-2 border-blue-500 bg-blue-500 text-white rounded-lg text-sm transition-colors";
       } else {
-        button.className = "time-slot-button";
-        if (button.disabled) {
-          button.className += " disabled";
-        }
+        button.className = "px-4 py-2 border border-gray-300 rounded-lg text-sm hover:border-blue-500 hover:bg-blue-50 transition-colors";
       }
     });
   }
-  // 清除選中日期
+  // 清除選擇的日期
   clearSelectedDate() {
     this.selectedDate = null;
     this.selectedTime = null;
-    this.selectedDateDisplayTarget.classList.add("hidden");
-    this.timeSlotsContainerTarget.classList.add("hidden");
+    if (this.hasDateTimeSectionTarget) {
+      this.dateTimeSectionTarget.classList.add("hidden");
+    }
     if (this.flatpickrInstance) {
       this.flatpickrInstance.clear();
     }
-    this.nextStepButtonTarget.disabled = true;
-    this.nextStepButtonTarget.className = "w-full bg-gray-300 text-gray-500 py-3 px-6 rounded-lg font-medium cursor-not-allowed";
+    if (this.hasNextStepButtonTarget) {
+      this.nextStepButtonTarget.disabled = true;
+    }
   }
-  // 進入訂位流程
+  // 進入下一步（填寫訂位資訊）
   proceedToReservation() {
     if (!this.selectedDate || !this.selectedTime) {
-      this.showError("\u8ACB\u9078\u64C7\u65E5\u671F\u548C\u6642\u9593");
+      this.showError("\u8ACB\u9078\u64C7\u65E5\u671F\u548C\u6642\u6BB5");
       return;
     }
+    if (this.isDateBeforeOrToday(this.selectedDate)) {
+      this.showError("\u4E0D\u53EF\u9810\u5B9A\u7576\u5929\u6216\u904E\u53BB\u7684\u65E5\u671F");
+      this.clearSelectedDate();
+      return;
+    }
+    const dateString = this.formatDateToLocal(this.selectedDate);
     const params = new URLSearchParams({
-      party_size: this.partySize,
-      adults: this.adultSelectTarget.value,
-      children: this.childSelectTarget.value,
-      date: this.formatDateToLocal(this.selectedDate),
+      date: dateString,
       time: this.selectedTime.time,
-      business_period_id: this.selectedTime.business_period_id
+      party_size: this.partySize
     });
-    window.location.href = `/restaurant/${this.restaurantSlugValue}/reservations/new?${params.toString()}`;
+    window.location.href = `/restaurant/${this.restaurantSlugValue}/reservations/new?${params}`;
   }
   // 顯示錯誤訊息
   showError(message) {
-    alert(message);
+    let errorElement = document.querySelector("#reservation-error-message");
+    if (!errorElement) {
+      errorElement = document.createElement("div");
+      errorElement.id = "reservation-error-message";
+      errorElement.className = "bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4";
+      this.element.insertBefore(errorElement, this.element.firstChild);
+    }
+    errorElement.textContent = message;
+    errorElement.style.display = "block";
+    setTimeout(() => {
+      if (errorElement) {
+        errorElement.style.display = "none";
+      }
+    }, 3e3);
+  }
+};
+
+// app/javascript/controllers/reservation_controller.js
+var import_zh_tw = __toESM(require_zh_tw());
+var reservation_controller_default = class extends Controller {
+  static targets = ["date", "timeSlots", "periodInfo", "nextStep", "adultCount", "childCount"];
+  static values = {
+    restaurantSlug: String,
+    businessHours: Object
+  };
+  connect() {
+    console.log("\u{1F525} Reservation controller connected");
+    console.log("\u{1F525} Controller targets:", this.targets);
+    console.log("\u{1F525} timeSlots target available:", this.hasTimeSlotsTarget);
+    console.log("\u{1F525} dateTarget available:", this.hasDateTarget);
+    console.log("\u{1F525} Restaurant slug:", this.restaurantSlugValue);
+    this.selectedDate = null;
+    this.selectedPeriodId = null;
+    this.selectedTime = null;
+    this.maxReservationDays = 30;
+    setTimeout(() => {
+      this.initDatePicker();
+      this.setupGuestCountListeners();
+    }, 100);
+  }
+  setupGuestCountListeners() {
+    if (this.hasAdultCountTarget) {
+      this.adultCountTarget.addEventListener("change", () => {
+        const adultHiddenField2 = document.getElementById("adult_count");
+        if (adultHiddenField2) {
+          adultHiddenField2.value = this.adultCountTarget.value;
+        }
+        if (this.selectedDate) {
+          this.loadAllTimeSlots(this.selectedDate);
+        }
+      });
+    } else {
+      const adultSelect2 = document.querySelector('[name="reservation[adult_count]"]');
+      if (adultSelect2) {
+        adultSelect2.addEventListener("change", () => {
+          const adultHiddenField2 = document.getElementById("adult_count");
+          if (adultHiddenField2) {
+            adultHiddenField2.value = adultSelect2.value;
+          }
+          if (this.selectedDate) {
+            this.loadAllTimeSlots(this.selectedDate);
+          }
+        });
+      }
+    }
+    if (this.hasChildCountTarget) {
+      this.childCountTarget.addEventListener("change", () => {
+        const childHiddenField2 = document.getElementById("child_count");
+        if (childHiddenField2) {
+          childHiddenField2.value = this.childCountTarget.value;
+        }
+        if (this.selectedDate) {
+          this.loadAllTimeSlots(this.selectedDate);
+        }
+      });
+    } else {
+      const childSelect2 = document.querySelector('[name="reservation[child_count]"]');
+      if (childSelect2) {
+        childSelect2.addEventListener("change", () => {
+          const childHiddenField2 = document.getElementById("child_count");
+          if (childHiddenField2) {
+            childHiddenField2.value = childSelect2.value;
+          }
+          if (this.selectedDate) {
+            this.loadAllTimeSlots(this.selectedDate);
+          }
+        });
+      }
+    }
+    const adultHiddenField = document.getElementById("adult_count");
+    const childHiddenField = document.getElementById("child_count");
+    const adultSelect = this.hasAdultCountTarget ? this.adultCountTarget : document.querySelector('[name="reservation[adult_count]"]');
+    const childSelect = this.hasChildCountTarget ? this.childCountTarget : document.querySelector('[name="reservation[child_count]"]');
+    if (adultHiddenField && adultSelect) {
+      adultHiddenField.value = adultSelect.value;
+    }
+    if (childHiddenField && childSelect) {
+      childHiddenField.value = childSelect.value;
+    }
+  }
+  async initDatePicker() {
+    console.log("\u{1F525} Starting initDatePicker...");
+    if (!this.hasDateTarget) {
+      console.error("\u{1F525} No dateTarget found!");
+      return;
+    }
+    console.log("\u{1F525} dateTarget element:", this.dateTarget);
+    try {
+      const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days`;
+      console.log("\u{1F525} Fetching from:", apiUrl);
+      const response = await fetch(apiUrl);
+      console.log("\u{1F525} API response status:", response.status);
+      if (response.status === 503) {
+        const errorData = await response.json();
+        console.log("\u{1F525} Reservation service unavailable:", errorData);
+        if (this.hasTimeSlotsTarget) {
+          this.timeSlotsTarget.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                            <div class="flex justify-center mb-4">
+                                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-red-800 mb-2">\u7DDA\u4E0A\u8A02\u4F4D\u66AB\u505C\u670D\u52D9</h3>
+                            <p class="text-red-700">${errorData.message || errorData.error}</p>
+                        </div>
+                    `;
+        }
+        if (this.hasDateTarget) {
+          this.dateTarget.style.display = "none";
+        }
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`API request failed: ${response.status}`);
+      }
+      const availableDays = await response.json();
+      console.log("\u{1F525} Available days data:", availableDays);
+      const weekly = availableDays.weekly;
+      const special = availableDays.special;
+      this.maxReservationDays = availableDays.max_days || 30;
+      console.log("\u9910\u5EF3\u6700\u5927\u9810\u8A02\u5929\u6578:", this.maxReservationDays);
+      const availabilityResponse = await fetch(
+        `/restaurants/${this.restaurantSlugValue}/reservations/availability_status`
+      );
+      if (availabilityResponse.status === 503) {
+        const errorData = await availabilityResponse.json();
+        console.log("\u{1F525} Availability service unavailable:", errorData);
+        if (this.hasTimeSlotsTarget) {
+          this.timeSlotsTarget.innerHTML = `
+                        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                            <div class="flex justify-center mb-4">
+                                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                            </div>
+                            <h3 class="text-lg font-medium text-red-800 mb-2">\u7DDA\u4E0A\u8A02\u4F4D\u66AB\u505C\u670D\u52D9</h3>
+                            <p class="text-red-700">${errorData.message || errorData.error}</p>
+                        </div>
+                    `;
+        }
+        if (this.hasDateTarget) {
+          this.dateTarget.style.display = "none";
+        }
+        return;
+      }
+      const availabilityData = await availabilityResponse.json();
+      if (availabilityData.fully_booked_until) {
+        const fullyBookedDate = new Date(availabilityData.fully_booked_until);
+        const formattedDate = fullyBookedDate.toLocaleDateString("zh-TW", {
+          year: "numeric",
+          month: "long",
+          day: "numeric"
+        });
+        const dateContainer = this.dateTarget.closest("div");
+        const noticeDiv = document.createElement("div");
+        noticeDiv.className = "bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4";
+        noticeDiv.innerHTML = `
+                    <div class="flex">
+                        <div class="flex-shrink-0">
+                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                        </div>
+                        <div class="ml-3">
+                            <p class="text-sm">\u76EE\u524D\u9810\u8A02\u5DF2\u6EFF\u81F3 ${formattedDate}\uFF0C\u8ACB\u9078\u64C7\u4E4B\u5F8C\u7684\u65E5\u671F\u3002</p>
+                        </div>
+                    </div>
+                `;
+        dateContainer.insertBefore(noticeDiv, this.dateTarget);
+      }
+      if (this.hasDateTarget) {
+        const disableDates = [];
+        const today = /* @__PURE__ */ new Date();
+        const endDate = /* @__PURE__ */ new Date();
+        endDate.setDate(today.getDate() + this.maxReservationDays);
+        for (let date = new Date(today); date <= endDate; date.setDate(date.getDate() + 1)) {
+          const dayOfWeek = date.getDay();
+          const year = date.getFullYear();
+          const month = String(date.getMonth() + 1).padStart(2, "0");
+          const day = String(date.getDate()).padStart(2, "0");
+          const ymd = `${year}-${month}-${day}`;
+          const isClosedDay = !weekly[dayOfWeek] || special.includes(ymd);
+          const isFullyBooked = availabilityData.unavailable_dates.includes(ymd);
+          if (isClosedDay || isFullyBooked) {
+            disableDates.push(new Date(date));
+          }
+        }
+        console.log("zhTw:", import_zh_tw.default);
+        const localeOption = import_zh_tw.default.zh_tw || import_zh_tw.default.default || import_zh_tw.default;
+        console.log("flatpickr localeOption:", localeOption);
+        this.datePicker = esm_default(this.dateTarget, {
+          locale: localeOption,
+          inline: false,
+          // 改為點擊才顯示
+          position: "auto center",
+          // 置中顯示
+          static: false,
+          // 允許動態定位
+          appendTo: document.body,
+          // 附加到 body 以避免容器限制
+          minDate: "today",
+          maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
+          disable: disableDates,
+          onChange: (selectedDates) => {
+            if (selectedDates && selectedDates.length > 0) {
+              const selectedDate = selectedDates[0];
+              const year = selectedDate.getFullYear();
+              const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+              const day = String(selectedDate.getDate()).padStart(2, "0");
+              this.selectedDate = `${year}-${month}-${day}`;
+              console.log("\u9078\u64C7\u7684\u65E5\u671F (\u672C\u5730\u6642\u5340):", this.selectedDate);
+              const dateField = document.querySelector('input[name="date"], #reservation_date');
+              if (dateField) {
+                dateField.value = this.selectedDate;
+              }
+              this.loadAllTimeSlots(this.selectedDate);
+              this.selectedPeriodId = null;
+              this.selectedTime = null;
+              this.updateFormState();
+            }
+          }
+        });
+        console.log("\u{1F525} Flatpickr initialized successfully:", this.datePicker);
+        console.log("\u{1F525} Flatpickr calendar element:", this.datePicker.calendarContainer);
+        console.log("\u{1F525} dateTarget after flatpickr:", this.dateTarget);
+        console.log("\u{1F525} dateTarget parent:", this.dateTarget.parentElement);
+      } else {
+        console.error("\u{1F525} dateTarget not available for flatpickr initialization");
+      }
+      const availableDates = [];
+      const today2 = /* @__PURE__ */ new Date();
+      const endDate2 = /* @__PURE__ */ new Date();
+      endDate2.setDate(today2.getDate() + this.maxReservationDays);
+      for (let date = new Date(today2); date <= endDate2; date.setDate(date.getDate() + 1)) {
+        const dayOfWeek = date.getDay();
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, "0");
+        const day = String(date.getDate()).padStart(2, "0");
+        const ymd = `${year}-${month}-${day}`;
+        const isOpenDay = weekly[dayOfWeek] && !special.includes(ymd);
+        const hasAvailability = !availabilityData.unavailable_dates.includes(ymd);
+        if (isOpenDay && hasAvailability) {
+          availableDates.push(new Date(date));
+        }
+      }
+      if (availableDates.length > 0) {
+        console.log("\u627E\u5230\u53EF\u7528\u65E5\u671F\uFF0C\u8A2D\u7F6E\u70BA\u9ED8\u8A8D\u65E5\u671F:", availableDates[0]);
+        this.datePicker.setDate(availableDates[0]);
+        const selectedDate = availableDates[0];
+        const year = selectedDate.getFullYear();
+        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
+        const day = String(selectedDate.getDate()).padStart(2, "0");
+        this.selectedDate = `${year}-${month}-${day}`;
+        const dateField = document.querySelector('input[name="date"], #reservation_date');
+        if (dateField) {
+          dateField.value = this.selectedDate;
+        }
+        this.loadAllTimeSlots(this.selectedDate);
+        console.log("\u{1F525} \u5DF2\u81EA\u52D5\u52A0\u8F09\u65E5\u671F\u7684\u6642\u9593\u69FD:", this.selectedDate);
+      } else {
+        console.log("\u{1F525} \u6C92\u6709\u627E\u5230\u53EF\u7528\u65E5\u671F");
+      }
+    } catch (error2) {
+      console.error("\u{1F525} \u521D\u59CB\u5316\u65E5\u671F\u9078\u64C7\u5668\u6642\u51FA\u932F:", error2);
+      console.error("\u{1F525} Error stack:", error2.stack);
+      if (this.hasTimeSlotsTarget) {
+        this.timeSlotsTarget.innerHTML = '<div class="text-red-500 p-4 text-center">\u7121\u6CD5\u8F09\u5165\u53EF\u7528\u65E5\u671F</div>';
+      }
+    }
+  }
+  // 加載所有時間槽 (調整為當前專案的 API 端點)
+  async loadAllTimeSlots(date) {
+    const adultCount = this.hasAdultCountTarget ? this.adultCountTarget.value : 2;
+    const childCount = this.hasChildCountTarget ? this.childCountTarget.value : 0;
+    if (!this.hasTimeSlotsTarget) {
+      console.error("\u7F3A\u5C11 timeSlots \u76EE\u6A19\u5143\u7D20");
+      return;
+    }
+    this.timeSlotsTarget.innerHTML = '<p class="text-gray-400 w-full">\u8F09\u5165\u4E2D...</p>';
+    if (this.hasPeriodInfoTarget) {
+      this.periodInfoTarget.innerHTML = "";
+    }
+    try {
+      const response = await fetch(
+        `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adultCount}&child_count=${childCount}`
+      );
+      const data = await response.json();
+      this.timeSlotsTarget.innerHTML = "";
+      const slots = data.slots;
+      if (!slots || slots.length === 0) {
+        if (this.hasPeriodInfoTarget) {
+          this.periodInfoTarget.innerHTML = '<span class="text-yellow-500">\u8A72\u65E5\u7121\u53EF\u7528\u9910\u671F</span>';
+        }
+        this.timeSlotsTarget.innerHTML = '<p class="text-yellow-500 w-full">\u8A72\u65E5\u7121\u53EF\u7528\u6642\u9593</p>';
+        return;
+      }
+      const periodSlots = {};
+      slots.forEach((slot) => {
+        const periodName = slot.period_name;
+        if (!periodSlots[periodName]) {
+          periodSlots[periodName] = [];
+        }
+        periodSlots[periodName].push(slot);
+      });
+      const periodNames = Object.keys(periodSlots);
+      if (periodNames.length > 0 && this.hasPeriodInfoTarget) {
+        this.periodInfoTarget.innerHTML = `<span>\u53EF\u7528\u9910\u671F: ${periodNames.join(", ")}</span>`;
+      }
+      Object.keys(periodSlots).forEach((periodName) => {
+        const slotsInPeriod = periodSlots[periodName];
+        const periodDiv = document.createElement("div");
+        periodDiv.className = "mb-4";
+        const heading = document.createElement("h3");
+        heading.className = "flex items-center font-semibold text-gray-800 mb-4 text-lg";
+        const icon = document.createElement("span");
+        icon.className = "inline-block w-2 h-2 bg-blue-500 rounded-full mr-3";
+        heading.appendChild(icon);
+        heading.appendChild(document.createTextNode(periodName));
+        periodDiv.appendChild(heading);
+        const timeContainer = document.createElement("div");
+        timeContainer.className = "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4";
+        slotsInPeriod.forEach((slot) => {
+          const timeElement = document.createElement("button");
+          timeElement.type = "button";
+          timeElement.className = "time-option group relative px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
+          const timeSpan = document.createElement("span");
+          timeSpan.className = "block text-lg font-semibold";
+          timeSpan.textContent = slot.time;
+          const indicator = document.createElement("div");
+          indicator.className = "absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full opacity-80 group-hover:opacity-100 transition-opacity";
+          const label = document.createElement("span");
+          label.className = "block text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors";
+          label.textContent = "\u53EF\u9810\u7D04";
+          timeElement.appendChild(indicator);
+          timeElement.appendChild(timeSpan);
+          timeElement.appendChild(label);
+          timeElement.dataset.periodId = slot.period_id;
+          timeElement.dataset.periodName = slot.period_name;
+          timeElement.addEventListener("click", (event) => this.selectTimeSlot(event));
+          timeContainer.appendChild(timeElement);
+        });
+        periodDiv.appendChild(timeContainer);
+        this.timeSlotsTarget.appendChild(periodDiv);
+      });
+    } catch (error2) {
+      console.error("\u7121\u6CD5\u8F09\u5165\u6642\u9593:", error2);
+      if (this.hasPeriodInfoTarget) {
+        this.periodInfoTarget.innerHTML = '<span class="text-red-500">\u7121\u6CD5\u8F09\u5165\u9910\u671F</span>';
+      }
+      this.timeSlotsTarget.innerHTML = '<p class="text-red-500 w-full">\u7121\u6CD5\u8F09\u5165\u6642\u9593</p>';
+    }
+  }
+  // 選擇時間槽
+  selectTimeSlot(event) {
+    this.element.querySelectorAll(".time-option").forEach((el) => {
+      el.classList.remove("selected");
+      el.className = "time-option group relative px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
+      const timeSpan2 = el.querySelector("span:first-of-type");
+      const label2 = el.querySelector("span:last-of-type");
+      const indicator2 = el.querySelector("div");
+      if (timeSpan2) {
+        timeSpan2.className = "block text-lg font-semibold";
+      }
+      if (label2) {
+        label2.className = "block text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors";
+        label2.textContent = "\u53EF\u9810\u7D04";
+      }
+      if (indicator2) {
+        indicator2.className = "absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full opacity-80 group-hover:opacity-100 transition-opacity";
+      }
+    });
+    const selectedElement = event.currentTarget;
+    selectedElement.classList.add("selected");
+    selectedElement.className = "time-option selected relative px-6 py-4 rounded-xl border-2 border-blue-500 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium transition-all duration-300 ease-in-out transform scale-105 shadow-xl ring-4 ring-blue-200";
+    const timeSpan = selectedElement.querySelector("span:first-of-type");
+    const label = selectedElement.querySelector("span:last-of-type");
+    const indicator = selectedElement.querySelector("div");
+    if (timeSpan) {
+      timeSpan.className = "block text-lg font-bold text-white";
+    }
+    if (label) {
+      label.className = "block text-xs text-blue-100 mt-1";
+      label.textContent = "\u5DF2\u9078\u64C7";
+    }
+    if (indicator) {
+      indicator.className = "absolute top-2 right-2 w-3 h-3 bg-white rounded-full shadow-sm";
+    }
+    this.selectedTime = selectedElement.querySelector("span:first-of-type").textContent;
+    this.selectedPeriodId = selectedElement.dataset.periodId;
+    console.log("\u9078\u64C7\u6642\u9593\u69FD:", this.selectedTime, "\u9910\u671FID:", this.selectedPeriodId);
+    this.updateFormState();
+  }
+  // 更新表單狀態
+  updateFormState() {
+    const dateField = document.querySelector('input[name="date"], #reservation_date');
+    const timeField = document.querySelector('input[name="time"], #reservation_time');
+    const periodIdField = document.querySelector('input[name="period_id"], #operating_period_id');
+    const adultCountField = document.querySelector(
+      'select[name="reservation[adult_count]"], [data-reservation-target="adultCount"]'
+    );
+    const childCountField = document.querySelector(
+      'select[name="reservation[child_count]"], [data-reservation-target="childCount"]'
+    );
+    if (dateField && this.selectedDate) {
+      dateField.value = this.selectedDate;
+    }
+    if (timeField && this.selectedTime) {
+      timeField.value = this.selectedTime;
+    }
+    if (periodIdField && this.selectedPeriodId) {
+      periodIdField.value = this.selectedPeriodId;
+    }
+    const form = this.element.closest("form") || document.getElementById("reservation-form");
+    if (this.selectedDate && this.selectedTime && this.selectedPeriodId && form) {
+      if (this.hasNextStepTarget) {
+        this.nextStepTarget.disabled = false;
+      }
+      const adultCount = adultCountField ? adultCountField.value : 2;
+      const childCount = childCountField ? childCountField.value : 0;
+      const adultHiddenField = form.querySelector('input[name="adults"]');
+      const childHiddenField = form.querySelector('input[name="children"]');
+      if (!adultHiddenField && adultCount) {
+        const adultHidden = document.createElement("input");
+        adultHidden.type = "hidden";
+        adultHidden.name = "adults";
+        adultHidden.value = adultCount;
+        form.appendChild(adultHidden);
+      } else if (adultHiddenField) {
+        adultHiddenField.value = adultCount;
+      }
+      if (!childHiddenField && childCount) {
+        const childHidden = document.createElement("input");
+        childHidden.type = "hidden";
+        childHidden.name = "children";
+        childHidden.value = childCount;
+        form.appendChild(childHidden);
+      } else if (childHiddenField) {
+        childHiddenField.value = childCount;
+      }
+      let dateParamField = form.querySelector('input[name="date"]');
+      if (!dateParamField) {
+        dateParamField = document.createElement("input");
+        dateParamField.type = "hidden";
+        dateParamField.name = "date";
+        form.appendChild(dateParamField);
+      }
+      dateParamField.value = this.selectedDate;
+      let timeParamField = form.querySelector('input[name="time"]');
+      if (!timeParamField) {
+        timeParamField = document.createElement("input");
+        timeParamField.type = "hidden";
+        timeParamField.name = "time";
+        form.appendChild(timeParamField);
+      }
+      timeParamField.value = this.selectedTime;
+      let periodParamField = form.querySelector('input[name="period_id"]');
+      if (!periodParamField) {
+        periodParamField = document.createElement("input");
+        periodParamField.type = "hidden";
+        periodParamField.name = "period_id";
+        form.appendChild(periodParamField);
+      }
+      periodParamField.value = this.selectedPeriodId;
+      console.log("\u8868\u55AE\u5DF2\u66F4\u65B0:", {
+        date: dateField ? dateField.value : "\u672A\u627E\u5230\u65E5\u671F\u6B04\u4F4D",
+        time: timeField ? timeField.value : "\u672A\u627E\u5230\u6642\u9593\u6B04\u4F4D",
+        periodId: periodIdField ? periodIdField.value : "\u672A\u627E\u5230\u9910\u671F\u6B04\u4F4D",
+        adultCount,
+        childCount,
+        dateParam: dateParamField.value,
+        timeParam: timeParamField.value,
+        periodParam: periodParamField.value
+      });
+    } else {
+      if (this.hasNextStepTarget) {
+        this.nextStepTarget.disabled = true;
+      }
+    }
+  }
+};
+
+// app/javascript/controllers/reservation_policy_controller.js
+var reservation_policy_controller_default = class extends Controller {
+  static targets = ["checkbox", "toggle", "toggleButton", "status", "settings", "depositCheckbox", "depositFields"];
+  static values = { enabled: Boolean };
+  connect() {
+    console.log("\u{1F527} ReservationPolicy controller connected");
+    this.updateUI();
+    this.initializeDeposit();
+  }
+  // 處理切換開關點擊
+  toggle(event) {
+    event.preventDefault();
+    console.log("\u{1F527} \u5207\u63DB\u958B\u95DC\u88AB\u9EDE\u64CA");
+    this.checkboxTarget.checked = !this.checkboxTarget.checked;
+    console.log("\u{1F527} \u65B0\u7684 checkbox \u72C0\u614B:", this.checkboxTarget.checked);
+    this.updateUI();
+    this.submitForm();
+  }
+  // 處理 checkbox 變更事件
+  checkboxChanged() {
+    console.log("\u{1F527} checkbox change \u4E8B\u4EF6\u89F8\u767C");
+    this.updateUI();
+    this.submitForm();
+  }
+  // 更新UI狀態
+  updateUI() {
+    const enabled = this.checkboxTarget.checked;
+    console.log("\u{1F527} \u66F4\u65B0UI\u72C0\u614B\u70BA:", enabled);
+    if (enabled) {
+      this.enableReservation();
+    } else {
+      this.disableReservation();
+    }
+  }
+  // 啟用訂位功能的UI
+  enableReservation() {
+    console.log("\u{1F527} \u8A2D\u5B9A\u70BA\u555F\u7528\u72C0\u614B");
+    if (this.hasSettingsTarget) {
+      this.settingsTarget.classList.remove("opacity-50", "pointer-events-none");
+    }
+    if (this.hasToggleTarget) {
+      this.toggleTarget.classList.remove("bg-gray-200");
+      this.toggleTarget.classList.add("bg-blue-600");
+    }
+    if (this.hasToggleButtonTarget) {
+      this.toggleButtonTarget.classList.remove("translate-x-0");
+      this.toggleButtonTarget.classList.add("translate-x-5");
+    }
+    if (this.hasStatusTarget) {
+      this.statusTarget.textContent = "\u5DF2\u555F\u7528";
+    }
+  }
+  // 停用訂位功能的UI
+  disableReservation() {
+    console.log("\u{1F527} \u8A2D\u5B9A\u70BA\u505C\u7528\u72C0\u614B");
+    if (this.hasSettingsTarget) {
+      this.settingsTarget.classList.add("opacity-50", "pointer-events-none");
+    }
+    if (this.hasToggleTarget) {
+      this.toggleTarget.classList.remove("bg-blue-600");
+      this.toggleTarget.classList.add("bg-gray-200");
+    }
+    if (this.hasToggleButtonTarget) {
+      this.toggleButtonTarget.classList.remove("translate-x-5");
+      this.toggleButtonTarget.classList.add("translate-x-0");
+    }
+    if (this.hasStatusTarget) {
+      this.statusTarget.textContent = "\u5DF2\u505C\u7528";
+    }
+  }
+  // 提交表單
+  submitForm() {
+    const form = document.getElementById("reservation_policy_form");
+    if (form) {
+      console.log("\u{1F527} \u63D0\u4EA4\u8868\u55AE");
+      form.requestSubmit();
+    } else {
+      console.error("\u{1F527} \u627E\u4E0D\u5230\u8868\u55AE");
+    }
+  }
+  // 處理押金設定切換
+  toggleDeposit(event) {
+    const enabled = event.target.checked;
+    console.log("\u{1F527} \u62BC\u91D1\u8A2D\u5B9A\u5207\u63DB\u70BA:", enabled);
+    if (this.hasDepositFieldsTarget) {
+      if (enabled) {
+        this.depositFieldsTarget.classList.remove("hidden");
+      } else {
+        this.depositFieldsTarget.classList.add("hidden");
+      }
+    }
+  }
+  // 初始化押金設定顯示狀態
+  initializeDeposit() {
+    if (this.hasDepositCheckboxTarget && this.hasDepositFieldsTarget) {
+      const isEnabled = this.depositCheckboxTarget.checked;
+      console.log("\u{1F527} \u521D\u59CB\u5316\u62BC\u91D1\u8A2D\u5B9A\u72C0\u614B:", isEnabled);
+      if (!isEnabled) {
+        this.depositFieldsTarget.classList.add("hidden");
+      } else {
+        this.depositFieldsTarget.classList.remove("hidden");
+      }
+    }
   }
 };
 
@@ -12448,7 +13472,7 @@ var restaurant_management_controller_default = class extends Controller {
         <div class="inline-flex items-center px-4 py-2 bg-blue-100 text-blue-800 rounded-lg">
           <svg class="animate-spin -ml-1 mr-3 h-5 w-5 text-blue-600" fill="none" viewBox="0 0 24 24">
             <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 818-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 714 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
           </svg>
           \u8F09\u5165\u4E2D...
         </div>
@@ -15000,457 +16024,18 @@ var sortable_controller_default = class extends Controller {
   }
 };
 
-// app/javascript/controllers/reservation_controller.js
-var import_zh_tw = __toESM(require_zh_tw());
-var reservation_controller_default = class extends Controller {
-  static targets = ["date", "timeSlots", "periodInfo", "nextStep", "adultCount", "childCount"];
-  static values = {
-    restaurantSlug: String,
-    businessHours: Object
-  };
-  connect() {
-    console.log("\u{1F525} Reservation controller connected");
-    console.log("\u{1F525} Controller targets:", this.targets);
-    console.log("\u{1F525} timeSlots target available:", this.hasTimeSlotsTarget);
-    console.log("\u{1F525} dateTarget available:", this.hasDateTarget);
-    console.log("\u{1F525} Restaurant slug:", this.restaurantSlugValue);
-    this.selectedDate = null;
-    this.selectedPeriodId = null;
-    this.selectedTime = null;
-    this.maxReservationDays = 30;
-    setTimeout(() => {
-      this.initDatePicker();
-      this.setupGuestCountListeners();
-    }, 100);
-  }
-  setupGuestCountListeners() {
-    if (this.hasAdultCountTarget) {
-      this.adultCountTarget.addEventListener("change", () => {
-        const adultHiddenField2 = document.getElementById("adult_count");
-        if (adultHiddenField2) {
-          adultHiddenField2.value = this.adultCountTarget.value;
-        }
-        if (this.selectedDate) {
-          this.loadAllTimeSlots(this.selectedDate);
-        }
-      });
-    } else {
-      const adultSelect2 = document.querySelector('[name="reservation[adult_count]"]');
-      if (adultSelect2) {
-        adultSelect2.addEventListener("change", () => {
-          const adultHiddenField2 = document.getElementById("adult_count");
-          if (adultHiddenField2) {
-            adultHiddenField2.value = adultSelect2.value;
-          }
-          if (this.selectedDate) {
-            this.loadAllTimeSlots(this.selectedDate);
-          }
-        });
-      }
-    }
-    if (this.hasChildCountTarget) {
-      this.childCountTarget.addEventListener("change", () => {
-        const childHiddenField2 = document.getElementById("child_count");
-        if (childHiddenField2) {
-          childHiddenField2.value = this.childCountTarget.value;
-        }
-        if (this.selectedDate) {
-          this.loadAllTimeSlots(this.selectedDate);
-        }
-      });
-    } else {
-      const childSelect2 = document.querySelector('[name="reservation[child_count]"]');
-      if (childSelect2) {
-        childSelect2.addEventListener("change", () => {
-          const childHiddenField2 = document.getElementById("child_count");
-          if (childHiddenField2) {
-            childHiddenField2.value = childSelect2.value;
-          }
-          if (this.selectedDate) {
-            this.loadAllTimeSlots(this.selectedDate);
-          }
-        });
-      }
-    }
-    const adultHiddenField = document.getElementById("adult_count");
-    const childHiddenField = document.getElementById("child_count");
-    const adultSelect = this.hasAdultCountTarget ? this.adultCountTarget : document.querySelector('[name="reservation[adult_count]"]');
-    const childSelect = this.hasChildCountTarget ? this.childCountTarget : document.querySelector('[name="reservation[child_count]"]');
-    if (adultHiddenField && adultSelect) {
-      adultHiddenField.value = adultSelect.value;
-    }
-    if (childHiddenField && childSelect) {
-      childHiddenField.value = childSelect.value;
-    }
-  }
-  async initDatePicker() {
-    console.log("\u{1F525} Starting initDatePicker...");
-    if (!this.hasDateTarget) {
-      console.error("\u{1F525} No dateTarget found!");
-      return;
-    }
-    console.log("\u{1F525} dateTarget element:", this.dateTarget);
-    try {
-      const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days`;
-      console.log("\u{1F525} Fetching from:", apiUrl);
-      const response = await fetch(apiUrl);
-      console.log("\u{1F525} API response status:", response.status);
-      if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
-      }
-      const availableDays = await response.json();
-      console.log("\u{1F525} Available days data:", availableDays);
-      const weekly = availableDays.weekly;
-      const special = availableDays.special;
-      this.maxReservationDays = availableDays.max_days || 30;
-      console.log("\u9910\u5EF3\u6700\u5927\u9810\u8A02\u5929\u6578:", this.maxReservationDays);
-      const availabilityResponse = await fetch(
-        `/restaurants/${this.restaurantSlugValue}/reservations/availability_status`
-      );
-      const availabilityData = await availabilityResponse.json();
-      if (availabilityData.fully_booked_until) {
-        const fullyBookedDate = new Date(availabilityData.fully_booked_until);
-        const formattedDate = fullyBookedDate.toLocaleDateString("zh-TW", {
-          year: "numeric",
-          month: "long",
-          day: "numeric"
-        });
-        const dateContainer = this.dateTarget.closest("div");
-        const noticeDiv = document.createElement("div");
-        noticeDiv.className = "bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4";
-        noticeDiv.innerHTML = `
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm">\u76EE\u524D\u9810\u8A02\u5DF2\u6EFF\u81F3 ${formattedDate}\uFF0C\u8ACB\u9078\u64C7\u4E4B\u5F8C\u7684\u65E5\u671F\u3002</p>
-                        </div>
-                    </div>
-                `;
-        dateContainer.insertBefore(noticeDiv, this.dateTarget);
-      }
-      if (this.hasDateTarget) {
-        const disableDates = [];
-        const today = /* @__PURE__ */ new Date();
-        const endDate = /* @__PURE__ */ new Date();
-        endDate.setDate(today.getDate() + this.maxReservationDays);
-        for (let date = new Date(today); date <= endDate; date.setDate(date.getDate() + 1)) {
-          const dayOfWeek = date.getDay();
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          const ymd = `${year}-${month}-${day}`;
-          const isClosedDay = !weekly[dayOfWeek] || special.includes(ymd);
-          const isFullyBooked = availabilityData.unavailable_dates.includes(ymd);
-          if (isClosedDay || isFullyBooked) {
-            disableDates.push(new Date(date));
-          }
-        }
-        console.log("zhTw:", import_zh_tw.default);
-        const localeOption = import_zh_tw.default.zh_tw || import_zh_tw.default.default || import_zh_tw.default;
-        console.log("flatpickr localeOption:", localeOption);
-        this.datePicker = esm_default(this.dateTarget, {
-          locale: localeOption,
-          inline: false,
-          // 改為點擊才顯示
-          position: "auto center",
-          // 置中顯示
-          static: false,
-          // 允許動態定位
-          appendTo: document.body,
-          // 附加到 body 以避免容器限制
-          minDate: "today",
-          maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
-          disable: disableDates,
-          onChange: (selectedDates) => {
-            if (selectedDates && selectedDates.length > 0) {
-              const selectedDate = selectedDates[0];
-              const year = selectedDate.getFullYear();
-              const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-              const day = String(selectedDate.getDate()).padStart(2, "0");
-              this.selectedDate = `${year}-${month}-${day}`;
-              console.log("\u9078\u64C7\u7684\u65E5\u671F (\u672C\u5730\u6642\u5340):", this.selectedDate);
-              const dateField = document.querySelector('input[name="date"], #reservation_date');
-              if (dateField) {
-                dateField.value = this.selectedDate;
-              }
-              this.loadAllTimeSlots(this.selectedDate);
-              this.selectedPeriodId = null;
-              this.selectedTime = null;
-              this.updateFormState();
-            }
-          }
-        });
-        console.log("\u{1F525} Flatpickr initialized successfully:", this.datePicker);
-        console.log("\u{1F525} Flatpickr calendar element:", this.datePicker.calendarContainer);
-        console.log("\u{1F525} dateTarget after flatpickr:", this.dateTarget);
-        console.log("\u{1F525} dateTarget parent:", this.dateTarget.parentElement);
-      } else {
-        console.error("\u{1F525} dateTarget not available for flatpickr initialization");
-      }
-      const availableDates = [];
-      const today2 = /* @__PURE__ */ new Date();
-      const endDate2 = /* @__PURE__ */ new Date();
-      endDate2.setDate(today2.getDate() + this.maxReservationDays);
-      for (let date = new Date(today2); date <= endDate2; date.setDate(date.getDate() + 1)) {
-        const dayOfWeek = date.getDay();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const ymd = `${year}-${month}-${day}`;
-        const isOpenDay = weekly[dayOfWeek] && !special.includes(ymd);
-        const hasAvailability = !availabilityData.unavailable_dates.includes(ymd);
-        if (isOpenDay && hasAvailability) {
-          availableDates.push(new Date(date));
-        }
-      }
-      if (availableDates.length > 0) {
-        console.log("\u627E\u5230\u53EF\u7528\u65E5\u671F\uFF0C\u8A2D\u7F6E\u70BA\u9ED8\u8A8D\u65E5\u671F:", availableDates[0]);
-        this.datePicker.setDate(availableDates[0]);
-        const selectedDate = availableDates[0];
-        const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-        const day = String(selectedDate.getDate()).padStart(2, "0");
-        this.selectedDate = `${year}-${month}-${day}`;
-        const dateField = document.querySelector('input[name="date"], #reservation_date');
-        if (dateField) {
-          dateField.value = this.selectedDate;
-        }
-        this.loadAllTimeSlots(this.selectedDate);
-        console.log("\u{1F525} \u5DF2\u81EA\u52D5\u52A0\u8F09\u65E5\u671F\u7684\u6642\u9593\u69FD:", this.selectedDate);
-      } else {
-        console.log("\u{1F525} \u6C92\u6709\u627E\u5230\u53EF\u7528\u65E5\u671F");
-      }
-    } catch (error2) {
-      console.error("\u{1F525} \u521D\u59CB\u5316\u65E5\u671F\u9078\u64C7\u5668\u6642\u51FA\u932F:", error2);
-      console.error("\u{1F525} Error stack:", error2.stack);
-      if (this.hasTimeSlotsTarget) {
-        this.timeSlotsTarget.innerHTML = '<div class="text-red-500 p-4 text-center">\u7121\u6CD5\u8F09\u5165\u53EF\u7528\u65E5\u671F</div>';
-      }
-    }
-  }
-  // 加載所有時間槽 (調整為當前專案的 API 端點)
-  async loadAllTimeSlots(date) {
-    const adultCount = this.hasAdultCountTarget ? this.adultCountTarget.value : 2;
-    const childCount = this.hasChildCountTarget ? this.childCountTarget.value : 0;
-    if (!this.hasTimeSlotsTarget) {
-      console.error("\u7F3A\u5C11 timeSlots \u76EE\u6A19\u5143\u7D20");
-      return;
-    }
-    this.timeSlotsTarget.innerHTML = '<p class="text-gray-400 w-full">\u8F09\u5165\u4E2D...</p>';
-    if (this.hasPeriodInfoTarget) {
-      this.periodInfoTarget.innerHTML = "";
-    }
-    try {
-      const response = await fetch(
-        `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adultCount}&child_count=${childCount}`
-      );
-      const data = await response.json();
-      this.timeSlotsTarget.innerHTML = "";
-      const slots = data.slots;
-      if (!slots || slots.length === 0) {
-        if (this.hasPeriodInfoTarget) {
-          this.periodInfoTarget.innerHTML = '<span class="text-yellow-500">\u8A72\u65E5\u7121\u53EF\u7528\u9910\u671F</span>';
-        }
-        this.timeSlotsTarget.innerHTML = '<p class="text-yellow-500 w-full">\u8A72\u65E5\u7121\u53EF\u7528\u6642\u9593</p>';
-        return;
-      }
-      const periodSlots = {};
-      slots.forEach((slot) => {
-        const periodName = slot.period_name;
-        if (!periodSlots[periodName]) {
-          periodSlots[periodName] = [];
-        }
-        periodSlots[periodName].push(slot);
-      });
-      const periodNames = Object.keys(periodSlots);
-      if (periodNames.length > 0 && this.hasPeriodInfoTarget) {
-        this.periodInfoTarget.innerHTML = `<span>\u53EF\u7528\u9910\u671F: ${periodNames.join(", ")}</span>`;
-      }
-      Object.keys(periodSlots).forEach((periodName) => {
-        const slotsInPeriod = periodSlots[periodName];
-        const periodDiv = document.createElement("div");
-        periodDiv.className = "mb-4";
-        const heading = document.createElement("h3");
-        heading.className = "flex items-center font-semibold text-gray-800 mb-4 text-lg";
-        const icon = document.createElement("span");
-        icon.className = "inline-block w-2 h-2 bg-blue-500 rounded-full mr-3";
-        heading.appendChild(icon);
-        heading.appendChild(document.createTextNode(periodName));
-        periodDiv.appendChild(heading);
-        const timeContainer = document.createElement("div");
-        timeContainer.className = "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4";
-        slotsInPeriod.forEach((slot) => {
-          const timeElement = document.createElement("button");
-          timeElement.type = "button";
-          timeElement.className = "time-option group relative px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
-          const timeSpan = document.createElement("span");
-          timeSpan.className = "block text-lg font-semibold";
-          timeSpan.textContent = slot.time;
-          const indicator = document.createElement("div");
-          indicator.className = "absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full opacity-80 group-hover:opacity-100 transition-opacity";
-          const label = document.createElement("span");
-          label.className = "block text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors";
-          label.textContent = "\u53EF\u9810\u7D04";
-          timeElement.appendChild(indicator);
-          timeElement.appendChild(timeSpan);
-          timeElement.appendChild(label);
-          timeElement.dataset.periodId = slot.period_id;
-          timeElement.dataset.periodName = slot.period_name;
-          timeElement.addEventListener("click", (event) => this.selectTimeSlot(event));
-          timeContainer.appendChild(timeElement);
-        });
-        periodDiv.appendChild(timeContainer);
-        this.timeSlotsTarget.appendChild(periodDiv);
-      });
-    } catch (error2) {
-      console.error("\u7121\u6CD5\u8F09\u5165\u6642\u9593:", error2);
-      if (this.hasPeriodInfoTarget) {
-        this.periodInfoTarget.innerHTML = '<span class="text-red-500">\u7121\u6CD5\u8F09\u5165\u9910\u671F</span>';
-      }
-      this.timeSlotsTarget.innerHTML = '<p class="text-red-500 w-full">\u7121\u6CD5\u8F09\u5165\u6642\u9593</p>';
-    }
-  }
-  // 選擇時間槽
-  selectTimeSlot(event) {
-    this.element.querySelectorAll(".time-option").forEach((el) => {
-      el.classList.remove("selected");
-      el.className = "time-option group relative px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
-      const timeSpan2 = el.querySelector("span:first-of-type");
-      const label2 = el.querySelector("span:last-of-type");
-      const indicator2 = el.querySelector("div");
-      if (timeSpan2) {
-        timeSpan2.className = "block text-lg font-semibold";
-      }
-      if (label2) {
-        label2.className = "block text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors";
-        label2.textContent = "\u53EF\u9810\u7D04";
-      }
-      if (indicator2) {
-        indicator2.className = "absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full opacity-80 group-hover:opacity-100 transition-opacity";
-      }
-    });
-    const selectedElement = event.currentTarget;
-    selectedElement.classList.add("selected");
-    selectedElement.className = "time-option selected relative px-6 py-4 rounded-xl border-2 border-blue-500 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium transition-all duration-300 ease-in-out transform scale-105 shadow-xl ring-4 ring-blue-200";
-    const timeSpan = selectedElement.querySelector("span:first-of-type");
-    const label = selectedElement.querySelector("span:last-of-type");
-    const indicator = selectedElement.querySelector("div");
-    if (timeSpan) {
-      timeSpan.className = "block text-lg font-bold text-white";
-    }
-    if (label) {
-      label.className = "block text-xs text-blue-100 mt-1";
-      label.textContent = "\u5DF2\u9078\u64C7";
-    }
-    if (indicator) {
-      indicator.className = "absolute top-2 right-2 w-3 h-3 bg-white rounded-full shadow-sm";
-    }
-    this.selectedTime = selectedElement.querySelector("span:first-of-type").textContent;
-    this.selectedPeriodId = selectedElement.dataset.periodId;
-    console.log("\u9078\u64C7\u6642\u9593\u69FD:", this.selectedTime, "\u9910\u671FID:", this.selectedPeriodId);
-    this.updateFormState();
-  }
-  // 更新表單狀態
-  updateFormState() {
-    const dateField = document.querySelector('input[name="date"], #reservation_date');
-    const timeField = document.querySelector('input[name="time"], #reservation_time');
-    const periodIdField = document.querySelector('input[name="period_id"], #operating_period_id');
-    const adultCountField = document.querySelector(
-      'select[name="reservation[adult_count]"], [data-reservation-target="adultCount"]'
-    );
-    const childCountField = document.querySelector(
-      'select[name="reservation[child_count]"], [data-reservation-target="childCount"]'
-    );
-    if (dateField && this.selectedDate) {
-      dateField.value = this.selectedDate;
-    }
-    if (timeField && this.selectedTime) {
-      timeField.value = this.selectedTime;
-    }
-    if (periodIdField && this.selectedPeriodId) {
-      periodIdField.value = this.selectedPeriodId;
-    }
-    const form = this.element.closest("form") || document.getElementById("reservation-form");
-    if (this.selectedDate && this.selectedTime && this.selectedPeriodId && form) {
-      if (this.hasNextStepTarget) {
-        this.nextStepTarget.disabled = false;
-      }
-      const adultCount = adultCountField ? adultCountField.value : 2;
-      const childCount = childCountField ? childCountField.value : 0;
-      const adultHiddenField = form.querySelector('input[name="adults"]');
-      const childHiddenField = form.querySelector('input[name="children"]');
-      if (!adultHiddenField && adultCount) {
-        const adultHidden = document.createElement("input");
-        adultHidden.type = "hidden";
-        adultHidden.name = "adults";
-        adultHidden.value = adultCount;
-        form.appendChild(adultHidden);
-      } else if (adultHiddenField) {
-        adultHiddenField.value = adultCount;
-      }
-      if (!childHiddenField && childCount) {
-        const childHidden = document.createElement("input");
-        childHidden.type = "hidden";
-        childHidden.name = "children";
-        childHidden.value = childCount;
-        form.appendChild(childHidden);
-      } else if (childHiddenField) {
-        childHiddenField.value = childCount;
-      }
-      let dateParamField = form.querySelector('input[name="date"]');
-      if (!dateParamField) {
-        dateParamField = document.createElement("input");
-        dateParamField.type = "hidden";
-        dateParamField.name = "date";
-        form.appendChild(dateParamField);
-      }
-      dateParamField.value = this.selectedDate;
-      let timeParamField = form.querySelector('input[name="time"]');
-      if (!timeParamField) {
-        timeParamField = document.createElement("input");
-        timeParamField.type = "hidden";
-        timeParamField.name = "time";
-        form.appendChild(timeParamField);
-      }
-      timeParamField.value = this.selectedTime;
-      let periodParamField = form.querySelector('input[name="period_id"]');
-      if (!periodParamField) {
-        periodParamField = document.createElement("input");
-        periodParamField.type = "hidden";
-        periodParamField.name = "period_id";
-        form.appendChild(periodParamField);
-      }
-      periodParamField.value = this.selectedPeriodId;
-      console.log("\u8868\u55AE\u5DF2\u66F4\u65B0:", {
-        date: dateField ? dateField.value : "\u672A\u627E\u5230\u65E5\u671F\u6B04\u4F4D",
-        time: timeField ? timeField.value : "\u672A\u627E\u5230\u6642\u9593\u6B04\u4F4D",
-        periodId: periodIdField ? periodIdField.value : "\u672A\u627E\u5230\u9910\u671F\u6B04\u4F4D",
-        adultCount,
-        childCount,
-        dateParam: dateParamField.value,
-        timeParam: timeParamField.value,
-        periodParam: periodParamField.value
-      });
-    } else {
-      if (this.hasNextStepTarget) {
-        this.nextStepTarget.disabled = true;
-      }
-    }
-  }
-};
-
-// app/javascript/application.js
+// app/javascript/controllers/index.js
 application.register("calendar", calendar_controller_default);
 application.register("closure-dates", closure_dates_controller_default);
 application.register("confirmation", confirmation_controller_default);
+application.register("flash", flash_controller_default);
+application.register("hello", hello_controller_default);
+application.register("modal", modal_controller_default);
 application.register("reservation-calendar", reservation_calendar_controller_default);
+application.register("reservation", reservation_controller_default);
+application.register("reservation-policy", reservation_policy_controller_default);
 application.register("restaurant-management", restaurant_management_controller_default);
 application.register("sortable", sortable_controller_default);
-application.register("reservation", reservation_controller_default);
 /*! Bundled license information:
 
 @hotwired/turbo/dist/turbo.es2017-esm.js:

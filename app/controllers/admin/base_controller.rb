@@ -12,7 +12,7 @@ class Admin::BaseController < ApplicationController
     @restaurant ||= current_restaurant
     
     # 檢查權限：super_admin 和 manager 可以管理所有餐廳
-    if @restaurant && !current_user.super_admin? && !current_user.manager?
+    if @restaurant && current_user && !current_user.super_admin? && !current_user.manager?
       redirect_to admin_restaurants_path, alert: '您沒有權限管理此餐廳'
     end
   end

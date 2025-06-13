@@ -79,7 +79,7 @@
             <dl>
               <dt class="text-sm font-medium text-gray-500 truncate">押金設定</dt>
               <dd class="text-lg font-medium text-gray-900">
-                <%= @reservation_policy.deposit_required? ? '已啟用' : '未啟用' %>
+                <%= @reservation_policy&.deposit_required? ? '已啟用' : '未啟用' %>
               </dd>
             </dl>
           </div>
@@ -94,7 +94,8 @@
     <div class="border-b border-gray-200">
       <nav class="-mb-px flex space-x-8" aria-label="Tabs">
         <%= link_to admin_restaurant_settings_restaurant_business_periods_path(@restaurant),
-            class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" do %>
+            class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
+            data: { turbo_prefetch: false } do %>
           <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
@@ -102,7 +103,8 @@
         <% end %>
         
         <%= link_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant),
-            class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" do %>
+            class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
+            data: { turbo_prefetch: false } do %>
           <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
@@ -110,12 +112,15 @@
         <% end %>
         
         <%= link_to admin_restaurant_settings_restaurant_reservation_policies_path(@restaurant),
-            class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" do %>
+            class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
+            data: { turbo_prefetch: false } do %>
           <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
           </svg>
           預約規則
         <% end %>
+        
+
       </nav>
     </div>
 
@@ -132,7 +137,8 @@
         </p>
         <div class="mt-6 flex justify-center space-x-3">
           <%= link_to admin_restaurant_settings_restaurant_business_periods_path(@restaurant),
-              class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700" do %>
+              class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+              data: { turbo_prefetch: false } do %>
             開始設定營業時段
           <% end %>
         </div>

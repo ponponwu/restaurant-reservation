@@ -2,31 +2,37 @@
 // Run that command whenever you add a new controller or create them with
 // ./bin/rails generate stimulus controllerName
 
-import { application } from './application'
+import { application } from "./application"
 
-import CalendarController from './calendar_controller'
-application.register('calendar', CalendarController)
+import CalendarController from "./calendar_controller"
+application.register("calendar", CalendarController)
 
-import ClosureDatesController from './closure_dates_controller'
-application.register('closure-dates', ClosureDatesController)
+import ClosureDatesController from "./closure_dates_controller"
+application.register("closure-dates", ClosureDatesController)
 
-import ConfirmationController from './confirmation_controller'
-application.register('confirmation', ConfirmationController)
+import ConfirmationController from "./confirmation_controller"
+application.register("confirmation", ConfirmationController)
 
-import HelloController from './hello_controller'
-application.register('hello', HelloController)
+import FlashController from "./flash_controller"
+application.register("flash", FlashController)
 
-import ModalController from './modal_controller'
-application.register('modal', ModalController)
+import HelloController from "./hello_controller"
+application.register("hello", HelloController)
 
-import ReservationCalendarController from './reservation_calendar_controller'
-application.register('reservation-calendar', ReservationCalendarController)
+import ModalController from "./modal_controller"
+application.register("modal", ModalController)
 
-import ReservationController from './reservation_controller'
-application.register('reservation', ReservationController)
+import ReservationCalendarController from "./reservation_calendar_controller"
+application.register("reservation-calendar", ReservationCalendarController)
 
-import RestaurantManagementController from './restaurant_management_controller'
-application.register('restaurant-management', RestaurantManagementController)
+import ReservationController from "./reservation_controller"
+application.register("reservation", ReservationController)
 
-import SortableController from './sortable_controller'
-application.register('sortable', SortableController)
+import ReservationPolicyController from "./reservation_policy_controller"
+application.register("reservation-policy", ReservationPolicyController)
+
+import RestaurantManagementController from "./restaurant_management_controller"
+application.register("restaurant-management", RestaurantManagementController)
+
+import SortableController from "./sortable_controller"
+application.register("sortable", SortableController)

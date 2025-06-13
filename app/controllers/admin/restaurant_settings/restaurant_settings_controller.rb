@@ -1,7 +1,7 @@
 class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
   before_action :set_restaurant
   before_action :set_closure_dates, only: [:closure_dates, :create_closure_date]
-  before_action :set_reservation_policy, only: [:reservation_policies, :update_reservation_policy]
+  before_action :set_reservation_policy, only: [:index, :reservation_policies, :update_reservation_policy]
 
   def index
     @stats = calculate_stats
@@ -9,7 +9,6 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
 
   def business_periods
     @business_periods = @restaurant.business_periods.includes(:reservation_slots)
-    @business_period = @restaurant.business_periods.build
   end
 
   def closure_dates
@@ -152,8 +151,8 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
     if @reservation_policy.update(reservation_policy_params)
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('flash', 
-                                                  partial: 'shared/flash', 
+          render turbo_stream: turbo_stream.update('flash',
+                                                  partial: 'shared/flash',
                                                   locals: { message: '預約規則更新成功', type: 'success' })
         end
         format.html { redirect_to admin_restaurant_settings_restaurant_reservation_policies_path(@restaurant), notice: '預約規則更新成功' }
@@ -161,9 +160,9 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
     else
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('reservation_policy_form',
-                                                  partial: 'reservation_policy_form',
-                                                  locals: { reservation_policy: @reservation_policy })
+          render turbo_stream: turbo_stream.update('flash',
+                                                  partial: 'shared/flash',
+                                                  locals: { message: @reservation_policy.errors.full_messages.join(', '), type: 'error' })
         end
         format.html { render :reservation_policies, status: :unprocessable_entity }
       end
@@ -210,11 +209,13 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
 
   def reservation_policy_params
     params.require(:reservation_policy).permit(
+      :reservation_enabled,
       :advance_booking_days, :minimum_advance_hours, :min_party_size, :max_party_size,
-      :deposit_required, :deposit_type, :deposit_amount, :deposit_deadline_hours,
-      :refund_policy, :deposit_notes, :special_rules, :allow_same_day_booking,
-      :require_phone_verification, :auto_confirm_reservations,
-      :cancellation_deadline_hours, :no_show_policy, :cancellation_policy
+      :max_bookings_per_phone, :phone_limit_period_days,
+      :deposit_required, :deposit_per_person, :deposit_amount,
+      :no_show_policy, :modification_policy, :special_rules, :cancellation_hours,
+      :unlimited_dining_time, :default_dining_duration_minutes, :buffer_time_minutes,
+      :allow_table_combinations, :max_combination_tables
     )
   end
 end

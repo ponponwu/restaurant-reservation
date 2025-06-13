@@ -1,8 +1,15 @@
 class Admin::DashboardController < AdminController
   def index
+    # 餐廳管理員直接重定向到他們的餐廳管理頁面
+    if current_user&.manager? && current_user.restaurant
+      redirect_to admin_restaurant_reservations_path(current_user.restaurant)
+      return
+    end
+    
     @stats = dashboard_stats
     @recent_activities = recent_activities
     @system_status = system_status
+    @restaurants = Restaurant.active.order(:name) # 添加餐廳列表供選擇
   end
 
   private

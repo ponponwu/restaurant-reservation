@@ -266,7 +266,8 @@ Devise.setup do |config|
   # config.navigational_formats = ['*/*', :html, :turbo_stream]
 
   # The default HTTP method used to sign out a resource. Default is :delete.
-  config.sign_out_via = :delete
+  # 支援 GET 和 DELETE 方法來解決 Rails 7 + Turbo 的相容性問題
+  config.sign_out_via = [:delete, :get]
 
   # ==> OmniAuth
   # Add a new OmniAuth provider. Check the wiki for more information on setting

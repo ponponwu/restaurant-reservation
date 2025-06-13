@@ -1,5 +1,6 @@
 class ReservationsController < ApplicationController
   before_action :set_restaurant
+  before_action :check_reservation_enabled
   before_action :set_selected_date, only: [:new, :create]
   
   # 明確載入服務類別
@@ -115,6 +116,14 @@ class ReservationsController < ApplicationController
   end
   
   def create
+    # 重新檢查訂位功能是否啟用（防止 SSR 環境中資料尚未同步）
+    reservation_policy = @restaurant.reservation_policy
+    unless reservation_policy&.accepts_online_reservations?
+      flash[:alert] = reservation_policy&.reservation_disabled_message || "很抱歉，餐廳目前暫停接受線上訂位。"
+      redirect_to restaurant_public_path(@restaurant.slug)
+      return
+    end
+
     @reservation = @restaurant.reservations.build(reservation_params)
     
     # 設定人數
@@ -128,36 +137,82 @@ class ReservationsController < ApplicationController
     
     # 設定訂位時間
     @reservation.reservation_datetime = DateTime.parse("#{@selected_date} #{params[:time_slot]}")
-    @reservation.status = :pending
+    @reservation.status = :confirmed  # 直接設為已確認狀態
     @reservation.business_period_id = @business_period_id
     
-    # 使用桌位分配服務來分配桌位
-    allocator = ReservationAllocatorService.new({
-      restaurant: @restaurant,
-      party_size: @reservation.party_size,
-      adults: @adults,
-      children: @children,
-      reservation_datetime: @reservation.reservation_datetime,
-      business_period_id: @business_period_id
-    })
-    
-    # 檢查是否有可用桌位
-    allocated_table = allocator.allocate_table
-    
-    if allocated_table.nil?
-      @reservation.errors.add(:base, '該時段已無可用桌位，請選擇其他時間。')
+    # 檢查手機號碼訂位限制
+    customer_phone = @reservation.customer_phone
+    if customer_phone.present? && reservation_policy.phone_booking_limit_exceeded?(customer_phone)
+      remaining_bookings = reservation_policy.remaining_bookings_for_phone(customer_phone)
+      limit_message = reservation_policy.formatted_phone_limit_policy
+      
+      @reservation.errors.add(:customer_phone, 
+        "訂位次數已達上限。#{limit_message}。您目前剩餘 #{remaining_bookings} 次訂位機會。")
       @selected_date = Date.parse(params[:date]) rescue Date.current
       render :new, status: :unprocessable_entity
       return
     end
+
+    # 使用事務處理確保桌位分配的原子性
+    ActiveRecord::Base.transaction do
+      # 使用桌位分配服務來分配桌位
+      allocator = ReservationAllocatorService.new({
+        restaurant: @restaurant,
+        party_size: @reservation.party_size,
+        adults: @adults,
+        children: @children,
+        reservation_datetime: @reservation.reservation_datetime,
+        business_period_id: @business_period_id
+      })
+      
+      # 檢查是否有可用桌位
+      allocated_table = allocator.allocate_table
+      
+      if allocated_table.nil?
+        @reservation.errors.add(:base, '該時段已無可用桌位，請選擇其他時間。')
+        @selected_date = Date.parse(params[:date]) rescue Date.current
+        render :new, status: :unprocessable_entity
+        return
+      end
+      
+      # 處理桌位分配
+      if allocated_table.is_a?(Array)
+        # 併桌情況 - 創建 TableCombination
+        combination = TableCombination.new(
+          reservation: @reservation,
+          name: "併桌 #{allocated_table.map(&:table_number).join('+')}"
+        )
+        
+        # 建立桌位關聯
+        allocated_table.each do |table|
+          combination.table_combination_tables.build(restaurant_table: table)
+        end
+        
+        # 設定主桌位（用於相容性）
+        @reservation.table = allocated_table.first
+        
+        # 保存訂位和併桌組合
+        if @reservation.save && combination.save
+          Rails.logger.info "前台創建併桌訂位成功: #{allocated_table.map(&:table_number).join(', ')}"
+        else
+          Rails.logger.error "前台創建併桌訂位失敗: #{@reservation.errors.full_messages.join(', ')}, #{combination.errors.full_messages.join(', ')}"
+          raise ActiveRecord::Rollback
+        end
+      else
+        # 單一桌位分配
+        @reservation.table = allocated_table
+        
+        unless @reservation.save
+          Rails.logger.error "前台創建單桌訂位失敗: #{@reservation.errors.full_messages.join(', ')}"
+          raise ActiveRecord::Rollback
+        end
+      end
+    end
     
-    # 分配桌位並保存訂位
-    @reservation.table = allocated_table
-    
-    if @reservation.save
+    if @reservation.persisted?
       # 發送確認郵件或簡訊（之後實作）
       redirect_to restaurant_public_path(@restaurant.slug), 
-                  notice: '訂位申請已送出！我們會盡快與您聯絡確認。'
+                  notice: '訂位建立成功！'
     else
       @selected_date = Date.parse(params[:date]) rescue Date.current
       render :new, status: :unprocessable_entity
@@ -284,5 +339,28 @@ class ReservationsController < ApplicationController
     end
     
     slots
+  end
+
+  def check_reservation_enabled
+    reservation_policy = @restaurant.reservation_policy
+    
+    unless reservation_policy&.accepts_online_reservations?
+      respond_to do |format|
+        format.html do
+          if reservation_policy
+            flash[:alert] = reservation_policy.reservation_disabled_message
+          else
+            flash[:alert] = "很抱歉，#{@restaurant.name} 目前暫停接受線上訂位。如需訂位，請直接致電餐廳洽詢。"
+          end
+          redirect_to restaurant_public_path(@restaurant.slug)
+        end
+        format.json do
+          render json: { 
+            error: reservation_policy&.reservation_disabled_message || "線上訂位功能暫停",
+            reservation_enabled: false
+          }, status: :service_unavailable
+        end
+      end
+    end
   end
 end 

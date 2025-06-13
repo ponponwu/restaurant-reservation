@@ -10,7 +10,7 @@
       <p class="text-lg text-gray-600">請選擇您的預約資訊</p>
     </div>
 
-    <form action="<%= new_restaurant_reservation_path(@restaurant) %>" method="get" id="reservation-form" class="space-y-6">
+    <form action="<%= new_restaurant_reservation_path(@restaurant.slug) %>" method="get" id="reservation-form" class="space-y-6">
       <!-- 隱藏欄位用於存儲預訂資訊 -->
       <input type="hidden" name="date" id="reservation_date">
       <input type="hidden" name="time" id="reservation_time">

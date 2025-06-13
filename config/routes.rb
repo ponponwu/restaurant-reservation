@@ -24,6 +24,9 @@ Rails.application.routes.draw do
   namespace :admin do
     root 'dashboard#index'
     
+    # 密碼修改
+    resource :password_change, only: [:show, :update]
+    
     # 黑名單管理
     resources :blacklists do
       member do
@@ -83,10 +86,7 @@ Rails.application.routes.draw do
       # 訂位管理
       resources :reservations do
         member do
-          patch :confirm
           patch :cancel
-          patch :seat
-          patch :complete
           patch :no_show
         end
         collection do
@@ -119,6 +119,7 @@ Rails.application.routes.draw do
         get '/reservation_policies', to: 'restaurant_settings#reservation_policies', as: :reservation_policies
         patch '/reservation_policies', to: 'restaurant_settings#update_reservation_policy'
         put '/reservation_policies', to: 'restaurant_settings#update_reservation_policy'
+
       end
     end
     
