@@ -26,19 +26,17 @@ class Reservation < ApplicationRecord
   # 3. Scope 定義
   scope :active, -> { where.not(status: %w[cancelled no_show]) }
   scope :for_date, ->(date) { where(reservation_datetime: date.all_day) }
-  scope :for_restaurant, ->(restaurant_id) { where(restaurant_id: restaurant_id) }
-  scope :pending, -> { where(status: 'pending') }
+  scope :for_time_range, ->(start_time, end_time) { where(reservation_datetime: start_time..end_time) }
+  scope :with_adults, ->(count) { where(adults_count: count) }
+  scope :with_children, ->(count) { where(children_count: count) }
+  scope :large_party, ->(size) { where('party_size >= ?', size) }
   scope :confirmed, -> { where(status: 'confirmed') }
-  scope :completed, -> { where(status: 'completed') }
   scope :recent, -> { order(created_at: :desc) }
   scope :by_datetime, -> { order(:reservation_datetime) }
   
   # 4. 枚舉定義
   enum status: {
-    pending: 'pending',
     confirmed: 'confirmed',
-    seated: 'seated',
-    completed: 'completed',
     cancelled: 'cancelled',
     no_show: 'no_show'
   }
@@ -80,11 +78,15 @@ class Reservation < ApplicationRecord
   end
 
   def can_cancel?
-    pending? || confirmed?
+    confirmed?
   end
 
   def can_modify?
-    pending? || confirmed?
+    confirmed?
+  end
+
+  def can_mark_no_show?
+    confirmed? && is_past?
   end
 
   def is_today?
@@ -156,30 +158,27 @@ class Reservation < ApplicationRecord
   end
 
   # 檢查是否為商務聚餐
-  def business_meeting?
-    return false if special_requests.blank?
+  # def business_meeting?
+  #   return false if special_requests.blank?
     
-    business_keywords = %w[商務 會議 business meeting corporate]
-    business_keywords.any? { |keyword| special_requests.downcase.include?(keyword) }
-  end
+  #   business_keywords = %w[商務 會議 business meeting corporate]
+  #   business_keywords.any? { |keyword| special_requests.downcase.include?(keyword) }
+  # end
 
   # 計算總用餐時間（包含緩衝時間）
   def total_duration_minutes
-    base_duration = 120  # 基礎用餐時間2小時
-    
-    # 根據人數和類型調整時間
-    if party_size > 8
-      base_duration += 30  # 大聚會延長30分鐘
-    elsif business_meeting?
-      base_duration += 60  # 商務聚餐延長1小時
-    end
-    
-    base_duration
+    return nil if restaurant&.policy&.unlimited_dining_time?  # 無限時模式回傳 nil
+    restaurant&.dining_duration_with_buffer || 135  # 預設 120 分鐘 + 15 分鐘緩衝
   end
 
   # 計算佔用時間範圍
   def occupation_time_range
-    end_time = reservation_datetime + total_duration_minutes.minutes
+    return nil if restaurant&.policy&.unlimited_dining_time?  # 無限時模式沒有結束時間
+    
+    duration = total_duration_minutes
+    return nil unless duration  # 如果沒有設定時間，回傳 nil
+    
+    end_time = reservation_datetime + duration.minutes
     reservation_datetime..end_time
   end
 

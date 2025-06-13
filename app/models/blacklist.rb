@@ -1,5 +1,6 @@
 class Blacklist < ApplicationRecord
   belongs_to :restaurant
+  belongs_to :added_by, class_name: 'User', foreign_key: 'added_by_id', optional: true
 
   validates :customer_name, presence: true, length: { maximum: 100 }
   validates :customer_phone, presence: true, 
@@ -13,12 +14,12 @@ class Blacklist < ApplicationRecord
 
   # Ransack 搜索屬性白名單
   def self.ransackable_attributes(auth_object = nil)
-    %w[customer_name customer_phone reason added_by_name active created_at updated_at]
+    %w[customer_name customer_phone reason active created_at updated_at]
   end
 
   # Ransack 搜索關聯白名單
   def self.ransackable_associations(auth_object = nil)
-    %w[restaurant]
+    %w[restaurant added_by]
   end
 
   def self.blacklisted_phone?(restaurant, phone)
@@ -49,6 +50,11 @@ class Blacklist < ApplicationRecord
     else
       customer_phone
     end
+  end
+
+  # 虛擬屬性：顯示新增者姓名
+  def added_by_name
+    added_by&.display_name || '系統管理員'
   end
 
   private

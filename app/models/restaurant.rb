@@ -12,6 +12,7 @@ class Restaurant < ApplicationRecord
   has_many :table_groups, dependent: :destroy
   has_many :business_periods, dependent: :destroy
   has_many :reservations, dependent: :destroy
+  has_many :table_combinations, through: :reservations
   has_many :blacklists, dependent: :destroy
   # has_many :waiting_lists, dependent: :destroy  # 暫時註解，等建立 WaitingList 模型後再啟用
   
@@ -26,6 +27,11 @@ class Restaurant < ApplicationRecord
   validates :address, presence: true, length: { maximum: 255 }
   validates :description, length: { maximum: 1000 }
   validates :reservation_interval_minutes, presence: true, inclusion: { in: [15, 30, 60], message: '預約間隔必須是 15、30 或 60 分鐘' }
+  validates :default_dining_duration_minutes, 
+            numericality: { greater_than: 30, less_than_or_equal_to: 480 },
+            if: :limited_dining_time?
+  validates :max_combination_tables, presence: true, numericality: { greater_than: 1, less_than_or_equal_to: 5 }
+  validates :buffer_time_minutes, presence: true, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 60 }
 
   # 3. Scope 定義
   scope :active, -> { where(active: true, deleted_at: nil) }
@@ -228,9 +234,38 @@ class Restaurant < ApplicationRecord
     business_periods.active.any? { |bp| bp.operates_on_weekday?(weekday) }
   end
 
-  # 併桌功能設定
-  def allow_table_combinations
-    true  # 允許併桌
+
+
+  # 用餐時間相關方法（委派給 reservation_policy）
+  def unlimited_dining_time?
+    policy.unlimited_dining_time?
+  end
+  
+  def limited_dining_time?
+    !unlimited_dining_time?
+  end
+
+  def dining_duration_minutes
+    return nil if unlimited_dining_time?
+    policy.default_dining_duration_minutes || 120
+  end
+
+  def dining_duration_with_buffer
+    return nil if unlimited_dining_time?
+    dining_duration_minutes + (policy.buffer_time_minutes || 15)
+  end
+
+  def can_combine_tables?
+    policy.allow_table_combinations? && restaurant_tables.active.where(can_combine: true).exists?
+  end
+
+  def max_tables_per_combination
+    policy.max_combination_tables || 3
+  end
+  
+  # 委派給 reservation_policy 的併桌設定
+  def allow_table_combinations?
+    policy.allow_table_combinations?
   end
 
   # 根據餐期和預約間隔產生可選時間

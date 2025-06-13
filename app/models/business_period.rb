@@ -195,7 +195,7 @@ class BusinessPeriod < ApplicationRecord
   def current_reservations_count
     reservations.where(
       reservation_datetime: Date.current.all_day,
-      status: ['pending', 'confirmed', 'seated']
+      status: 'confirmed'
     ).count
   end
 

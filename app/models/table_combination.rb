@@ -9,7 +9,7 @@ class TableCombination < ApplicationRecord
   validate :tables_must_be_combinable
   validate :tables_must_be_available
   
-  scope :active, -> { joins(:reservation).where(reservations: { status: ['confirmed', 'seated'] }) }
+  scope :active, -> { joins(:reservation).where(reservations: { status: 'confirmed' }) }
   
   def total_capacity
     restaurant_tables.sum(:capacity)

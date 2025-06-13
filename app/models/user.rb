@@ -46,6 +46,15 @@ class User < ApplicationRecord
   def generate_random_password
     self.password = SecureRandom.hex(8)
     self.password_confirmation = password
+    self.password_changed_at = nil  # 標記需要強制修改密碼
+  end
+
+  def needs_password_change?
+    password_changed_at.nil?
+  end
+
+  def mark_password_changed!
+    update!(password_changed_at: Time.current)
   end
 
   # 權限檢查方法

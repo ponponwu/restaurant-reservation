@@ -32,7 +32,7 @@ class ReservationSlot < ApplicationRecord
     
     used_capacity = reservations
                    .where(reservation_datetime: date.all_day)
-                   .where(status: ['pending', 'confirmed', 'seated'])
+                   .where(status: 'confirmed')
                    .sum(:party_size)
     
     max_capacity - used_capacity

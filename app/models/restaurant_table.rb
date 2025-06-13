@@ -108,8 +108,8 @@ class RestaurantTable < ApplicationRecord
   end
 
   def current_reservation
-    reservations.where(status: ['confirmed', 'seated'])
-                .where("reservation_datetime <= ? AND reservation_datetime + INTERVAL '120 minutes' >= ?",
+    reservations.where(status: 'confirmed')
+                .where('reservation_datetime <= ? AND reservation_datetime + INTERVAL \'120 minutes\' > ?', 
                        Time.current, Time.current)
                 .first
   end
@@ -121,7 +121,7 @@ class RestaurantTable < ApplicationRecord
   def available_for_datetime?(datetime, duration_minutes = 120)
     end_time = datetime + duration_minutes.minutes
     
-    conflicting_reservations = reservations.where(status: ['confirmed', 'seated'])
+    conflicting_reservations = reservations.where(status: 'confirmed')
                                           .where("reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
                                                  end_time, datetime)
     
@@ -141,6 +141,11 @@ class RestaurantTable < ApplicationRecord
     return false if party_size < (min_capacity || 1)
     return false if max_capacity.present? && party_size > max_capacity
     true
+  end
+
+  # 檢查桌位是否可以併桌
+  def can_combine?
+    can_combine && active? && normal?
   end
 
   def global_priority
@@ -234,7 +239,7 @@ class RestaurantTable < ApplicationRecord
     return from_time if available_for_datetime?(from_time)
     
     # 找下一個結束的訂位
-    next_ending_reservation = reservations.where(status: ['confirmed', 'seated'])
+    next_ending_reservation = reservations.where(status: 'confirmed')
                                         .where('reservation_datetime + INTERVAL \'120 minutes\' > ?', from_time)
                                         .order(:reservation_datetime)
                                         .first
@@ -250,7 +255,7 @@ class RestaurantTable < ApplicationRecord
   def find_conflicting_reservations(datetime, duration_minutes = 120)
     end_time = datetime + duration_minutes.minutes
     
-    reservations.where(status: ['confirmed', 'seated'])
+    reservations.where(status: 'confirmed')
                 .where("reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
                        end_time, datetime)
   end
@@ -258,13 +263,14 @@ class RestaurantTable < ApplicationRecord
   private
 
   def set_defaults
-    if table_group && sort_order.blank?
-      # 設定為餐廳內所有桌位的下一個全域順序
-      max_sort_order = restaurant.restaurant_tables.maximum(:sort_order) || 0
+    # 如果沒有設定 sort_order，自動分配全域排序
+    if sort_order.blank?
+      max_sort_order = restaurant&.restaurant_tables&.maximum(:sort_order) || 0
       self.sort_order = max_sort_order + 1
     end
-          self.status ||= 'available'
-      self.operational_status ||= 'normal'
+    
+    self.status ||= 'available'
+    self.operational_status ||= 'normal'
     self.table_type ||= 'regular'
     self.min_capacity ||= 1
     self.max_capacity ||= capacity if capacity.present?
@@ -290,38 +296,33 @@ class RestaurantTable < ApplicationRecord
 
   def self.reorder_in_group!(table_group, ordered_ids)
     transaction do
+      # 獲取群組內桌位的當前最小排序
+      current_positions = table_group.restaurant_tables.where(id: ordered_ids).pluck(:id, :sort_order).to_h
+      min_sort_order = current_positions.values.min
+      
+      # 更新群組內桌位的排序，保持跨群組的連續性
       ordered_ids.each_with_index do |id, index|
-        where(id: id, table_group: table_group).update_all(sort_order: index + 1)
+        where(id: id, table_group: table_group).update_all(sort_order: min_sort_order + index)
       end
     end
   end
 
   def self.next_sort_order_in_group(table_group)
-    table_group.restaurant_tables.maximum(:sort_order).to_i + 1
+    # 改為全域排序，不再使用群組內排序
+    table_group.restaurant.restaurant_tables.maximum(:sort_order).to_i + 1
   end
 
   # 重新計算餐廳內所有桌位的全域 sort_order
   def self.recalculate_global_sort_order!(restaurant)
     transaction do
-      # 按照群組順序和群組內順序獲取所有桌位
+      # 按照當前的排序獲取所有桌位，保持相對順序
       tables = restaurant.restaurant_tables
-                        .joins(:table_group)
-                        .where(active: true, table_groups: { active: true })
-                        .order('table_groups.sort_order ASC, restaurant_tables.sort_order ASC, restaurant_tables.id ASC')
+                        .where(active: true)
+                        .order(:sort_order, :id)
       
-      # 使用 ActiveRecord 批次更新
-      if tables.any?
-        # 方法 1: 分批更新，避免一次更新太多記錄
-        tables.each_with_index do |table, index|
-          table.update_column(:sort_order, index + 1)
-        end
-        
-        # 或者使用 update_all 配合 VALUES 子句（PostgreSQL 特有）
-        # values_clause = tables.map.with_index { |table, index| "(#{table.id}, #{index + 1})" }.join(', ')
-        # 
-        # restaurant.restaurant_tables
-        #          .joins("JOIN (VALUES #{values_clause}) AS new_values(id, new_sort_order) ON restaurant_tables.id = new_values.id")
-        #          .update_all("sort_order = new_values.new_sort_order")
+      # 重新分配連續的排序號碼
+      tables.each_with_index do |table, index|
+        table.update_column(:sort_order, index + 1)
       end
       
       Rails.logger.info "Recalculated sort_order for #{tables.count} tables in restaurant #{restaurant.name}"
