@@ -219,8 +219,36 @@ class RestaurantsController < ApplicationController
     start_date = Date.current + 1.day
     end_date = start_date + 30.days
 
+    # 在迴圈外初始化，避免重複建立和查詢
+    availability_service = AvailabilityService.new(@restaurant)
+    
+    # 預載入所有日期範圍內的訂位資料（只查詢一次）
+    all_reservations = @restaurant.reservations
+                                 .where(status: %w[pending confirmed])
+                                 .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
+                                 .includes(:business_period, :table, table_combination: :restaurant_tables)
+                                 .to_a
+    
+    # 預載入餐廳桌位資料（只查詢一次）
+    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
+                                  .includes(:table_group)
+                                  .to_a
+    
+    # 預載入營業時段資料
+    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
+
     (start_date..end_date).each do |date|
-      if has_availability_on_date?(date, party_size, adults, children)
+      # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
+      day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
+      
+      # 使用 AvailabilityService 的方法檢查可用性
+      if availability_service.has_availability_on_date_cached?(
+        date, 
+        day_reservations, 
+        restaurant_tables, 
+        business_periods_cache, 
+        party_size
+      )
         available_dates << date.to_s
       end
     end
@@ -237,26 +265,26 @@ class RestaurantsController < ApplicationController
     # 使用餐廳的動態時間產生方法
     available_time_options = @restaurant.available_time_options_for_date(target_date)
     
+    # 在迴圈外初始化，避免重複建立和查詢
+    availability_service = AvailabilityService.new(@restaurant)
+    
+    # 預載入當天的訂位資料（只查詢一次）
+    day_reservations = @restaurant.reservations
+                                 .where(status: %w[pending confirmed])
+                                 .where('DATE(reservation_datetime) = ?', target_date)
+                                 .includes(:business_period, :table, table_combination: :restaurant_tables)
+                                 .to_a
+    
+    # 預載入餐廳桌位資料（只查詢一次）
+    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
+                                  .includes(:table_group)
+                                  .to_a
+    
     available_time_options.each do |time_option|
       datetime = time_option[:datetime]
       business_period_id = time_option[:business_period_id]
       
-      # 使用 AvailabilityService 檢查可用性
-      availability_service = AvailabilityService.new(@restaurant)
-      
-      # 預載入當天的訂位資料
-      day_reservations = @restaurant.reservations
-                                   .where(status: %w[pending confirmed])
-                                   .where('DATE(reservation_datetime) = ?', target_date)
-                                   .includes(:business_period, :table, table_combination: :restaurant_tables)
-                                   .to_a
-      
-      # 預載入餐廳桌位資料
-      restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
-                                    .includes(:table_group)
-                                    .to_a
-      
-      # 按營業時段分組訂位
+      # 按營業時段分組訂位（在迴圈內過濾，但不重新查詢）
       period_reservations = day_reservations.select { |r| r.business_period_id == business_period_id }
       
       # 檢查該時段是否有可用桌位
@@ -317,8 +345,36 @@ class RestaurantsController < ApplicationController
     start_date = Date.current
     end_date = start_date + 90.days
     
+    # 在迴圈外初始化，避免重複建立和查詢
+    availability_service = AvailabilityService.new(@restaurant)
+    
+    # 預載入所有日期範圍內的訂位資料（只查詢一次）
+    all_reservations = @restaurant.reservations
+                                 .where(status: %w[pending confirmed])
+                                 .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
+                                 .includes(:business_period, :table, table_combination: :restaurant_tables)
+                                 .to_a
+    
+    # 預載入餐廳桌位資料（只查詢一次）
+    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
+                                  .includes(:table_group)
+                                  .to_a
+    
+    # 預載入營業時段資料
+    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
+    
     (start_date..end_date).each do |date|
-      if has_availability_on_date?(date, party_size, adults, children)
+      # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
+      day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
+      
+      # 使用 AvailabilityService 的方法檢查可用性
+      if availability_service.has_availability_on_date_cached?(
+        date, 
+        day_reservations, 
+        restaurant_tables, 
+        business_periods_cache, 
+        party_size
+      )
         return date
       end
     end
