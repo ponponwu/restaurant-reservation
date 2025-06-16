@@ -232,6 +232,56 @@ RSpec.describe Restaurant, type: :model do
         expect { restaurant.formatted_business_hours }.not_to exceed_query_limit(3)
       end
     end
+
+    describe '#generate_time_slots_for_period' do
+      include ActiveSupport::Testing::TimeHelpers
+      
+      let(:business_period) do
+        create(:business_period, 
+               restaurant: restaurant,
+               start_time: '10:00',
+               end_time: '16:00')
+      end
+      
+      context 'with minimum_advance_hours setting' do
+        before do
+          # 設定餐廳政策
+          policy = restaurant.reservation_policy || restaurant.create_reservation_policy
+          policy.update!(minimum_advance_hours: 2)
+        end
+        
+        it 'filters out time slots that are too close to current time' do
+          # 使用今天的日期進行測試
+          today = Date.current
+          
+          # 模擬當前時間為 11:00
+          travel_to Time.zone.parse("#{today} 11:00") do
+            slots = restaurant.generate_time_slots_for_period(business_period, today)
+            
+            # 應該過濾掉 11:XX 和 12:XX 的時間槽（2小時內）
+            # 只保留 13:00 之後的時間槽
+            slot_times = slots.map { |slot| slot[:time] }
+            
+            expect(slot_times).not_to include('11:00', '11:30', '12:00', '12:30')
+            expect(slot_times).to include('13:00', '13:30', '14:00')
+          end
+        end
+        
+        it 'includes all slots when minimum_advance_hours is 0' do
+          # 設定為無最小提前時間限制
+          restaurant.reservation_policy.update!(minimum_advance_hours: 0)
+          
+          today = Date.current
+          travel_to Time.zone.parse("#{today} 11:00") do
+            slots = restaurant.generate_time_slots_for_period(business_period, today)
+            
+            # 應該包含所有未來的時間槽
+            slot_times = slots.map { |slot| slot[:time] }
+            expect(slot_times).to include('11:00', '11:30', '12:00', '12:30', '13:00')
+          end
+        end
+      end
+    end
   end
 
   describe 'slug generation' do

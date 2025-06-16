@@ -36,6 +36,7 @@ class Reservation < ApplicationRecord
   
   # 4. 枚舉定義
   enum status: {
+    pending: 'pending',
     confirmed: 'confirmed',
     cancelled: 'cancelled',
     no_show: 'no_show'
@@ -78,11 +79,11 @@ class Reservation < ApplicationRecord
   end
 
   def can_cancel?
-    confirmed?
+    pending? || confirmed?
   end
 
   def can_modify?
-    confirmed?
+    pending? || confirmed?
   end
 
   def can_mark_no_show?
@@ -182,6 +183,11 @@ class Reservation < ApplicationRecord
     reservation_datetime..end_time
   end
 
+  # 快取失效回調
+  after_create :clear_availability_cache
+  after_update :clear_availability_cache, if: :saved_change_to_status?
+  after_destroy :clear_availability_cache
+
   # 7. 私有方法
   private
 
@@ -234,5 +240,33 @@ class Reservation < ApplicationRecord
   def broadcast_status_change
     # 廣播訂位狀態變更（用於即時更新）
     # 這裡可以加入 Turbo Stream 廣播邏輯
+  end
+
+  # 清除可用性快取
+  def clear_availability_cache
+    return unless restaurant_id.present?
+    
+    # 清除當天和相關日期的快取
+    target_date = reservation_datetime&.to_date || Date.current
+    
+    # 清除可用時段快取（清除當天的所有人數組合）
+    (1..20).each do |party_size|
+      (0..party_size).each do |children|
+        adults = party_size - children
+        cache_key = "available_slots:#{restaurant_id}:#{target_date}:#{party_size}:#{adults}:#{children}"
+        Rails.cache.delete(cache_key)
+      end
+    end
+    
+    # 清除可用性狀態快取（包含所有人數組合）
+    (1..20).each do |party_size|
+      Rails.cache.delete("availability_status:#{restaurant_id}:#{Date.current}:#{party_size}:v3")
+    end
+    
+    # 清除舊版本的快取鍵（向後相容）
+    Rails.cache.delete("availability_status:#{restaurant_id}:#{Date.current}")
+    Rails.cache.delete("availability_status:#{restaurant_id}:#{Date.current}:v2")
+    
+    Rails.logger.info "Cleared availability cache for restaurant #{restaurant_id} on #{target_date}"
   end
 end

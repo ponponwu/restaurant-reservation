@@ -118,7 +118,12 @@ class RestaurantTable < ApplicationRecord
     current_reservation.present?
   end
 
-  def available_for_datetime?(datetime, duration_minutes = 120)
+  def available_for_datetime?(datetime, duration_minutes = nil)
+    # 如果餐廳是無限用餐時間，則不檢查時間衝突
+    return true if restaurant.unlimited_dining_time?
+    
+    # 使用傳入的時間或餐廳預設時間
+    duration_minutes ||= restaurant.dining_duration_with_buffer || 120
     end_time = datetime + duration_minutes.minutes
     
     conflicting_reservations = reservations.where(status: 'confirmed')
@@ -139,7 +144,11 @@ class RestaurantTable < ApplicationRecord
   def suitable_for?(party_size)
     return false unless active? && normal?  # 使用 operational_status
     return false if party_size < (min_capacity || 1)
-    return false if max_capacity.present? && party_size > max_capacity
+    
+    # 檢查容量上限：優先使用 max_capacity，否則使用 capacity
+    effective_max_capacity = max_capacity.present? ? max_capacity : capacity
+    return false if party_size > effective_max_capacity
+    
     true
   end
 
@@ -224,13 +233,16 @@ class RestaurantTable < ApplicationRecord
   end
 
   # 檢查桌位可用性並返回詳細信息
-  def check_availability(datetime = Time.current, duration_minutes = 120)
+  def check_availability(datetime = Time.current, duration_minutes = nil)
+    # 如果餐廳是無限用餐時間，使用預設值
+    duration_minutes ||= restaurant.dining_duration_with_buffer || 120 unless restaurant.unlimited_dining_time?
+    
     {
       available: available_for_datetime?(datetime, duration_minutes),
       operational_status: operational_status,
       current_reservation: current_reservation,
       next_available_time: calculate_next_available_time(datetime),
-      conflicts: find_conflicting_reservations(datetime, duration_minutes)
+      conflicts: restaurant.unlimited_dining_time? ? [] : find_conflicting_reservations(datetime, duration_minutes)
     }
   end
 
@@ -252,7 +264,11 @@ class RestaurantTable < ApplicationRecord
   end
 
   # 找到衝突的訂位
-  def find_conflicting_reservations(datetime, duration_minutes = 120)
+  def find_conflicting_reservations(datetime, duration_minutes = nil)
+    # 如果餐廳是無限用餐時間，不檢查衝突
+    return [] if restaurant.unlimited_dining_time?
+    
+    duration_minutes ||= restaurant.dining_duration_with_buffer || 120
     end_time = datetime + duration_minutes.minutes
     
     reservations.where(status: 'confirmed')

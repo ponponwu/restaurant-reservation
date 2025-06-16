@@ -14,8 +14,29 @@ export default class extends Controller {
             selectedDate: this.hasSelectedDateTarget,
         })
 
+        // 從 URL 參數中獲取日期篩選和顯示全部參數
+        const urlParams = new URLSearchParams(window.location.search)
+        const dateFilter = urlParams.get('date_filter')
+        const showAll = urlParams.get('show_all')
+
         this.currentDate = new Date()
-        this.selectedDateValue = new Date()
+
+        // 如果是顯示全部模式，不選中任何日期
+        if (showAll === 'true') {
+            this.selectedDateValue = null
+            this.showAllMode = true
+        } else if (dateFilter) {
+            // 如果 URL 中有日期篩選參數，使用該日期
+            this.selectedDateValue = new Date(dateFilter)
+            // 設定日曆顯示的月份為選中日期的月份
+            this.currentDate = new Date(this.selectedDateValue)
+            this.showAllMode = false
+        } else {
+            // 否則使用今天
+            this.selectedDateValue = new Date()
+            this.showAllMode = false
+        }
+
         this.monthNames = [
             '一月',
             '二月',
@@ -127,7 +148,7 @@ export default class extends Controller {
         const dateString = this.formatDateForServer(date)
         const today = new Date()
         const isToday = this.isSameDate(date, today)
-        const isSelected = this.isSameDate(date, this.selectedDateValue)
+        const isSelected = this.selectedDateValue && this.isSameDate(date, this.selectedDateValue)
 
         const button = document.createElement('button')
         button.type = 'button'
@@ -137,7 +158,14 @@ export default class extends Controller {
 
         let classes = 'h-8 w-8 text-sm rounded-full transition-colors duration-200 '
 
-        if (isSelected) {
+        if (this.showAllMode) {
+            // 在顯示全部模式下，不選中任何日期
+            if (isToday) {
+                classes += 'bg-blue-100 text-blue-600 font-medium hover:bg-blue-200'
+            } else {
+                classes += 'text-gray-700 hover:bg-gray-100'
+            }
+        } else if (isSelected) {
             classes += 'bg-blue-500 text-white'
         } else if (isToday) {
             classes += 'bg-blue-100 text-blue-600 font-medium hover:bg-blue-200'
@@ -173,36 +201,30 @@ export default class extends Controller {
     }
 
     updateSelectedDateDisplay() {
-        this.selectedDateTarget.textContent = this.formatDateForDisplay(this.selectedDateValue)
+        if (this.showAllMode) {
+            this.selectedDateTarget.textContent = '全部訂位'
+        } else if (this.selectedDateValue) {
+            this.selectedDateTarget.textContent = this.formatDateForDisplay(this.selectedDateValue)
+        } else {
+            this.selectedDateTarget.textContent = '今天'
+        }
     }
 
     async filterReservationsByDate(dateString) {
         try {
-            // 顯示載入狀態
-            this.showLoading()
+            // 構建新的 URL，保留現有的查詢參數
+            const url = new URL(window.location.href)
 
-            // 構建請求 URL
-            const url = new URL(this.currentUrlValue, window.location.origin)
+            // 移除 show_all 參數
+            url.searchParams.delete('show_all')
+
+            // 設定 date_filter 參數
             url.searchParams.set('date_filter', dateString)
 
-            // 發送請求
-            const response = await fetch(url, {
-                headers: {
-                    Accept: 'text/vnd.turbo-stream.html',
-                    'X-Requested-With': 'XMLHttpRequest',
-                },
-            })
-
-            if (response.ok) {
-                const html = await response.text()
-                Turbo.renderStreamMessage(html)
-            } else {
-                console.error('Failed to filter reservations:', response.statusText)
-            }
+            // 直接跳轉到新的 URL，這樣 query 參數會保留在 URL 上
+            window.location.href = url.toString()
         } catch (error) {
-            console.error('Error filtering reservations:', error)
-        } finally {
-            this.hideLoading()
+            console.error('Failed to filter reservations:', error)
         }
     }
 

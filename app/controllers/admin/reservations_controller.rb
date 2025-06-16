@@ -7,12 +7,24 @@ class Admin::ReservationsController < Admin::BaseController
     @q = @restaurant.reservations.ransack(params[:q])
     reservations_query = @q.result.includes(:table, :business_period)
     
-    # 處理日期篩選
-    if params[:date_filter].present?
-      filter_date = Date.parse(params[:date_filter])
+    # 處理日期篩選，預設顯示今天的訂位
+    if params[:show_all] == 'true'
+      # 顯示全部訂位，不進行日期篩選
+      @filter_date = nil
+      @show_all = true
+    elsif params[:date_filter].present?
+      @filter_date = Date.parse(params[:date_filter])
       reservations_query = reservations_query.where(
-        reservation_datetime: filter_date.beginning_of_day..filter_date.end_of_day
+        reservation_datetime: @filter_date.beginning_of_day..@filter_date.end_of_day
       )
+      @show_all = false
+    else
+      # 預設顯示今天的訂位
+      @filter_date = Date.current
+      reservations_query = reservations_query.where(
+        reservation_datetime: @filter_date.beginning_of_day..@filter_date.end_of_day
+      )
+      @show_all = false
     end
     
     @reservations = reservations_query.order(reservation_datetime: :desc)
@@ -47,6 +59,11 @@ class Admin::ReservationsController < Admin::BaseController
   def create
     @reservation = @restaurant.reservations.build(reservation_params)
     
+    # 處理時區問題 - 確保使用台北時區
+    if params[:reservation][:reservation_datetime].present?
+      @reservation.reservation_datetime = parse_time_in_timezone(params[:reservation][:reservation_datetime])
+    end
+    
     # 處理大人數和小孩數的自動調整
     if @reservation.adults_count.blank? && @reservation.children_count.blank?
       @reservation.adults_count = [@reservation.party_size - (@reservation.children_count || 0), 1].max
@@ -56,12 +73,12 @@ class Admin::ReservationsController < Admin::BaseController
     # 設定預設狀態為已確認
     @reservation.status = :confirmed
     
-    # 嘗試自動分配桌位（如果沒有手動指定）
-    unless @reservation.table_id.present?
-      allocate_table_for_reservation(@reservation)
-    end
-    
     if @reservation.save
+      # 嘗試自動分配桌位（如果沒有手動指定）
+      unless @reservation.table_id.present?
+        allocate_table_for_reservation(@reservation)
+        @reservation.save  # 儲存桌位分配結果
+      end
       respond_to do |format|
         format.html do
           redirect_to admin_restaurant_reservation_path(@restaurant, @reservation),
@@ -97,6 +114,12 @@ class Admin::ReservationsController < Admin::BaseController
     
     # 處理大人數和小孩數的自動調整
     params_to_update = reservation_params
+    
+    # 處理時區問題 - 確保使用台北時區
+    if params[:reservation][:reservation_datetime].present?
+      params_to_update = params_to_update.except(:reservation_datetime)
+      @reservation.reservation_datetime = parse_time_in_timezone(params[:reservation][:reservation_datetime])
+    end
     
     # 如果只更新了 party_size，需要調整 adults_count 和 children_count
     if params_to_update[:party_size].present?
@@ -252,6 +275,19 @@ class Admin::ReservationsController < Admin::BaseController
   end
 
   private
+
+  # 解析時間並確保使用台北時區
+  def parse_time_in_timezone(datetime_string)
+    return nil if datetime_string.blank?
+    
+    begin
+      # 使用 Time.zone.parse 確保時間被解析為台北時區
+      Time.zone.parse(datetime_string)
+    rescue ArgumentError => e
+      Rails.logger.error "時間解析錯誤: #{e.message}, 輸入: #{datetime_string}"
+      nil
+    end
+  end
 
   def set_restaurant
     # 嘗試用 ID 查找，如果失敗則用 slug 查找

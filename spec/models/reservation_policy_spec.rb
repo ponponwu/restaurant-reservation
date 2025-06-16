@@ -2,8 +2,8 @@ require 'rails_helper'
 
 RSpec.describe ReservationPolicy, type: :model do
   # 1. 測試設定
-  let(:restaurant) { create(:restaurant) }
-  let(:reservation_policy) { build(:reservation_policy, restaurant: restaurant) }
+  let!(:restaurant) { create(:restaurant) }
+  let!(:reservation_policy) { create(:reservation_policy, restaurant: restaurant) }
 
   # 2. 關聯測試
   describe 'associations' do
@@ -495,6 +495,208 @@ RSpec.describe ReservationPolicy, type: :model do
       expect(summary).to include('人數限制：2-6 人')
       expect(summary).to include('固定金額 $200')
       expect(summary).to include('單一手機號碼 7 天內最多訂位 2 次')
+    end
+  end
+
+  # 當天訂位限制測試
+  describe '當天訂位限制' do
+    let(:today) { Date.current }
+    let(:tomorrow) { Date.current + 1.day }
+    let(:today_noon) { Time.current.change(hour: 12, min: 0) }
+    let(:tomorrow_noon) { tomorrow.to_time.change(hour: 12, min: 0) }
+    
+    describe '#can_book_on_date?' do
+      it '不允許當天訂位' do
+        expect(reservation_policy.can_book_on_date?(today)).to be false
+      end
+      
+      it '允許明天訂位' do
+        expect(reservation_policy.can_book_on_date?(tomorrow)).to be true
+      end
+    end
+    
+    describe '#can_book_at_time?' do
+      it '不允許當天時間訂位' do
+        expect(reservation_policy.can_book_at_time?(today_noon)).to be false
+      end
+      
+      it '允許明天時間訂位' do
+        expect(reservation_policy.can_book_at_time?(tomorrow_noon)).to be true
+      end
+    end
+    
+    describe '#can_reserve_at?' do
+      it '綜合檢查不允許當天訂位' do
+        expect(reservation_policy.can_reserve_at?(today_noon)).to be false
+      end
+      
+      it '綜合檢查允許明天訂位' do
+        expect(reservation_policy.can_reserve_at?(tomorrow_noon)).to be true
+      end
+    end
+    
+    describe '#reservation_rejection_reason' do
+      it '當天訂位返回拒絕原因' do
+        reason = reservation_policy.reservation_rejection_reason(today_noon)
+        expect(reason).to be_present
+        expect(reason).to include('當天')
+      end
+      
+      it '明天訂位不返回拒絕原因' do
+        reason = reservation_policy.reservation_rejection_reason(tomorrow_noon)
+        expect(reason).to be_nil
+      end
+    end
+  end
+
+  # 訂位功能開關測試
+  describe '訂位功能開關' do
+    before do
+      reservation_policy.save!
+    end
+
+    describe '#reservation_enabled?' do
+      it '預設為開啟' do
+        expect(reservation_policy.reservation_enabled?).to be true
+      end
+
+      it '可以關閉訂位功能' do
+        reservation_policy.update!(reservation_enabled: false)
+        expect(reservation_policy.reservation_enabled?).to be false
+      end
+
+      it '可以重新開啟訂位功能' do
+        reservation_policy.update!(reservation_enabled: false)
+        reservation_policy.update!(reservation_enabled: true)
+        expect(reservation_policy.reservation_enabled?).to be true
+      end
+    end
+
+    describe '#accepts_online_reservations?' do
+      it '當訂位功能開啟時回傳 true' do
+        reservation_policy.update!(reservation_enabled: true)
+        expect(reservation_policy.accepts_online_reservations?).to be true
+      end
+
+      it '當訂位功能關閉時回傳 false' do
+        reservation_policy.update!(reservation_enabled: false)
+        expect(reservation_policy.accepts_online_reservations?).to be false
+      end
+    end
+  end
+
+  # 無限用餐時間測試
+  describe '無限用餐時間設定' do
+    describe '#unlimited_dining_time?' do
+      it '預設為關閉' do
+        expect(reservation_policy.unlimited_dining_time?).to be false
+      end
+      
+      it '可以設定為開啟' do
+        reservation_policy.update!(unlimited_dining_time: true)
+        expect(reservation_policy.unlimited_dining_time?).to be true
+      end
+    end
+    
+    context '當開啟無限用餐時間時' do
+      before { reservation_policy.update!(unlimited_dining_time: true) }
+      
+      it '用餐時間設定不影響分配邏輯' do
+        # 無限用餐時間模式下，每餐期每桌只能有一個訂位
+        # 這個邏輯在 ReservationAllocatorService 中實現
+        expect(reservation_policy.unlimited_dining_time?).to be true
+      end
+      
+      it '不檢查用餐時間長度' do
+        expect(reservation_policy.total_dining_duration_minutes).to be_nil
+      end
+      
+      it '不檢查緩衝時間' do
+        expect(reservation_policy.has_time_limit?).to be false
+      end
+      
+      it '用餐時間設定摘要顯示無限制' do
+        expect(reservation_policy.dining_settings_summary).to eq('無限用餐時間')
+      end
+      
+      it '即使設定了用餐時間也不生效' do
+        reservation_policy.update!(
+          default_dining_duration_minutes: 90,
+          buffer_time_minutes: 30
+        )
+        
+        # 無限時模式下，這些設定都不生效
+        expect(reservation_policy.total_dining_duration_minutes).to be_nil
+        expect(reservation_policy.has_time_limit?).to be false
+      end
+      
+      it '驗證規則不檢查用餐時間必填' do
+        reservation_policy.default_dining_duration_minutes = nil
+        reservation_policy.buffer_time_minutes = nil
+        
+        expect(reservation_policy).to be_valid
+      end
+    end
+    
+    context '當關閉無限用餐時間時' do
+      before { reservation_policy.update!(unlimited_dining_time: false) }
+      
+      it '需要檢查用餐時間設定' do
+        expect(reservation_policy.has_time_limit?).to be true
+      end
+      
+      it '計算總用餐時間包含緩衝時間' do
+        reservation_policy.update!(
+          default_dining_duration_minutes: 120,
+          buffer_time_minutes: 15
+        )
+        
+        expect(reservation_policy.total_dining_duration_minutes).to eq(135)
+      end
+      
+      it '用餐時間為必填欄位' do
+        reservation_policy.default_dining_duration_minutes = nil
+        expect(reservation_policy).not_to be_valid
+        expect(reservation_policy.errors[:default_dining_duration_minutes]).to be_present
+      end
+    end
+    
+    describe '與餐廳模型的整合' do
+      let(:restaurant) { create(:restaurant) }
+      
+      before do
+        restaurant.reservation_policy.update!(unlimited_dining_time: true)
+      end
+      
+      it '餐廳委派方法正確回傳無限時狀態' do
+        expect(restaurant.unlimited_dining_time?).to be true
+        expect(restaurant.limited_dining_time?).to be false
+      end
+      
+      it '餐廳用餐時間方法在無限時模式下回傳 nil' do
+        expect(restaurant.dining_duration_minutes).to be_nil
+        expect(restaurant.dining_duration_with_buffer).to be_nil
+      end
+    end
+    
+    describe '與桌位可用性檢查的整合' do
+      let(:restaurant) { create(:restaurant) }
+      let(:table) { create(:table, restaurant: restaurant) }
+      
+      before do
+        restaurant.reservation_policy.update!(unlimited_dining_time: true)
+      end
+      
+      it '桌位可用性檢查在無限時模式下不檢查時間衝突' do
+        # 創建一個已確認的訂位
+        existing_reservation = create(:reservation, :confirmed,
+                                    restaurant: restaurant,
+                                    table: table,
+                                    reservation_datetime: 2.hours.from_now)
+        
+        # 在無限時模式下，同一時間的桌位檢查應該回傳 true（不檢查時間衝突）
+        expect(table.available_for_datetime?(2.hours.from_now)).to be true
+      end
     end
   end
 end 

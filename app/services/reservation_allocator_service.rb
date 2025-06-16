@@ -12,7 +12,7 @@ class ReservationAllocatorService
       @adults = params[:adults] || 0
       @children = params[:children] || params[:child_count] || 0
       @reservation_datetime = params[:reservation_datetime] || 
-                             DateTime.parse("#{params[:date]} #{params[:time]}")
+                             Time.zone.parse("#{params[:date]} #{params[:time]}")
       @business_period_id = params[:business_period_id]
       @table_group_id = params[:table_group_id]
     end
@@ -45,11 +45,19 @@ class ReservationAllocatorService
   end
 
   def check_availability
+    # 分別檢查單一桌位和併桌可用性
+    suitable_table = find_single_suitable_table
+    combinable_tables = find_combinable_tables
+    
+    # 有可用性的條件：有適合的單一桌位 OR 有可併桌的組合
+    has_availability = suitable_table.present? || combinable_tables.present?
+    
     {
-      has_availability: find_suitable_table.present?,
+      has_availability: has_availability,
       available_tables: find_available_tables,
+      suitable_table: suitable_table,
       can_combine: can_combine_tables?,
-      combinable_tables: find_combinable_tables || []
+      combinable_tables: combinable_tables || []
     }
   end
 
@@ -82,7 +90,7 @@ class ReservationAllocatorService
     
     # 查找該桌位在同一餐期的預訂
     existing_booking = Reservation.where(restaurant: @restaurant)
-                                 .where(status: 'confirmed')
+                                 .where(status: %w[pending confirmed])
                                  .where('DATE(reservation_datetime) = ?', target_date)
                                  .where(business_period: business_period)
                                  .where(
@@ -125,13 +133,32 @@ class ReservationAllocatorService
   end
 
   def find_suitable_table
+    # 這個方法保持原有邏輯，用於 allocate_table
+    find_single_suitable_table
+  end
+
+  def find_single_suitable_table
     party_size = total_party_size
     suitable_tables = available_tables.select { |table| table.suitable_for?(party_size) }
     
     return nil if suitable_tables.empty?
     
-    # 簡化：直接按 sort_order 排序，選擇第一個適合的桌位
-    suitable_tables.first
+    # 智慧選擇：優先選擇容量最接近需求的桌位，避免資源浪費
+    # 1. 先找容量剛好等於需求的桌位
+    exact_match = suitable_tables.find { |table| table.capacity == party_size }
+    return exact_match if exact_match
+    
+    # 2. 找容量略大於需求的桌位，按容量升序排列
+    larger_tables = suitable_tables.select { |table| table.capacity > party_size }
+                                  .sort_by { |table| [table.capacity, table.sort_order] }
+    return larger_tables.first if larger_tables.any?
+    
+    # 3. 如果沒有找到，選擇 max_capacity 能容納需求的桌位
+    # 按 max_capacity 升序，再按 sort_order 排序
+    suitable_tables.sort_by { |table| 
+      max_cap = table.max_capacity.present? ? table.max_capacity : table.capacity
+      [max_cap, table.sort_order] 
+    }.first
   end
 
   def get_reserved_table_ids(datetime)
@@ -147,7 +174,7 @@ class ReservationAllocatorService
       business_period = BusinessPeriod.find(@business_period_id)
       
       conflicting_reservations = Reservation.where(restaurant: @restaurant)
-                                           .where(status: 'confirmed')
+                                           .where(status: %w[pending confirmed])
                                            .where('DATE(reservation_datetime) = ?', target_date)
                                            .where(business_period: business_period)
                                            .includes(:table, table_combination: :restaurant_tables)
@@ -160,7 +187,7 @@ class ReservationAllocatorService
       end_time = datetime + duration_minutes.minutes
 
       conflicting_reservations = Reservation.where(restaurant: @restaurant)
-                                           .where(status: 'confirmed')
+                                           .where(status: %w[pending confirmed])
                                            .where(
                                              "(reservation_datetime <= ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?) OR " +
                                              "(reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' >= ?)",
@@ -246,7 +273,7 @@ class ReservationAllocatorService
       business_period = BusinessPeriod.find(@business_period_id)
       
       query = Reservation.where(restaurant: @restaurant)
-                         .where(status: 'confirmed')
+                         .where(status: %w[pending confirmed])
                          .where('DATE(reservation_datetime) = ?', target_date)
                          .where(business_period: business_period)
       
@@ -260,7 +287,7 @@ class ReservationAllocatorService
       return false unless duration_minutes  # 如果沒有設定時間，不檢查容量限制
       
       query = Reservation.where(restaurant: @restaurant)
-                         .where(status: 'confirmed')
+                         .where(status: %w[pending confirmed])
                          .where(
                            "reservation_datetime <= ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
                            datetime, datetime

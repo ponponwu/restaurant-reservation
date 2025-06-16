@@ -2,7 +2,7 @@ class Admin::DashboardController < AdminController
   def index
     # 餐廳管理員直接重定向到他們的餐廳管理頁面
     if current_user&.manager? && current_user.restaurant
-      redirect_to admin_restaurant_reservations_path(current_user.restaurant)
+      redirect_to admin_restaurant_path(current_user.restaurant)
       return
     end
     

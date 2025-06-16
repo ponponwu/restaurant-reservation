@@ -27,11 +27,6 @@ class Restaurant < ApplicationRecord
   validates :address, presence: true, length: { maximum: 255 }
   validates :description, length: { maximum: 1000 }
   validates :reservation_interval_minutes, presence: true, inclusion: { in: [15, 30, 60], message: '預約間隔必須是 15、30 或 60 分鐘' }
-  validates :default_dining_duration_minutes, 
-            numericality: { greater_than: 30, less_than_or_equal_to: 480 },
-            if: :limited_dining_time?
-  validates :max_combination_tables, presence: true, numericality: { greater_than: 1, less_than_or_equal_to: 5 }
-  validates :buffer_time_minutes, presence: true, numericality: { greater_than_or_equal_to: 0, less_than_or_equal_to: 60 }
 
   # 3. Scope 定義
   scope :active, -> { where(active: true, deleted_at: nil) }
@@ -156,13 +151,16 @@ class Restaurant < ApplicationRecord
 
   # 預約政策
   def policy
+    return reservation_policy if reservation_policy.present?
+    return nil unless persisted?  # 如果 restaurant 還沒保存，返回 nil
+    
     reservation_policy || create_reservation_policy
   end
 
   def can_accept_reservation?(datetime, party_size)
     return false unless open_on_date?(datetime.to_date)
-    return false unless policy.party_size_valid?(party_size)
-    return false unless policy.can_book_at_time?(datetime)
+    return false unless policy&.party_size_valid?(party_size)
+    return false unless policy&.can_book_at_time?(datetime)
     
     true
   end
@@ -215,7 +213,7 @@ class Restaurant < ApplicationRecord
     return false unless has_capacity_for_party_size?(party_size)
     
     # 檢查訂位政策是否允許該人數
-    return false unless policy.party_size_valid?(party_size)
+    return false unless policy&.party_size_valid?(party_size)
     
     # 檢查當天是否還有空位（簡化版本，實際需要考慮時段）
     # 這裡暫時假設每天都有空位，實際應該要檢查各時段的訂位情況
@@ -234,11 +232,9 @@ class Restaurant < ApplicationRecord
     business_periods.active.any? { |bp| bp.operates_on_weekday?(weekday) }
   end
 
-
-
   # 用餐時間相關方法（委派給 reservation_policy）
   def unlimited_dining_time?
-    policy.unlimited_dining_time?
+    policy&.unlimited_dining_time? || false
   end
   
   def limited_dining_time?
@@ -247,47 +243,52 @@ class Restaurant < ApplicationRecord
 
   def dining_duration_minutes
     return nil if unlimited_dining_time?
-    policy.default_dining_duration_minutes || 120
+    policy&.default_dining_duration_minutes || 120
   end
 
   def dining_duration_with_buffer
     return nil if unlimited_dining_time?
-    dining_duration_minutes + (policy.buffer_time_minutes || 15)
+    dining_duration_minutes + (policy&.buffer_time_minutes || 15)
   end
 
   def can_combine_tables?
-    policy.allow_table_combinations? && restaurant_tables.active.where(can_combine: true).exists?
+    # 使用實例變數快取結果，避免重複查詢
+    @can_combine_tables ||= policy&.allow_table_combinations? && restaurant_tables.active.where(can_combine: true).exists?
   end
 
   def max_tables_per_combination
-    policy.max_combination_tables || 3
+    policy&.max_combination_tables || 3
   end
   
   # 委派給 reservation_policy 的併桌設定
   def allow_table_combinations?
-    policy.allow_table_combinations?
+    policy&.allow_table_combinations? || false
   end
 
   # 根據餐期和預約間隔產生可選時間
   def generate_time_slots_for_period(business_period, date = Date.current)
     slots = []
     
-    # 餐期開始和結束時間
-    start_time = business_period.start_time
-    end_time = business_period.end_time
+    # 餐期開始和結束時間 - 使用本地時間避免時區問題
+    start_time = business_period.local_start_time
+    end_time = business_period.local_end_time
     
     # 結束時間提前2小時（預留用餐時間）
     actual_end_time = end_time - 2.hours
+    
+    # 獲取最小提前預訂時間
+    minimum_advance_hours = policy&.minimum_advance_hours || 0
+    earliest_booking_time = Time.current + minimum_advance_hours.hours
     
     # 從開始時間每隔 reservation_interval_minutes 產生一個時段
     current_time = start_time
     
     while current_time <= actual_end_time
-      # 組合日期和時間
-      slot_datetime = DateTime.parse("#{date} #{current_time.strftime('%H:%M')}")
+      # 正確組合日期和時間，保持時區一致性
+      slot_datetime = Time.zone.parse("#{date} #{current_time.strftime('%H:%M')}")
       
-      # 跳過過去的時間
-      if slot_datetime >= DateTime.current
+      # 跳過過去的時間，並檢查是否符合最小提前預訂時間
+      if slot_datetime >= earliest_booking_time
         slots << {
           time: current_time.strftime('%H:%M'),
           datetime: slot_datetime,
@@ -302,20 +303,31 @@ class Restaurant < ApplicationRecord
     slots
   end
 
-  # 取得指定日期的所有可用時間選項
+  # 取得指定日期的所有可用時間選項（優化版本）
   def available_time_options_for_date(date)
+    # 使用實例變數快取，避免重複計算同一天的時間選項
+    @time_options_cache ||= {}
+    cache_key = date.to_s
+    
+    return @time_options_cache[cache_key] if @time_options_cache[cache_key]
+    
     slots = []
     
     # 獲取當天營業的餐期（使用 0-6 格式）
     weekday = date.wday
-    business_periods.active.each do |period|
+    
+    # 使用實例變數快取活躍的營業時段，避免重複查詢
+    @cached_active_periods ||= business_periods.active.includes(:restaurant).to_a
+    
+    @cached_active_periods.each do |period|
       next unless period.operates_on_weekday?(weekday)
       
       period_slots = generate_time_slots_for_period(period, date)
       slots.concat(period_slots)
     end
     
-    slots.sort_by { |slot| slot[:time] }
+    # 快取結果
+    @time_options_cache[cache_key] = slots.sort_by { |slot| slot[:time] }
   end
 
   # 格式化營業時間供前台顯示

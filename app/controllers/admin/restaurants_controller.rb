@@ -1,8 +1,15 @@
 class Admin::RestaurantsController < AdminController
   before_action :set_restaurant, only: [:show, :edit, :update, :destroy, :toggle_status]
+  before_action :check_restaurant_access, only: [:show, :edit, :update]
 
   def index
-    @restaurants = Restaurant.active.includes(:users)
+    # 根據用戶角色顯示不同的餐廳列表
+    if current_user.super_admin?
+      @restaurants = Restaurant.active.includes(:users)
+    else
+      # 餐廳管理員和員工只能看到自己的餐廳
+      @restaurants = Restaurant.where(id: current_user.restaurant_id).active.includes(:users)
+    end
     
     # 簡單搜尋功能
     if params[:search].present?
@@ -141,7 +148,18 @@ class Admin::RestaurantsController < AdminController
   private
 
   def set_restaurant
-    @restaurant = Restaurant.find_by!(slug: params[:id])
+    if current_user.super_admin?
+      @restaurant = Restaurant.find_by!(slug: params[:id])
+    else
+      # 餐廳管理員和員工只能存取自己的餐廳
+      @restaurant = Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:id])
+    end
+  end
+
+  def check_restaurant_access
+    unless current_user.can_manage_restaurant?(@restaurant)
+      redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳'
+    end
   end
 
   def restaurant_params

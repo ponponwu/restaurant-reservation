@@ -1,5 +1,6 @@
 class Admin::TablesController < AdminController
   before_action :set_restaurant
+  before_action :check_restaurant_access
   before_action :set_table_group, only: [:create, :edit, :show, :update, :destroy, :update_status]
   before_action :set_table, only: [:show, :edit, :update, :destroy, :update_status, :toggle_active, :move_to_group]
 
@@ -204,11 +205,17 @@ class Admin::TablesController < AdminController
   private
 
   def set_restaurant
-    @restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
-    
-    # super_admin 和 manager 可以管理所有餐廳
-    unless current_user.super_admin? || current_user.manager?
-      redirect_to admin_restaurants_path, alert: '您沒有權限管理此餐廳'
+    if current_user.super_admin?
+      @restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
+    else
+      # 餐廳管理員和員工只能存取自己的餐廳
+      @restaurant = Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:restaurant_id])
+    end
+  end
+
+  def check_restaurant_access
+    unless current_user.can_manage_restaurant?(@restaurant)
+      redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的桌位管理'
     end
   end
 

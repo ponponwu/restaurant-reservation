@@ -14,7 +14,7 @@
       <%= blacklist.added_by_name.presence || '系統' %>
     </td>
     <td class="px-4 py-3 text-sm text-gray-500">
-      <%= blacklist.created_at.strftime('%m/%d %H:%M') %>
+      <%= blacklist.created_at.in_time_zone.strftime('%m/%d %H:%M') %>
     </td>
     <td class="px-4 py-3 text-sm">
       <% if blacklist.active? %>

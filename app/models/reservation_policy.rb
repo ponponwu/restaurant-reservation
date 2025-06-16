@@ -33,16 +33,12 @@ class ReservationPolicy < ApplicationRecord
   end
 
   def can_book_on_date?(target_date)
-    # 不能預定當天或之前的日期
-    return false if target_date <= Date.current
     # 不能超過預定範圍
     return false if target_date > earliest_booking_date
     true
   end
 
   def can_book_at_time?(target_datetime)
-    # 不能預定當天
-    return false if target_datetime.to_date <= Date.current
     # 必須符合最少提前預定時間
     target_datetime >= latest_booking_datetime
   end
@@ -77,7 +73,6 @@ class ReservationPolicy < ApplicationRecord
     rules = []
     rules << "最多提前 #{advance_booking_days} 天預約"
     rules << "最少提前 #{minimum_advance_hours} 小時預約"
-    rules << "不可預定當天訂位"
     rules << "人數限制：#{min_party_size}-#{max_party_size} 人"
     rules << formatted_deposit_policy
     rules << "單一手機號碼 #{phone_limit_period_days} 天內最多訂位 #{max_bookings_per_phone} 次"
@@ -133,9 +128,6 @@ class ReservationPolicy < ApplicationRecord
 
   # 檢查是否可以在指定日期時間預定
   def can_reserve_at?(target_datetime)
-    # 基本檢查：不能預定當天
-    return false if target_datetime.to_date <= Date.current
-    
     # 檢查是否在允許的預定範圍內
     return false unless can_book_on_date?(target_datetime.to_date)
     
@@ -147,9 +139,7 @@ class ReservationPolicy < ApplicationRecord
 
   # 獲取不能預定的原因
   def reservation_rejection_reason(target_datetime)
-    if target_datetime.to_date <= Date.current
-      "不可預定當天或過去的日期"
-    elsif target_datetime.to_date > earliest_booking_date
+    if target_datetime.to_date > earliest_booking_date
       "超出最大預定範圍（最多提前 #{advance_booking_days} 天）"
     elsif target_datetime < latest_booking_datetime
       "預定時間過近（至少提前 #{minimum_advance_hours} 小時）"

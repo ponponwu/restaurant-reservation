@@ -1,7 +1,7 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
-@import 'flatpickr/dist/flatpickr.min.css';
+@import 'flatpickr/dist/themes/dark.css';
 
 @import './sortable.css';
 
@@ -112,67 +112,6 @@ tbody.sorting .table-row {
 This file is in app/assets/stylesheets/application.tailwind.css 
 */
 
-/* Flatpickr 自定義樣式 */
-/* .flatpickr-container {
-    @apply w-full;
-} */
-
-/* 美化 flatpickr 彈出樣式 */
-.flatpickr-calendar {
-    @apply border border-gray-200 rounded-lg shadow-xl bg-white;
-    max-width: 320px !important;
-    font-family: inherit;
-}
-
-.flatpickr-months {
-    @apply bg-blue-50 rounded-t-lg px-4 py-3;
-}
-
-.flatpickr-current-month {
-    @apply text-gray-900 font-semibold text-lg;
-}
-
-.flatpickr-prev-month,
-.flatpickr-next-month {
-    @apply text-gray-600 hover:text-gray-900 p-2 rounded-full hover:bg-gray-100;
-}
-
-.flatpickr-weekdays {
-    @apply bg-gray-50 border-t border-gray-200;
-}
-
-.flatpickr-weekday {
-    @apply text-gray-700 font-medium text-sm py-2 text-center;
-}
-
-/*
-.flatpickr-day.selected {
-    @apply bg-blue-600 text-white font-semibold;
-}
-
-.flatpickr-day.today {
-    @apply bg-blue-100 text-blue-900 font-medium;
-}
-
-.flatpickr-day.disabled,
-.flatpickr-day.notAllowed {
-    @apply text-gray-300 cursor-not-allowed bg-gray-50;
-}
-
-.flatpickr-day.available {
-    @apply bg-green-100 text-green-800;
-}
-
-.flatpickr-day.available:hover {
-    @apply bg-green-200;
-}
-
-.flatpickr-day:hover:not(.disabled):not(.notAllowed):not(.selected) {
-    @apply bg-blue-50 text-blue-900;
-}
-
-/* input 樣式增強 */
-
 /* Select 元件增強樣式 */
 .custom-select {
     background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
@@ -199,4 +138,43 @@ This file is in app/assets/stylesheets/application.tailwind.css
 .time-slot-button.selected {
     @apply border-blue-500 bg-gradient-to-b from-blue-500 to-blue-600 text-white
            hover:from-blue-600 hover:to-blue-700 hover:border-blue-600;
+}
+
+/* Flatpickr 置中 - 使用 Claude 4 Sonnet 建議的解法 */
+.w-full.max-w-lg.px-4 {
+    display: flex;
+    justify-content: center;
+}
+
+.flatpickr-calendar {
+    position: relative !important;
+    left: auto !important;
+    right: auto !important;
+}
+
+/* 分頁器圓角修復 - 更精確的樣式 */
+.pagination {
+    border-radius: 0.375rem;
+    overflow: hidden;
+}
+
+.pagination > *:first-child,
+.pagination > *:first-child a,
+.pagination > *:first-child span {
+    border-top-left-radius: 0.375rem !important;
+    border-bottom-left-radius: 0.375rem !important;
+}
+
+.pagination > *:last-child,
+.pagination > *:last-child a,
+.pagination > *:last-child span {
+    border-top-right-radius: 0.375rem !important;
+    border-bottom-right-radius: 0.375rem !important;
+}
+
+/* 移除中間元素的圓角 */
+.pagination > *:not(:first-child):not(:last-child),
+.pagination > *:not(:first-child):not(:last-child) a,
+.pagination > *:not(:first-child):not(:last-child) span {
+    border-radius: 0 !important;
 }

@@ -34,7 +34,7 @@
       
       <div class="flex justify-between text-xs text-gray-500">
         <span>添加者：<%= blacklist.added_by_name.presence || '系統' %></span>
-        <span><%= blacklist.created_at.strftime('%m/%d %H:%M') %></span>
+        <span><%= blacklist.created_at.in_time_zone.strftime('%m/%d %H:%M') %></span>
       </div>
     </div>
     

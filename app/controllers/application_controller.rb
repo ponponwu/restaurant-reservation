@@ -37,17 +37,13 @@ class ApplicationController < ActionController::Base
       case resource.role
       when 'super_admin'
         admin_root_path
-      when 'manager'
-        if resource.restaurant
-          admin_restaurant_reservations_path(resource.restaurant)
+      when 'manager', 'employee'
+        if resource.restaurant.present?
+          # 跳轉到餐廳首頁
+          admin_restaurant_path(resource.restaurant)
         else
-          admin_root_path
-        end
-      when 'employee'
-        if resource.restaurant
-          admin_restaurant_reservations_path(resource.restaurant)
-        else
-          admin_root_path
+          # 如果沒有關聯餐廳，跳轉到餐廳列表讓他們選擇
+          admin_restaurants_path
         end
       else
         admin_root_path

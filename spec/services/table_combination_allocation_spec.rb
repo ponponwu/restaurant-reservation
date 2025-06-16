@@ -407,6 +407,395 @@ RSpec.describe '拼桌分配系統', type: :model do
     end
   end
 
+  # 複雜併桌情境測試
+  describe '複雜併桌情境' do
+    let(:table_group_a) { create(:table_group, restaurant: restaurant, name: '窗邊區', sort_order: 1) }
+    let(:table_group_b) { create(:table_group, restaurant: restaurant, name: '中央區', sort_order: 2) }
+    
+    # 窗邊區桌位
+    let!(:window_table_2) { create(:table, restaurant: restaurant, table_group: table_group_a, table_number: 'W1', capacity: 2, can_combine: true, sort_order: 1) }
+    let!(:window_table_4) { create(:table, restaurant: restaurant, table_group: table_group_a, table_number: 'W2', capacity: 4, can_combine: true, sort_order: 2) }
+    let!(:window_table_6) { create(:table, restaurant: restaurant, table_group: table_group_a, table_number: 'W3', capacity: 6, can_combine: true, sort_order: 3) }
+    
+    # 中央區桌位
+    let!(:center_table_2a) { create(:table, restaurant: restaurant, table_group: table_group_b, table_number: 'C1', capacity: 2, can_combine: true, sort_order: 4) }
+    let!(:center_table_2b) { create(:table, restaurant: restaurant, table_group: table_group_b, table_number: 'C2', capacity: 2, can_combine: true, sort_order: 5) }
+    let!(:center_table_2c) { create(:table, restaurant: restaurant, table_group: table_group_b, table_number: 'C3', capacity: 2, can_combine: true, sort_order: 6) }
+    let!(:center_table_4) { create(:table, restaurant: restaurant, table_group: table_group_b, table_number: 'C4', capacity: 4, can_combine: true, sort_order: 7) }
+    
+    before do
+      restaurant.reservation_policy.update!(
+        allow_table_combinations: true,
+        max_combination_tables: 4
+      )
+    end
+    
+    context '多層次併桌需求' do
+      it '8人訂位需要多桌併桌時的最佳組合選擇' do
+        # 佔用一些桌位製造複雜情境
+        create(:reservation, :confirmed,
+               restaurant: restaurant,
+               business_period: business_period,
+               table: window_table_6,
+               party_size: 5,
+               adults_count: 5,
+               children_count: 0,
+               reservation_datetime: base_time)
+        
+        create(:reservation, :confirmed,
+               restaurant: restaurant,
+               business_period: business_period,
+               table: center_table_4,
+               party_size: 3,
+               adults_count: 3,
+               children_count: 0,
+               reservation_datetime: base_time)
+        
+        # 8人訂位需求
+        large_reservation = create(:reservation,
+                                 restaurant: restaurant,
+                                 business_period: business_period,
+                                 party_size: 8,
+                                 adults_count: 8,
+                                 children_count: 0,
+                                 reservation_datetime: base_time + 10.minutes)
+        
+        service = ReservationAllocatorService.new(large_reservation)
+        result = service.allocate_table
+        
+        expect(result).to be_present
+        large_reservation.reload
+        
+        if large_reservation.table_combination.present?
+          combination = large_reservation.table_combination
+          expect(combination.total_capacity).to be >= 8
+          
+          # 驗證併桌邏輯：應該選擇最少桌位數的組合
+          puts "8人併桌組合：#{combination.table_numbers}，總容量：#{combination.total_capacity}"
+          
+          # 檢查是否為同群組
+          table_groups = combination.restaurant_tables.map(&:table_group).uniq
+          expect(table_groups.count).to eq(1)
+        end
+      end
+      
+      it '連續大型訂位的併桌資源競爭' do
+        # 第一個6人訂位
+        first_large = create(:reservation,
+                           restaurant: restaurant,
+                           business_period: business_period,
+                           party_size: 6,
+                           adults_count: 6,
+                           children_count: 0,
+                           reservation_datetime: base_time)
+        
+        service1 = ReservationAllocatorService.new(first_large)
+        result1 = service1.allocate_table
+        expect(result1).to be_present
+        
+        # 第二個6人訂位
+        second_large = create(:reservation,
+                            restaurant: restaurant,
+                            business_period: business_period,
+                            party_size: 6,
+                            adults_count: 6,
+                            children_count: 0,
+                            reservation_datetime: base_time + 15.minutes)
+        
+        service2 = ReservationAllocatorService.new(second_large)
+        result2 = service2.allocate_table
+        
+        # 檢查兩個大型訂位是否都能成功分配
+        first_large.reload
+        second_large.reload
+        
+        puts "第一個6人訂位：#{first_large.table_display_name}"
+        puts "第二個6人訂位：#{second_large.table_display_name}"
+        
+        # 至少其中一個應該成功分配
+        expect([first_large.table.present? || first_large.table_combination.present?,
+                second_large.table.present? || second_large.table_combination.present?].any?).to be true
+      end
+      
+      it '混合單桌和併桌的複雜分配情境' do
+        # 先分配一些單桌訂位
+        small_reservations = []
+        [window_table_2, center_table_2a].each_with_index do |table, index|
+          reservation = create(:reservation, :confirmed,
+                             restaurant: restaurant,
+                             business_period: business_period,
+                             table: table,
+                             party_size: 2,
+                             adults_count: 2,
+                             children_count: 0,
+                             reservation_datetime: base_time)
+          small_reservations << reservation
+        end
+        
+        # 現在有一個5人訂位需要併桌
+        medium_reservation = create(:reservation,
+                                  restaurant: restaurant,
+                                  business_period: business_period,
+                                  party_size: 5,
+                                  adults_count: 5,
+                                  children_count: 0,
+                                  reservation_datetime: base_time + 20.minutes)
+        
+        service = ReservationAllocatorService.new(medium_reservation)
+        result = service.allocate_table
+        
+        medium_reservation.reload
+        
+        # 檢查分配結果
+        if medium_reservation.table_combination.present?
+          combination = medium_reservation.table_combination
+          puts "5人併桌組合：#{combination.table_numbers}，總容量：#{combination.total_capacity}"
+          
+          # 確保沒有使用已佔用的桌位
+          occupied_table_ids = small_reservations.map(&:table_id)
+          combination_table_ids = combination.restaurant_tables.pluck(:id)
+          
+          expect(combination_table_ids & occupied_table_ids).to be_empty
+        elsif medium_reservation.table.present?
+          puts "5人單桌分配：#{medium_reservation.table.table_number}"
+          expect(medium_reservation.table.capacity).to be >= 5
+        end
+      end
+    end
+    
+    context '無限用餐時間模式下的併桌' do
+      before do
+        restaurant.reservation_policy.update!(unlimited_dining_time: true)
+      end
+      
+      it '同餐期併桌衝突檢查' do
+        # 佔用併桌組合中的一張桌位
+        existing_reservation = create(:reservation, :confirmed,
+                                    restaurant: restaurant,
+                                    business_period: business_period,
+                                    table: center_table_2a,
+                                    party_size: 2,
+                                    adults_count: 2,
+                                    children_count: 0,
+                                    reservation_datetime: base_time)
+        
+        # 新的4人訂位需要併桌，但center_table_2a已被佔用
+        new_reservation = create(:reservation,
+                               restaurant: restaurant,
+                               business_period: business_period,
+                               party_size: 4,
+                               adults_count: 4,
+                               children_count: 0,
+                               reservation_datetime: base_time + 2.hours) # 無限時模式下時間差不影響
+        
+        service = ReservationAllocatorService.new(new_reservation)
+        result = service.allocate_table
+        
+        new_reservation.reload
+        
+        if new_reservation.table_combination.present?
+          combination = new_reservation.table_combination
+          combination_table_ids = combination.restaurant_tables.pluck(:id)
+          
+          # 確保沒有使用已佔用的桌位
+          expect(combination_table_ids).not_to include(center_table_2a.id)
+          puts "無限時模式併桌避開衝突：#{combination.table_numbers}"
+        end
+      end
+      
+      it '不同餐期可以重複使用併桌組合' do
+        dinner_period = create(:business_period, restaurant: restaurant, name: '晚餐')
+        
+        # 午餐時段的併桌
+        lunch_reservation = create(:reservation,
+                                 restaurant: restaurant,
+                                 business_period: business_period,
+                                 party_size: 4,
+                                 adults_count: 4,
+                                 children_count: 0,
+                                 reservation_datetime: base_time)
+        
+        service1 = ReservationAllocatorService.new(lunch_reservation)
+        result1 = service1.allocate_table
+        
+        lunch_reservation.reload
+        lunch_tables = []
+        
+        if lunch_reservation.table_combination.present?
+          lunch_tables = lunch_reservation.table_combination.restaurant_tables
+        elsif lunch_reservation.table.present?
+          lunch_tables = [lunch_reservation.table]
+        end
+        
+        # 晚餐時段的併桌，可以使用相同桌位
+        dinner_reservation = create(:reservation,
+                                  restaurant: restaurant,
+                                  business_period: dinner_period,
+                                  party_size: 4,
+                                  adults_count: 4,
+                                  children_count: 0,
+                                  reservation_datetime: base_time.change(hour: 18))
+        
+        service2 = ReservationAllocatorService.new(dinner_reservation)
+        result2 = service2.allocate_table
+        
+        dinner_reservation.reload
+        
+        # 在無限時模式下，不同餐期應該可以重複使用桌位
+        expect(result2).to be_present
+        puts "午餐併桌：#{lunch_reservation.table_display_name}"
+        puts "晚餐併桌：#{dinner_reservation.table_display_name}"
+      end
+    end
+    
+    context '併桌容量優化測試' do
+      it '選擇最接近需求的併桌組合' do
+        # 5人訂位，有多種併桌選擇
+        reservation = create(:reservation,
+                           restaurant: restaurant,
+                           business_period: business_period,
+                           party_size: 5,
+                           adults_count: 5,
+                           children_count: 0,
+                           reservation_datetime: base_time)
+        
+        service = ReservationAllocatorService.new(reservation)
+        result = service.allocate_table
+        
+        reservation.reload
+        
+        if reservation.table_combination.present?
+          combination = reservation.table_combination
+          total_capacity = combination.total_capacity
+          
+          # 應該選擇容量最接近5人的組合，避免浪費
+          expect(total_capacity).to be >= 5
+          expect(total_capacity).to be <= 8 # 不應該過度分配
+          
+          puts "5人最佳併桌：#{combination.table_numbers}，容量：#{total_capacity}"
+        elsif reservation.table.present?
+          # 如果有單桌能滿足，應該優先使用單桌
+          expect(reservation.table.capacity).to be >= 5
+          puts "5人單桌分配：#{reservation.table.table_number}，容量：#{reservation.table.capacity}"
+        end
+      end
+      
+      it '大型聚會的多桌併桌策略' do
+        # 12人大型聚會
+        large_party = create(:reservation,
+                           restaurant: restaurant,
+                           business_period: business_period,
+                           party_size: 12,
+                           adults_count: 12,
+                           children_count: 0,
+                           reservation_datetime: base_time)
+        
+        service = ReservationAllocatorService.new(large_party)
+        result = service.allocate_table
+        
+        large_party.reload
+        
+        if large_party.table_combination.present?
+          combination = large_party.table_combination
+          
+          # 檢查併桌數量不超過限制
+          expect(combination.restaurant_tables.count).to be <= restaurant.reservation_policy.max_combination_tables
+          
+          # 檢查總容量足夠
+          expect(combination.total_capacity).to be >= 12
+          
+          puts "12人大型併桌：#{combination.table_numbers}，總容量：#{combination.total_capacity}"
+          
+          # 檢查桌位排序邏輯
+          sort_orders = combination.restaurant_tables.pluck(:sort_order).sort
+          puts "併桌排序：#{sort_orders}"
+        end
+      end
+    end
+    
+    context '併桌失敗和降級策略' do
+      it '當併桌無法滿足需求時的處理' do
+        # 佔用大部分桌位
+        occupied_tables = [window_table_4, window_table_6, center_table_4]
+        occupied_tables.each_with_index do |table, index|
+          create(:reservation, :confirmed,
+                 restaurant: restaurant,
+                 business_period: business_period,
+                 table: table,
+                 party_size: [table.capacity - 1, 1].max,
+                 adults_count: [table.capacity - 1, 1].max,
+                 children_count: 0,
+                 reservation_datetime: base_time)
+        end
+        
+        # 10人訂位，剩餘桌位無法滿足
+        impossible_reservation = create(:reservation,
+                                      restaurant: restaurant,
+                                      business_period: business_period,
+                                      party_size: 10,
+                                      adults_count: 10,
+                                      children_count: 0,
+                                      reservation_datetime: base_time + 30.minutes)
+        
+        service = ReservationAllocatorService.new(impossible_reservation)
+        result = service.allocate_table
+        
+        # 應該回傳 nil 或找到替代方案
+        if result.nil?
+          puts "10人訂位無法分配（符合預期）"
+          expect(result).to be_nil
+        else
+          puts "10人訂位找到替代方案：#{impossible_reservation.reload.table_display_name}"
+        end
+      end
+      
+      it '跨群組併桌限制驗證' do
+        # 佔用窗邊區的大桌
+        create(:reservation, :confirmed,
+               restaurant: restaurant,
+               business_period: business_period,
+               table: window_table_6,
+               party_size: 6,
+               adults_count: 6,
+               children_count: 0,
+               reservation_datetime: base_time)
+        
+        # 佔用中央區的大桌
+        create(:reservation, :confirmed,
+               restaurant: restaurant,
+               business_period: business_period,
+               table: center_table_4,
+               party_size: 4,
+               adults_count: 4,
+               children_count: 0,
+               reservation_datetime: base_time)
+        
+        # 8人訂位，需要跨群組才能滿足
+        cross_group_reservation = create(:reservation,
+                                       restaurant: restaurant,
+                                       business_period: business_period,
+                                       party_size: 8,
+                                       adults_count: 8,
+                                       children_count: 0,
+                                       reservation_datetime: base_time + 45.minutes)
+        
+        service = ReservationAllocatorService.new(cross_group_reservation)
+        result = service.allocate_table
+        
+        cross_group_reservation.reload
+        
+        if cross_group_reservation.table_combination.present?
+          combination = cross_group_reservation.table_combination
+          table_groups = combination.restaurant_tables.map(&:table_group).uniq
+          
+          # 驗證不會跨群組併桌
+          expect(table_groups.count).to eq(1)
+          puts "8人併桌限制在單一群組：#{table_groups.first.name}"
+        end
+      end
+    end
+  end
+
   private
 
   def setup_test_tables

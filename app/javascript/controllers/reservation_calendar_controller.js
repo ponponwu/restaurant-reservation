@@ -128,8 +128,12 @@ export default class extends Controller {
 
             console.log('載入的可用日期 (過濾後):', this.availableDates)
 
-            if (this.availableDates.length === 0) {
+            // 只有在餐廳有足夠容量但沒有可預約日期時，才顯示額滿訊息
+            if (this.availableDates.length === 0 && data.has_capacity && data.full_booked_until) {
                 this.showFullBookedState(data.full_booked_until)
+            } else if (this.availableDates.length === 0 && !data.has_capacity) {
+                // 餐廳沒有足夠容量的桌位，顯示無法容納的訊息
+                this.showNoCapacityState()
             } else {
                 this.showCalendar()
                 this.initializeFlatpickr()
@@ -324,6 +328,16 @@ export default class extends Controller {
             const formattedDate = `${date.getMonth() + 1}月${date.getDate()}日`
             this.fullBookedUntilDateTarget.textContent = formattedDate
         }
+    }
+
+    // 顯示餐廳無法容納該人數的狀態
+    showNoCapacityState() {
+        this.loadingStateTarget.classList.add('hidden')
+        this.calendarInputTarget.style.display = 'none'
+        this.fullBookedStateTarget.classList.add('hidden')
+
+        // 顯示無法容納的訊息
+        this.showError('很抱歉，餐廳目前沒有適合該人數的桌位。請調整人數或聯絡餐廳詢問。')
     }
 
     // 選擇日期

@@ -1,5 +1,6 @@
 class Admin::BlacklistsController < Admin::BaseController
   before_action :set_restaurant
+  before_action :check_restaurant_access
   before_action :set_blacklist, only: [:show, :edit, :update, :destroy, :toggle_active]
 
   def index
@@ -99,6 +100,22 @@ class Admin::BlacklistsController < Admin::BaseController
   end
 
   private
+
+  def set_restaurant
+    if current_user.super_admin?
+      @restaurant = Restaurant.find_by!(slug: params[:restaurant_id]) if params[:restaurant_id]
+      @restaurant ||= current_user.restaurant # 如果沒有指定餐廳，使用當前用戶的餐廳
+    else
+      # 餐廳管理員和員工只能存取自己的餐廳
+      @restaurant = current_user.restaurant
+    end
+  end
+
+  def check_restaurant_access
+    unless current_user.can_manage_restaurant?(@restaurant)
+      redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的黑名單管理'
+    end
+  end
 
   def set_blacklist
     @blacklist = @restaurant.blacklists.find(params[:id])

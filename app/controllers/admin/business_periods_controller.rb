@@ -1,5 +1,6 @@
 class Admin::BusinessPeriodsController < AdminController
   before_action :set_restaurant
+  before_action :check_restaurant_access
   before_action :set_business_period, only: [:show, :edit, :update, :destroy, :toggle_active]
 
   def index
@@ -133,11 +134,17 @@ class Admin::BusinessPeriodsController < AdminController
   private
 
   def set_restaurant
-    @restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
-    
-    # super_admin 和 manager 可以管理所有餐廳
-    unless current_user.super_admin? || current_user.manager?
-      redirect_to admin_restaurants_path, alert: '您沒有權限管理此餐廳'
+    if current_user.super_admin?
+      @restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
+    else
+      # 餐廳管理員和員工只能存取自己的餐廳
+      @restaurant = Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:restaurant_id])
+    end
+  end
+
+  def check_restaurant_access
+    unless current_user.can_manage_restaurant?(@restaurant)
+      redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的營業時段管理'
     end
   end
 
@@ -146,9 +153,33 @@ class Admin::BusinessPeriodsController < AdminController
   end
 
   def business_period_params
-    params.require(:business_period).permit(
+    permitted_params = params.require(:business_period).permit(
       :name, :display_name, :start_time, :end_time, :status,
       days_of_week: []
     )
+    
+    # 確保時間參數使用正確的時區
+    if permitted_params[:start_time].present?
+      permitted_params[:start_time] = parse_time_in_timezone(permitted_params[:start_time])
+    end
+    
+    if permitted_params[:end_time].present?
+      permitted_params[:end_time] = parse_time_in_timezone(permitted_params[:end_time])
+    end
+    
+    permitted_params
+  end
+
+  def parse_time_in_timezone(time_string)
+    # 如果是 HH:MM 格式，添加日期部分並使用正確時區解析
+    if time_string.match?(/^\d{2}:\d{2}$/)
+      Time.zone.parse("2000-01-01 #{time_string}")
+    else
+      # 如果已經包含日期，直接解析
+      Time.zone.parse(time_string)
+    end
+  rescue ArgumentError
+    # 如果解析失敗，回傳原始值讓 Rails 處理驗證錯誤
+    time_string
   end
 end

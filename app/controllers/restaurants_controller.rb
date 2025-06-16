@@ -22,37 +22,48 @@ class RestaurantsController < ApplicationController
   
   # 新增：獲取餐廳營業日資訊 (for flatpickr)
   def available_days
-    # 獲取週營業日設定 (0=日, 1=一, ..., 6=六)
-    weekly = {}
-    7.times { |i| weekly[i] = false }
+    party_size = params[:party_size].to_i
+    party_size = 2 if party_size <= 0  # 預設 2 人
     
-    # 從營業時段中獲取營業日（使用 bitmask 效率更高）
-    @restaurant.business_periods.active.each do |period|
-      # 對每個週幾檢查 bitmask
-      (0..6).each do |weekday|
-        if period.operates_on_weekday?(weekday)
-          weekly[weekday] = true
-        end
+    # 獲取最大預訂天數
+    max_days = @restaurant.reservation_policy&.advance_booking_days || 30
+    
+    # 檢查餐廳是否有足夠容量的桌位
+    has_capacity = @restaurant.has_capacity_for_party_size?(party_size)
+    
+    # 獲取週營業日設定 (0=日, 1=一, ..., 6=六)
+    weekly_closures = []
+    7.times do |weekday|
+      has_business_on_weekday = @restaurant.business_periods.active.any? do |period|
+        period.operates_on_weekday?(weekday)
       end
+      weekly_closures << weekday unless has_business_on_weekday
     end
     
-    # 獲取特殊公休日（不包含每週重複的公休日）
-    date_range = Date.current..(Date.current + 90.days)
+    # 獲取特殊公休日
+    date_range = Date.current..(Date.current + max_days.days)
     special_closure_dates = @restaurant.closure_dates
                                       .where(recurring: false)
                                       .where(date: date_range)
                                       .pluck(:date)
                                       .map(&:to_s)
     
-    # 獲取最大預訂天數
-    max_days = @restaurant.reservation_policy&.advance_booking_days || 30
+    # 如果餐廳有容量，檢查實際可用日期（優化版本）
+    unavailable_dates = []
+    if has_capacity
+      unavailable_dates = get_unavailable_dates_optimized(party_size, max_days)
+    end
     
-    Rails.logger.info "🔥 Available days API - weekly: #{weekly}, special: #{special_closure_dates}, max_days: #{max_days}"
+    # 合併所有不可用日期
+    all_special_closures = (special_closure_dates + unavailable_dates).uniq
+    
+    Rails.logger.info "🔥 Available days API - party_size: #{party_size}, has_capacity: #{has_capacity}, unavailable: #{unavailable_dates.size}"
     
     render json: {
-      weekly: weekly,
-      special: special_closure_dates,
-      max_days: max_days
+      weekly_closures: weekly_closures,
+      special_closures: all_special_closures,
+      max_days: max_days,
+      has_capacity: has_capacity
     }
   end
   
@@ -71,21 +82,20 @@ class RestaurantsController < ApplicationController
     end
     
     # 檢查餐廳是否有足夠容量的桌位
-    unless @restaurant.has_capacity_for_party_size?(party_size)
-      render json: { 
-        available_dates: [],
-        full_booked_until: nil,
-        business_periods: []
-      }
-      return
-    end
+    has_capacity = @restaurant.has_capacity_for_party_size?(party_size)
     
     # 獲取接下來 60 天的可預約日期
-    available_dates = get_available_dates_with_allocator(party_size, adults, children)
+    available_dates = if has_capacity
+      get_available_dates_with_allocator(party_size, adults, children)
+    else
+      []
+    end
+    
     business_periods = @restaurant.business_periods.active
     
-    # 如果沒有可預約日期，計算客滿到什麼時候
-    full_booked_until = if available_dates.empty?
+    # 只有在餐廳有足夠容量但沒有可預約日期時，才計算客滿到什麼時候
+    # 如果餐廳沒有足夠容量的桌位，則不顯示額滿訊息
+    full_booked_until = if has_capacity && available_dates.empty?
       calculate_full_booked_until(party_size, adults, children)
     else
       nil
@@ -94,6 +104,7 @@ class RestaurantsController < ApplicationController
     render json: {
       available_dates: available_dates,
       full_booked_until: full_booked_until,
+      has_capacity: has_capacity,
       business_periods: business_periods.map do |bp|
         {
           id: bp.id,
@@ -153,7 +164,7 @@ class RestaurantsController < ApplicationController
       remaining_bookings = reservation_policy.remaining_bookings_for_phone(phone_number)
       
       if phone_limit_exceeded
-        phone_limit_message = "訂位次數已達上限。#{reservation_policy.formatted_phone_limit_policy}。您目前剩餘 #{remaining_bookings} 次訂位機會。"
+        phone_limit_message = "訂位次數已達上限。"
         Rails.logger.info "Phone booking limit exceeded for #{phone_number}"
       end
     end
@@ -193,8 +204,13 @@ class RestaurantsController < ApplicationController
   private
   
   def set_restaurant
-    @restaurant = Restaurant.includes(:business_periods, :closure_dates)
-                           .find_by!(slug: params[:slug])
+    @restaurant = Restaurant.includes(
+      :business_periods, 
+      :closure_dates, 
+      :reservation_policy,
+      restaurant_tables: [:table_group],
+      reservations: [:business_period, :table, table_combination: :restaurant_tables]
+    ).find_by!(slug: params[:slug])
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: '找不到指定的餐廳'
   end
@@ -306,5 +322,199 @@ class RestaurantsController < ApplicationController
         message: "很抱歉，#{@restaurant.name} 目前暫停接受線上訂位。如需訂位，請直接致電餐廳洽詢。"
       }, status: :service_unavailable
     end
+  end
+
+  def get_unavailable_dates_optimized(party_size, max_days)
+    unavailable_dates = []
+    start_date = Date.current + 1.day
+    end_date = start_date + max_days.days
+    
+    # 預載入所有相關資料，避免 N+1 查詢
+    date_range = (start_date..end_date).to_a
+    
+    # 一次性預載入所有訂位資料
+    all_reservations = @restaurant.reservations
+                                 .where(status: %w[pending confirmed])
+                                 .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
+                                 .includes(:business_period, :table, table_combination: :restaurant_tables)
+                                 .to_a
+    
+    # 按日期分組
+    reservations_by_date = all_reservations.group_by { |r| r.reservation_datetime.to_date }
+    
+    # 預載入餐廳桌位資料
+    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
+                                  .includes(:table_group)
+                                  .to_a
+    
+    # 預載入營業時段資料
+    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
+    
+    # 預載入休息日資料，避免在迴圈中重複查詢
+    closure_dates = @restaurant.closure_dates
+                              .where('date BETWEEN ? AND ? OR recurring = ?', start_date, end_date, true)
+                              .to_a
+    
+    # 建立休息日快取
+    closed_dates_cache = Set.new
+    closure_dates.each do |closure|
+      if closure.recurring?
+        # 處理週期性休息日
+        date_range.each do |date|
+          closed_dates_cache.add(date) if date.wday == closure.weekday
+        end
+      else
+        closed_dates_cache.add(closure.date)
+      end
+    end
+    
+    # 批量檢查每天的可用性
+    date_range.each do |date|
+      # 跳過公休日
+      next if closed_dates_cache.include?(date)
+      next unless business_periods_cache.values.any? { |bp| bp.operates_on_weekday?(date.wday) }
+      
+      # 檢查當天是否有任何時段可以容納該人數
+      unless has_availability_on_date_cached?(
+        date, 
+        reservations_by_date[date] || [], 
+        restaurant_tables, 
+        business_periods_cache,
+        party_size
+      )
+        unavailable_dates << date.to_s
+      end
+    end
+    
+    unavailable_dates
+  end
+
+  def has_availability_on_date_cached?(date, day_reservations, restaurant_tables, business_periods_cache, party_size)
+    # 按需獲取時間選項，利用 Restaurant 模型的快取
+    available_time_options = @restaurant.available_time_options_for_date(date)
+    return false if available_time_options.empty?
+    
+    # 按營業時段分組訂位
+    reservations_by_period = day_reservations.group_by(&:business_period_id)
+    
+    # 檢查是否有任何時段可用
+    available_time_options.any? do |time_option|
+      business_period_id = time_option[:business_period_id]
+      datetime = time_option[:datetime]
+      
+      # 使用快取的營業時段資料
+      business_period = business_periods_cache[business_period_id]
+      next false unless business_period
+      
+      # 檢查該時段是否有可用桌位
+      has_availability_for_slot_optimized?(
+        restaurant_tables, 
+        reservations_by_period[business_period_id] || [], 
+        datetime, 
+        party_size, 
+        business_period_id
+      )
+    end
+  end
+
+  def has_availability_for_slot_optimized?(restaurant_tables, period_reservations, datetime, party_size, business_period_id)
+    # 快取已計算的預訂桌位 ID，避免重複計算
+    @reserved_table_ids_cache ||= {}
+    cache_key = "#{business_period_id}_#{datetime.strftime('%Y%m%d_%H%M')}"
+    
+    reserved_table_ids = @reserved_table_ids_cache[cache_key] ||= 
+      get_reserved_table_ids_for_period_optimized(period_reservations, datetime, business_period_id)
+    
+    # 過濾掉已被預訂的桌位
+    available_tables = restaurant_tables.reject { |table| reserved_table_ids.include?(table.id) }
+    
+    # 檢查是否有適合的單一桌位
+    suitable_table = available_tables.find { |table| table.suitable_for?(party_size) }
+    return true if suitable_table
+    
+    # 檢查是否可以併桌（只在需要時才計算）
+    if @restaurant.can_combine_tables? && party_size > 1
+      combinable_tables = available_tables.select { |table| table.can_combine? }
+      return has_combinable_tables_for_party?(combinable_tables, party_size)
+    end
+    
+    false
+  end
+
+  def get_reserved_table_ids_for_period_optimized(period_reservations, datetime, business_period_id)
+    reserved_table_ids = []
+    
+    period_reservations.each do |reservation|
+      # 檢查時間衝突
+      if has_time_conflict_optimized?(reservation, datetime, business_period_id)
+        # 添加直接預訂的桌位
+        reserved_table_ids << reservation.table_id if reservation.table_id
+        
+        # 添加併桌組合中的桌位
+        if reservation.table_combination
+          reservation.table_combination.restaurant_tables.each do |table|
+            reserved_table_ids << table.id
+          end
+        end
+      end
+    end
+    
+    reserved_table_ids.compact.uniq
+  end
+
+  def has_time_conflict_optimized?(reservation, target_datetime, target_business_period_id)
+    # 如果是無限時模式，檢查同一餐期的衝突
+    if @restaurant.unlimited_dining_time?
+      return reservation.business_period_id == target_business_period_id &&
+             reservation.reservation_datetime.to_date == target_datetime.to_date
+    end
+    
+    # 限時模式：檢查時間重疊
+    duration_minutes = @restaurant.dining_duration_with_buffer
+    return false unless duration_minutes
+    
+    reservation_start = reservation.reservation_datetime
+    reservation_end = reservation_start + duration_minutes.minutes
+    target_start = target_datetime
+    target_end = target_start + duration_minutes.minutes
+    
+    # 檢查時間區間是否重疊
+    !(reservation_end <= target_start || target_end <= reservation_start)
+  end
+
+  def has_combinable_tables_for_party?(combinable_tables, party_size)
+    return false if combinable_tables.empty?
+    
+    # 按群組分組桌位
+    tables_by_group = combinable_tables.group_by(&:table_group_id)
+    
+    tables_by_group.each do |group_id, group_tables|
+      # 檢查該群組是否能組成適合的組合
+      if can_form_suitable_combination?(group_tables, party_size)
+        return true
+      end
+    end
+    
+    false
+  end
+
+  def can_form_suitable_combination?(group_tables, party_size)
+    return false if group_tables.size < 2
+    
+    # 簡化版本：檢查最多3張桌子的組合
+    max_tables = [@restaurant.max_tables_per_combination, group_tables.size].min
+    
+    # 按容量排序，優先使用較小的桌位
+    sorted_tables = group_tables.sort_by(&:capacity)
+    
+    # 嘗試不同數量的桌位組合
+    (2..max_tables).each do |table_count|
+      sorted_tables.combination(table_count) do |combination|
+        total_capacity = combination.sum(&:capacity)
+        return true if total_capacity >= party_size
+      end
+    end
+    
+    false
   end
 end 

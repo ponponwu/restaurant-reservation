@@ -2,37 +2,49 @@
 // Run that command whenever you add a new controller or create them with
 // ./bin/rails generate stimulus controllerName
 
-import { application } from "./application"
+import { application } from './application'
 
-import CalendarController from "./calendar_controller"
-application.register("calendar", CalendarController)
+import CalendarController from './calendar_controller'
+application.register('calendar', CalendarController)
 
-import ClosureDatesController from "./closure_dates_controller"
-application.register("closure-dates", ClosureDatesController)
+import ClosureDatesController from './closure_dates_controller'
+application.register('closure-dates', ClosureDatesController)
 
-import ConfirmationController from "./confirmation_controller"
-application.register("confirmation", ConfirmationController)
+import ConfirmationController from './confirmation_controller'
+application.register('confirmation', ConfirmationController)
 
-import FlashController from "./flash_controller"
-application.register("flash", FlashController)
+import DiningSettingsController from './dining_settings_controller'
+application.register('dining-settings', DiningSettingsController)
 
-import HelloController from "./hello_controller"
-application.register("hello", HelloController)
+import DropdownController from './dropdown_controller'
+application.register('dropdown', DropdownController)
 
-import ModalController from "./modal_controller"
-application.register("modal", ModalController)
+import FlashController from './flash_controller'
+application.register('flash', FlashController)
 
-import ReservationCalendarController from "./reservation_calendar_controller"
-application.register("reservation-calendar", ReservationCalendarController)
+import HelloController from './hello_controller'
+application.register('hello', HelloController)
 
-import ReservationController from "./reservation_controller"
-application.register("reservation", ReservationController)
+import ModalController from './modal_controller'
+application.register('modal', ModalController)
 
-import ReservationPolicyController from "./reservation_policy_controller"
-application.register("reservation-policy", ReservationPolicyController)
+import ReservationCalendarController from './reservation_calendar_controller'
+application.register('reservation-calendar', ReservationCalendarController)
 
-import RestaurantManagementController from "./restaurant_management_controller"
-application.register("restaurant-management", RestaurantManagementController)
+import ReservationController from './reservation_controller'
+application.register('reservation', ReservationController)
 
-import SortableController from "./sortable_controller"
-application.register("sortable", SortableController)
+import ReservationFormController from './reservation_form_controller'
+application.register('reservation-form', ReservationFormController)
+
+import ReservationPolicyController from './reservation_policy_controller'
+application.register('reservation-policy', ReservationPolicyController)
+
+import RestaurantManagementController from './restaurant_management_controller'
+application.register('restaurant-management', RestaurantManagementController)
+
+import RestaurantInfoController from './restaurant_info_controller'
+application.register('restaurant-info', RestaurantInfoController)
+
+import SortableController from './sortable_controller'
+application.register('sortable', SortableController)

@@ -173,7 +173,15 @@ class BusinessPeriod < ApplicationRecord
   end
 
   def formatted_time_range
-    "#{start_time.strftime('%H:%M')} - #{end_time.strftime('%H:%M')}"
+    "#{local_start_time.strftime('%H:%M')} - #{local_end_time.strftime('%H:%M')}"
+  end
+
+  def local_start_time
+    start_time.in_time_zone
+  end
+
+  def local_end_time
+    end_time.in_time_zone
   end
 
   def duration_minutes
