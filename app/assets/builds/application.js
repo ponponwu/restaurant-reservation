@@ -5339,7 +5339,7 @@ function setFormMode(mode) {
   );
   config.forms.mode = mode;
 }
-var Turbo2 = /* @__PURE__ */ Object.freeze({
+var Turbo = /* @__PURE__ */ Object.freeze({
   __proto__: null,
   navigator: navigator$1,
   session,
@@ -6047,7 +6047,7 @@ if (customElements.get("turbo-stream-source") === void 0) {
     element = element.parentElement;
   }
 })();
-window.Turbo = { ...Turbo2, StreamActions };
+window.Turbo = { ...Turbo, StreamActions };
 start();
 
 // node_modules/@hotwired/turbo-rails/app/javascript/turbo/cable.js
@@ -8639,8 +8639,21 @@ var calendar_controller_default = class extends Controller {
       daysGrid: this.hasDaysGridTarget,
       selectedDate: this.hasSelectedDateTarget
     });
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateFilter = urlParams.get("date_filter");
+    const showAll = urlParams.get("show_all");
     this.currentDate = /* @__PURE__ */ new Date();
-    this.selectedDateValue = /* @__PURE__ */ new Date();
+    if (showAll === "true") {
+      this.selectedDateValue = null;
+      this.showAllMode = true;
+    } else if (dateFilter) {
+      this.selectedDateValue = new Date(dateFilter);
+      this.currentDate = new Date(this.selectedDateValue);
+      this.showAllMode = false;
+    } else {
+      this.selectedDateValue = /* @__PURE__ */ new Date();
+      this.showAllMode = false;
+    }
     this.monthNames = [
       "\u4E00\u6708",
       "\u4E8C\u6708",
@@ -8724,14 +8737,20 @@ var calendar_controller_default = class extends Controller {
     const dateString = this.formatDateForServer(date);
     const today = /* @__PURE__ */ new Date();
     const isToday = this.isSameDate(date, today);
-    const isSelected = this.isSameDate(date, this.selectedDateValue);
+    const isSelected = this.selectedDateValue && this.isSameDate(date, this.selectedDateValue);
     const button = document.createElement("button");
     button.type = "button";
     button.textContent = day;
     button.dataset.date = dateString;
     button.dataset.action = "click->calendar#selectDate";
     let classes = "h-8 w-8 text-sm rounded-full transition-colors duration-200 ";
-    if (isSelected) {
+    if (this.showAllMode) {
+      if (isToday) {
+        classes += "bg-blue-100 text-blue-600 font-medium hover:bg-blue-200";
+      } else {
+        classes += "text-gray-700 hover:bg-gray-100";
+      }
+    } else if (isSelected) {
       classes += "bg-blue-500 text-white";
     } else if (isToday) {
       classes += "bg-blue-100 text-blue-600 font-medium hover:bg-blue-200";
@@ -8757,29 +8776,22 @@ var calendar_controller_default = class extends Controller {
     return `${year}\u5E74${month}\u6708${day}\u65E5`;
   }
   updateSelectedDateDisplay() {
-    this.selectedDateTarget.textContent = this.formatDateForDisplay(this.selectedDateValue);
+    if (this.showAllMode) {
+      this.selectedDateTarget.textContent = "\u5168\u90E8\u8A02\u4F4D";
+    } else if (this.selectedDateValue) {
+      this.selectedDateTarget.textContent = this.formatDateForDisplay(this.selectedDateValue);
+    } else {
+      this.selectedDateTarget.textContent = "\u4ECA\u5929";
+    }
   }
   async filterReservationsByDate(dateString) {
     try {
-      this.showLoading();
-      const url = new URL(this.currentUrlValue, window.location.origin);
+      const url = new URL(window.location.href);
+      url.searchParams.delete("show_all");
       url.searchParams.set("date_filter", dateString);
-      const response = await fetch(url, {
-        headers: {
-          Accept: "text/vnd.turbo-stream.html",
-          "X-Requested-With": "XMLHttpRequest"
-        }
-      });
-      if (response.ok) {
-        const html = await response.text();
-        Turbo.renderStreamMessage(html);
-      } else {
-        console.error("Failed to filter reservations:", response.statusText);
-      }
+      window.location.href = url.toString();
     } catch (error2) {
-      console.error("Error filtering reservations:", error2);
-    } finally {
-      this.hideLoading();
+      console.error("Failed to filter reservations:", error2);
     }
   }
   showLoading() {
@@ -9115,6 +9127,79 @@ var confirmation_controller_default = class extends Controller {
       event.preventDefault();
       event.stopPropagation();
       return false;
+    }
+  }
+};
+
+// app/javascript/controllers/dining_settings_controller.js
+var dining_settings_controller_default = class extends Controller {
+  static targets = [
+    "unlimitedCheckbox",
+    "limitedTimeSettings",
+    "diningDurationField",
+    "bufferTimeField",
+    "durationPreview",
+    "examplePreview"
+  ];
+  connect() {
+    this.toggleUnlimitedTime();
+    this.updatePreview();
+  }
+  toggleUnlimitedTime() {
+    const isUnlimited = this.unlimitedCheckboxTarget.checked;
+    if (isUnlimited) {
+      this.limitedTimeSettingsTarget.classList.add("opacity-50", "pointer-events-none");
+      this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-yellow-600">\u7121\u9650\u5236</span>`;
+      this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C<span class="font-medium text-yellow-600">\u684C\u4F4D\u4E0D\u6703\u81EA\u52D5\u91CB\u653E</span>`;
+    } else {
+      this.limitedTimeSettingsTarget.classList.remove("opacity-50", "pointer-events-none");
+      this.updatePreview();
+    }
+  }
+  updatePreview() {
+    if (this.unlimitedCheckboxTarget.checked) {
+      return;
+    }
+    const diningMinutes = parseInt(this.diningDurationFieldTarget.value) || 120;
+    const bufferMinutes = parseInt(this.bufferTimeFieldTarget.value) || 15;
+    const totalMinutes = diningMinutes + bufferMinutes;
+    const startTime = /* @__PURE__ */ new Date();
+    startTime.setHours(18, 0, 0, 0);
+    const endTime = new Date(startTime.getTime() + totalMinutes * 6e4);
+    this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${totalMinutes} \u5206\u9418</span>`;
+    this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u684C\u4F4D\u6703\u88AB\u4F54\u7528\u5230 <span class="font-medium text-blue-600">${endTime.getHours().toString().padStart(2, "0")}:${endTime.getMinutes().toString().padStart(2, "0")}</span>`;
+  }
+};
+
+// app/javascript/controllers/dropdown_controller.js
+var dropdown_controller_default = class extends Controller {
+  static targets = ["button", "menu"];
+  connect() {
+    this.boundClickOutside = this.clickOutside.bind(this);
+  }
+  disconnect() {
+    document.removeEventListener("click", this.boundClickOutside);
+  }
+  toggle(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.menuTarget.classList.contains("hidden")) {
+      this.open();
+    } else {
+      this.close();
+    }
+  }
+  open() {
+    this.menuTarget.classList.remove("hidden");
+    document.addEventListener("click", this.boundClickOutside);
+  }
+  close() {
+    this.menuTarget.classList.add("hidden");
+    document.removeEventListener("click", this.boundClickOutside);
+  }
+  clickOutside(event) {
+    if (!this.element.contains(event.target)) {
+      this.close();
     }
   }
 };
@@ -11873,8 +11958,10 @@ var reservation_calendar_controller_default = class extends Controller {
         return !this.isDateBeforeOrToday(date);
       });
       console.log("\u8F09\u5165\u7684\u53EF\u7528\u65E5\u671F (\u904E\u6FFE\u5F8C):", this.availableDates);
-      if (this.availableDates.length === 0) {
+      if (this.availableDates.length === 0 && data.has_capacity && data.full_booked_until) {
         this.showFullBookedState(data.full_booked_until);
+      } else if (this.availableDates.length === 0 && !data.has_capacity) {
+        this.showNoCapacityState();
       } else {
         this.showCalendar();
         this.initializeFlatpickr();
@@ -12042,6 +12129,13 @@ var reservation_calendar_controller_default = class extends Controller {
       const formattedDate = `${date.getMonth() + 1}\u6708${date.getDate()}\u65E5`;
       this.fullBookedUntilDateTarget.textContent = formattedDate;
     }
+  }
+  // 顯示餐廳無法容納該人數的狀態
+  showNoCapacityState() {
+    this.loadingStateTarget.classList.add("hidden");
+    this.calendarInputTarget.style.display = "none";
+    this.fullBookedStateTarget.classList.add("hidden");
+    this.showError("\u5F88\u62B1\u6B49\uFF0C\u9910\u5EF3\u76EE\u524D\u6C92\u6709\u9069\u5408\u8A72\u4EBA\u6578\u7684\u684C\u4F4D\u3002\u8ACB\u8ABF\u6574\u4EBA\u6578\u6216\u806F\u7D61\u9910\u5EF3\u8A62\u554F\u3002");
   }
   // 選擇日期
   selectDate(date) {
@@ -12221,7 +12315,7 @@ var reservation_calendar_controller_default = class extends Controller {
 // app/javascript/controllers/reservation_controller.js
 var import_zh_tw = __toESM(require_zh_tw());
 var reservation_controller_default = class extends Controller {
-  static targets = ["date", "timeSlots", "periodInfo", "nextStep", "adultCount", "childCount"];
+  static targets = ["date", "calendar", "timeSlots", "periodInfo", "nextStep", "adultCount", "childCount"];
   static values = {
     restaurantSlug: String,
     businessHours: Object
@@ -12244,473 +12338,449 @@ var reservation_controller_default = class extends Controller {
   setupGuestCountListeners() {
     if (this.hasAdultCountTarget) {
       this.adultCountTarget.addEventListener("change", () => {
-        const adultHiddenField2 = document.getElementById("adult_count");
-        if (adultHiddenField2) {
-          adultHiddenField2.value = this.adultCountTarget.value;
-        }
+        this.updateHiddenFields();
+        this.initDatePicker();
         if (this.selectedDate) {
           this.loadAllTimeSlots(this.selectedDate);
         }
       });
-    } else {
-      const adultSelect2 = document.querySelector('[name="reservation[adult_count]"]');
-      if (adultSelect2) {
-        adultSelect2.addEventListener("change", () => {
-          const adultHiddenField2 = document.getElementById("adult_count");
-          if (adultHiddenField2) {
-            adultHiddenField2.value = adultSelect2.value;
-          }
-          if (this.selectedDate) {
-            this.loadAllTimeSlots(this.selectedDate);
-          }
-        });
-      }
     }
     if (this.hasChildCountTarget) {
       this.childCountTarget.addEventListener("change", () => {
-        const childHiddenField2 = document.getElementById("child_count");
-        if (childHiddenField2) {
-          childHiddenField2.value = this.childCountTarget.value;
-        }
+        this.updateHiddenFields();
+        this.initDatePicker();
         if (this.selectedDate) {
           this.loadAllTimeSlots(this.selectedDate);
         }
       });
-    } else {
-      const childSelect2 = document.querySelector('[name="reservation[child_count]"]');
-      if (childSelect2) {
-        childSelect2.addEventListener("change", () => {
-          const childHiddenField2 = document.getElementById("child_count");
-          if (childHiddenField2) {
-            childHiddenField2.value = childSelect2.value;
-          }
-          if (this.selectedDate) {
-            this.loadAllTimeSlots(this.selectedDate);
-          }
-        });
-      }
     }
+    this.updateHiddenFields();
+  }
+  updateHiddenFields() {
     const adultHiddenField = document.getElementById("adult_count");
     const childHiddenField = document.getElementById("child_count");
-    const adultSelect = this.hasAdultCountTarget ? this.adultCountTarget : document.querySelector('[name="reservation[adult_count]"]');
-    const childSelect = this.hasChildCountTarget ? this.childCountTarget : document.querySelector('[name="reservation[child_count]"]');
-    if (adultHiddenField && adultSelect) {
-      adultHiddenField.value = adultSelect.value;
+    if (adultHiddenField && this.hasAdultCountTarget) {
+      adultHiddenField.value = this.adultCountTarget.value;
     }
-    if (childHiddenField && childSelect) {
-      childHiddenField.value = childSelect.value;
+    if (childHiddenField && this.hasChildCountTarget) {
+      childHiddenField.value = this.childCountTarget.value;
     }
+  }
+  getCurrentPartySize() {
+    const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 0 : 2;
+    const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0;
+    return adults + children;
   }
   async initDatePicker() {
     console.log("\u{1F525} Starting initDatePicker...");
-    if (!this.hasDateTarget) {
-      console.error("\u{1F525} No dateTarget found!");
+    if (!this.hasCalendarTarget) {
+      console.error("\u{1F525} No calendar target found!");
       return;
     }
-    console.log("\u{1F525} dateTarget element:", this.dateTarget);
+    if (this.datePicker) {
+      this.datePicker.destroy();
+      this.datePicker = null;
+    }
     try {
-      const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days`;
+      const partySize = this.getCurrentPartySize();
+      const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
       console.log("\u{1F525} Fetching from:", apiUrl);
       const response = await fetch(apiUrl);
       console.log("\u{1F525} API response status:", response.status);
       if (response.status === 503) {
         const errorData = await response.json();
-        console.log("\u{1F525} Reservation service unavailable:", errorData);
-        if (this.hasTimeSlotsTarget) {
-          this.timeSlotsTarget.innerHTML = `
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                            <div class="flex justify-center mb-4">
-                                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <h3 class="text-lg font-medium text-red-800 mb-2">\u7DDA\u4E0A\u8A02\u4F4D\u66AB\u505C\u670D\u52D9</h3>
-                            <p class="text-red-700">${errorData.message || errorData.error}</p>
-                        </div>
-                    `;
-        }
-        if (this.hasDateTarget) {
-          this.dateTarget.style.display = "none";
-        }
+        this.showServiceUnavailable(errorData.message || errorData.error);
         return;
       }
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.status}`);
+        throw new Error(`HTTP error! status: ${response.status}`);
       }
-      const availableDays = await response.json();
-      console.log("\u{1F525} Available days data:", availableDays);
-      const weekly = availableDays.weekly;
-      const special = availableDays.special;
-      this.maxReservationDays = availableDays.max_days || 30;
-      console.log("\u9910\u5EF3\u6700\u5927\u9810\u8A02\u5929\u6578:", this.maxReservationDays);
-      const availabilityResponse = await fetch(
-        `/restaurants/${this.restaurantSlugValue}/reservations/availability_status`
+      const data = await response.json();
+      console.log("\u{1F525} Available days data:", data);
+      this.updateFullBookingNotice(data);
+      const disabledDates = this.calculateDisabledDates(
+        data.weekly_closures || [],
+        data.special_closures || [],
+        data.has_capacity
       );
-      if (availabilityResponse.status === 503) {
-        const errorData = await availabilityResponse.json();
-        console.log("\u{1F525} Availability service unavailable:", errorData);
-        if (this.hasTimeSlotsTarget) {
-          this.timeSlotsTarget.innerHTML = `
-                        <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
-                            <div class="flex justify-center mb-4">
-                                <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                                </svg>
-                            </div>
-                            <h3 class="text-lg font-medium text-red-800 mb-2">\u7DDA\u4E0A\u8A02\u4F4D\u66AB\u505C\u670D\u52D9</h3>
-                            <p class="text-red-700">${errorData.message || errorData.error}</p>
-                        </div>
-                    `;
+      console.log("\u{1F525} Disabled dates:", disabledDates);
+      this.datePicker = esm_default(this.calendarTarget, {
+        inline: true,
+        locale: import_zh_tw.default.zh_tw,
+        dateFormat: "Y-m-d",
+        minDate: "today",
+        maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
+        disable: disabledDates,
+        onChange: (selectedDates, dateStr) => {
+          console.log("\u{1F525} Date selected:", dateStr);
+          this.selectedDate = dateStr;
+          if (this.hasDateTarget) {
+            this.dateTarget.value = dateStr;
+          }
+          const reservationDateField = document.getElementById("reservation_date");
+          if (reservationDateField) {
+            reservationDateField.value = dateStr;
+          }
+          this.updateUrlWithDate(dateStr);
+          this.loadAllTimeSlots(dateStr);
+        },
+        onReady: () => {
+          this.styleFlatpickr();
         }
-        if (this.hasDateTarget) {
-          this.dateTarget.style.display = "none";
-        }
-        return;
+      });
+    } catch (error2) {
+      console.error("\u{1F525} Error initializing date picker:", error2);
+      this.showError("\u8F09\u5165\u65E5\u671F\u9078\u64C7\u5668\u6642\u767C\u751F\u932F\u8AA4");
+    }
+  }
+  styleFlatpickr() {
+    const calendarElement = this.calendarTarget.querySelector(".flatpickr-calendar");
+    if (calendarElement) {
+      calendarElement.classList.add("inline");
+      calendarElement.style.position = "relative";
+      calendarElement.style.top = "auto";
+      calendarElement.style.left = "auto";
+      calendarElement.style.display = "block";
+      calendarElement.style.width = "100%";
+      calendarElement.style.maxWidth = "none";
+      const dayContainer = calendarElement.querySelector(".dayContainer");
+      if (dayContainer) {
+        dayContainer.style.width = "100%";
+        dayContainer.style.minWidth = "100%";
+        dayContainer.style.maxWidth = "100%";
       }
-      const availabilityData = await availabilityResponse.json();
-      if (availabilityData.fully_booked_until) {
-        const fullyBookedDate = new Date(availabilityData.fully_booked_until);
-        const formattedDate = fullyBookedDate.toLocaleDateString("zh-TW", {
-          year: "numeric",
-          month: "long",
-          day: "numeric"
-        });
-        const dateContainer = this.dateTarget.closest("div");
-        const noticeDiv = document.createElement("div");
-        noticeDiv.className = "bg-yellow-100 border-l-4 border-yellow-500 text-yellow-700 p-4 mb-4";
-        noticeDiv.innerHTML = `
-                    <div class="flex">
-                        <div class="flex-shrink-0">
-                            <svg class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                                <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
-                            </svg>
-                        </div>
-                        <div class="ml-3">
-                            <p class="text-sm">\u76EE\u524D\u9810\u8A02\u5DF2\u6EFF\u81F3 ${formattedDate}\uFF0C\u8ACB\u9078\u64C7\u4E4B\u5F8C\u7684\u65E5\u671F\u3002</p>
+      const daysContainer = calendarElement.querySelector(".flatpickr-days");
+      if (daysContainer) {
+        daysContainer.style.width = "100%";
+      }
+    }
+  }
+  updateFullBookingNotice(data) {
+    if (this.hasFullBookingNoticeTarget) {
+      this.fullBookingNoticeTarget.classList.add("hidden");
+    }
+  }
+  async loadAllTimeSlots(date) {
+    console.log("\u{1F525} Loading time slots for date:", date);
+    if (!this.hasTimeSlotsTarget) {
+      console.error("\u{1F525} No timeSlots target found!");
+      return;
+    }
+    try {
+      const partySize = this.getCurrentPartySize();
+      const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 0 : partySize;
+      const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0;
+      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`;
+      console.log("\u{1F525} Fetching time slots from:", url);
+      const response = await fetch(url);
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("\u{1F525} Time slots data:", data);
+      this.renderTimeSlots(data.slots || []);
+      this.updateFormState();
+    } catch (error2) {
+      console.error("\u{1F525} Error loading time slots:", error2);
+      this.showError("\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4");
+    }
+  }
+  renderTimeSlots(timeSlots) {
+    this.timeSlotsTarget.innerHTML = "";
+    if (timeSlots.length === 0) {
+      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u6B64\u65E5\u671F\u7121\u53EF\u7528\u6642\u9593</p>';
+      return;
+    }
+    const groupedSlots = this.groupTimeSlotsByPeriod(timeSlots);
+    Object.entries(groupedSlots).forEach(([periodName, slots]) => {
+      const periodDiv = document.createElement("div");
+      periodDiv.className = "mb-6";
+      const periodTitle = document.createElement("h3");
+      periodTitle.className = "text-white font-medium mb-3 flex items-center";
+      periodTitle.innerHTML = `
+                <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
+                ${periodName}
+            `;
+      periodDiv.appendChild(periodTitle);
+      const slotsGrid = document.createElement("div");
+      slotsGrid.className = "grid grid-cols-2 gap-3";
+      slots.forEach((slot) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        button.className = `
+                    bg-gray-800 border border-gray-600 rounded-lg px-4 py-3 text-white text-center
+                    hover:bg-gray-700 hover:border-gray-500 transition-colors
+                    focus:outline-none focus:ring-2 focus:ring-blue-500
+                    ${slot.available ? "" : "opacity-50 cursor-not-allowed"}
+                `;
+        button.innerHTML = `
+                    <div class="font-medium">${slot.time}</div>
+                    <div class="text-xs text-gray-400 mt-1">
+                        ${slot.available ? "\u53EF\u9810\u7D04" : "\u5DF2\u984D\u6EFF"}
+                    </div>
+                `;
+        if (slot.available) {
+          button.addEventListener("click", () => this.selectTimeSlot(slot, button));
+        } else {
+          button.disabled = true;
+        }
+        slotsGrid.appendChild(button);
+      });
+      periodDiv.appendChild(slotsGrid);
+      this.timeSlotsTarget.appendChild(periodDiv);
+    });
+  }
+  groupTimeSlotsByPeriod(timeSlots) {
+    return timeSlots.reduce((groups, slot) => {
+      const period = slot.period_name || "\u7528\u9910\u6642\u6BB5";
+      if (!groups[period]) {
+        groups[period] = [];
+      }
+      groups[period].push(slot);
+      return groups;
+    }, {});
+  }
+  updatePeriodInfo(businessPeriods) {
+    if (!this.hasPeriodInfoTarget) return;
+    if (businessPeriods.length === 0) {
+      this.periodInfoTarget.innerHTML = '<p class="text-gray-500">\u6B64\u65E5\u671F\u672A\u71DF\u696D</p>';
+      return;
+    }
+    const periodsText = businessPeriods.map((period) => `${period.name}: ${period.start_time}-${period.end_time}`).join("\u3001");
+    this.periodInfoTarget.innerHTML = `<p class="text-gray-400">\u53EF\u7528\u9910\u671F\uFF1A${periodsText}</p>`;
+  }
+  selectTimeSlot(slot, buttonElement) {
+    console.log("\u{1F525} Time slot selected:", slot);
+    this.timeSlotsTarget.querySelectorAll("button").forEach((btn) => {
+      btn.classList.remove("bg-blue-600", "border-blue-500");
+      btn.classList.add("bg-gray-800", "border-gray-600");
+    });
+    buttonElement.classList.remove("bg-gray-800", "border-gray-600");
+    buttonElement.classList.add("bg-blue-600", "border-blue-500");
+    this.selectedTime = slot.time;
+    this.selectedPeriodId = slot.period_id;
+    const timeField = document.getElementById("reservation_time");
+    const periodField = document.getElementById("operating_period_id");
+    if (timeField) timeField.value = slot.time;
+    if (periodField) periodField.value = slot.period_id;
+    this.updateFormState();
+  }
+  updateFormState() {
+    if (!this.hasNextStepTarget) return;
+    const hasDate = this.selectedDate;
+    const hasTime = this.selectedTime;
+    if (hasDate && hasTime) {
+      this.nextStepTarget.disabled = false;
+      this.nextStepTarget.classList.remove("bg-gray-600", "hover:bg-gray-500");
+      this.nextStepTarget.classList.add("bg-blue-600", "hover:bg-blue-700");
+    } else {
+      this.nextStepTarget.disabled = true;
+      this.nextStepTarget.classList.remove("bg-blue-600", "hover:bg-blue-700");
+      this.nextStepTarget.classList.add("bg-gray-600", "hover:bg-gray-500");
+    }
+  }
+  showServiceUnavailable(message) {
+    if (this.hasTimeSlotsTarget) {
+      this.timeSlotsTarget.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-6 text-center">
+                    <div class="flex justify-center mb-4">
+                        <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-medium text-red-800 mb-2">\u7DDA\u4E0A\u8A02\u4F4D\u66AB\u505C\u670D\u52D9</h3>
+                    <p class="text-red-700">${message}</p>
+                </div>
+            `;
+    }
+  }
+  showError(message) {
+    console.error("\u{1F525} Error:", message);
+    if (this.hasTimeSlotsTarget) {
+      this.timeSlotsTarget.innerHTML = `
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                    <p class="text-yellow-800">${message}</p>
+                </div>
+            `;
+    }
+  }
+  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+    const disabledDates = [];
+    if (!hasCapacity) {
+      const today = /* @__PURE__ */ new Date();
+      for (let i = 0; i <= this.maxReservationDays; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        disabledDates.push(date);
+      }
+      return disabledDates;
+    }
+    if (weekly_closures && weekly_closures.length > 0) {
+      disabledDates.push((date) => {
+        const dayOfWeek = date.getDay();
+        return weekly_closures.includes(dayOfWeek);
+      });
+    }
+    if (special_closures && special_closures.length > 0) {
+      special_closures.forEach((closure) => {
+        disabledDates.push(closure);
+      });
+    }
+    return disabledDates;
+  }
+  // 更新 URL，移除 show_all 參數並設定 date_filter
+  updateUrlWithDate(dateStr) {
+    const url = new URL(window.location);
+    url.searchParams.delete("show_all");
+    url.searchParams.set("date_filter", dateStr);
+    window.history.pushState({}, "", url.toString());
+    console.log("\u{1F525} URL updated to:", url.toString());
+  }
+};
+
+// app/javascript/controllers/reservation_form_controller.js
+var reservation_form_controller_default = class extends Controller {
+  static targets = ["partySizeField", "adultsField", "childrenField", "datetimeField", "submitButton"];
+  static values = {
+    restaurantId: String,
+    checkAvailabilityUrl: String
+  };
+  connect() {
+    console.log("\u{1F527} Reservation form controller connected");
+    this.updateHeadCounts();
+  }
+  // 更新大人和小孩數量
+  updateHeadCounts() {
+    if (!this.hasPartySizeFieldTarget || !this.hasAdultsFieldTarget || !this.hasChildrenFieldTarget) {
+      return;
+    }
+    const partySize = parseInt(this.partySizeFieldTarget.value) || 1;
+    const currentAdults = parseInt(this.adultsFieldTarget.value) || 0;
+    const currentChildren = parseInt(this.childrenFieldTarget.value) || 0;
+    const currentTotal = currentAdults + currentChildren;
+    if (partySize !== currentTotal) {
+      let newAdults = Math.max(partySize - currentChildren, 1);
+      let newChildren = currentChildren;
+      if (newAdults + newChildren > partySize) {
+        newChildren = Math.max(partySize - newAdults, 0);
+      }
+      this.adultsFieldTarget.value = newAdults;
+      this.childrenFieldTarget.value = newChildren;
+      console.log(`\u{1F527} \u4EBA\u6578\u8ABF\u6574: \u7E3D\u8A08${partySize} = \u5927\u4EBA${newAdults} + \u5C0F\u5B69${newChildren}`);
+    }
+  }
+  // 檢查可用性
+  async checkAvailability() {
+    if (!this.hasDatetimeFieldTarget || !this.hasPartySizeFieldTarget) {
+      return;
+    }
+    const datetime = this.datetimeFieldTarget.value;
+    const partySize = this.partySizeFieldTarget.value;
+    if (!datetime || !partySize) {
+      return;
+    }
+    console.log(`\u{1F527} \u6AA2\u67E5\u53EF\u7528\u6027: ${datetime}, ${partySize}\u4EBA`);
+    try {
+    } catch (error2) {
+      console.error("\u6AA2\u67E5\u53EF\u7528\u6027\u6642\u767C\u751F\u932F\u8AA4:", error2);
+    }
+  }
+  // 顯示可用性檢查結果
+  displayAvailabilityResult(result) {
+    const availabilityCheck = document.getElementById("availability_check");
+    const availabilityResults = document.getElementById("availability_results");
+    if (availabilityCheck && availabilityResults) {
+      availabilityCheck.classList.remove("hidden");
+      if (result.available) {
+        availabilityResults.innerHTML = `
+                    <div class="flex items-center p-3 bg-green-50 border border-green-200 rounded-md">
+                        <svg class="w-5 h-5 text-green-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-green-800">\u6709\u53EF\u7528\u684C\u4F4D</p>
+                            <p class="text-sm text-green-700">${result.message}</p>
                         </div>
                     </div>
                 `;
-        dateContainer.insertBefore(noticeDiv, this.dateTarget);
-      }
-      if (this.hasDateTarget) {
-        const disableDates = [];
-        const today = /* @__PURE__ */ new Date();
-        const endDate = /* @__PURE__ */ new Date();
-        endDate.setDate(today.getDate() + this.maxReservationDays);
-        for (let date = new Date(today); date <= endDate; date.setDate(date.getDate() + 1)) {
-          const dayOfWeek = date.getDay();
-          const year = date.getFullYear();
-          const month = String(date.getMonth() + 1).padStart(2, "0");
-          const day = String(date.getDate()).padStart(2, "0");
-          const ymd = `${year}-${month}-${day}`;
-          const isClosedDay = !weekly[dayOfWeek] || special.includes(ymd);
-          const isFullyBooked = availabilityData.unavailable_dates.includes(ymd);
-          if (isClosedDay || isFullyBooked) {
-            disableDates.push(new Date(date));
-          }
-        }
-        console.log("zhTw:", import_zh_tw.default);
-        const localeOption = import_zh_tw.default.zh_tw || import_zh_tw.default.default || import_zh_tw.default;
-        console.log("flatpickr localeOption:", localeOption);
-        this.datePicker = esm_default(this.dateTarget, {
-          locale: localeOption,
-          inline: false,
-          // 改為點擊才顯示
-          position: "auto center",
-          // 置中顯示
-          static: false,
-          // 允許動態定位
-          appendTo: document.body,
-          // 附加到 body 以避免容器限制
-          minDate: "today",
-          maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
-          disable: disableDates,
-          onChange: (selectedDates) => {
-            if (selectedDates && selectedDates.length > 0) {
-              const selectedDate = selectedDates[0];
-              const year = selectedDate.getFullYear();
-              const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-              const day = String(selectedDate.getDate()).padStart(2, "0");
-              this.selectedDate = `${year}-${month}-${day}`;
-              console.log("\u9078\u64C7\u7684\u65E5\u671F (\u672C\u5730\u6642\u5340):", this.selectedDate);
-              const dateField = document.querySelector('input[name="date"], #reservation_date');
-              if (dateField) {
-                dateField.value = this.selectedDate;
-              }
-              this.loadAllTimeSlots(this.selectedDate);
-              this.selectedPeriodId = null;
-              this.selectedTime = null;
-              this.updateFormState();
-            }
-          }
-        });
-        console.log("\u{1F525} Flatpickr initialized successfully:", this.datePicker);
-        console.log("\u{1F525} Flatpickr calendar element:", this.datePicker.calendarContainer);
-        console.log("\u{1F525} dateTarget after flatpickr:", this.dateTarget);
-        console.log("\u{1F525} dateTarget parent:", this.dateTarget.parentElement);
       } else {
-        console.error("\u{1F525} dateTarget not available for flatpickr initialization");
-      }
-      const availableDates = [];
-      const today2 = /* @__PURE__ */ new Date();
-      const endDate2 = /* @__PURE__ */ new Date();
-      endDate2.setDate(today2.getDate() + this.maxReservationDays);
-      for (let date = new Date(today2); date <= endDate2; date.setDate(date.getDate() + 1)) {
-        const dayOfWeek = date.getDay();
-        const year = date.getFullYear();
-        const month = String(date.getMonth() + 1).padStart(2, "0");
-        const day = String(date.getDate()).padStart(2, "0");
-        const ymd = `${year}-${month}-${day}`;
-        const isOpenDay = weekly[dayOfWeek] && !special.includes(ymd);
-        const hasAvailability = !availabilityData.unavailable_dates.includes(ymd);
-        if (isOpenDay && hasAvailability) {
-          availableDates.push(new Date(date));
-        }
-      }
-      if (availableDates.length > 0) {
-        console.log("\u627E\u5230\u53EF\u7528\u65E5\u671F\uFF0C\u8A2D\u7F6E\u70BA\u9ED8\u8A8D\u65E5\u671F:", availableDates[0]);
-        this.datePicker.setDate(availableDates[0]);
-        const selectedDate = availableDates[0];
-        const year = selectedDate.getFullYear();
-        const month = String(selectedDate.getMonth() + 1).padStart(2, "0");
-        const day = String(selectedDate.getDate()).padStart(2, "0");
-        this.selectedDate = `${year}-${month}-${day}`;
-        const dateField = document.querySelector('input[name="date"], #reservation_date');
-        if (dateField) {
-          dateField.value = this.selectedDate;
-        }
-        this.loadAllTimeSlots(this.selectedDate);
-        console.log("\u{1F525} \u5DF2\u81EA\u52D5\u52A0\u8F09\u65E5\u671F\u7684\u6642\u9593\u69FD:", this.selectedDate);
-      } else {
-        console.log("\u{1F525} \u6C92\u6709\u627E\u5230\u53EF\u7528\u65E5\u671F");
-      }
-    } catch (error2) {
-      console.error("\u{1F525} \u521D\u59CB\u5316\u65E5\u671F\u9078\u64C7\u5668\u6642\u51FA\u932F:", error2);
-      console.error("\u{1F525} Error stack:", error2.stack);
-      if (this.hasTimeSlotsTarget) {
-        this.timeSlotsTarget.innerHTML = '<div class="text-red-500 p-4 text-center">\u7121\u6CD5\u8F09\u5165\u53EF\u7528\u65E5\u671F</div>';
+        availabilityResults.innerHTML = `
+                    <div class="flex items-center p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                        <svg class="w-5 h-5 text-yellow-500 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+                        </svg>
+                        <div>
+                            <p class="text-sm font-medium text-yellow-800">\u684C\u4F4D\u4E0D\u8DB3</p>
+                            <p class="text-sm text-yellow-700">${result.message}</p>
+                            <p class="text-sm text-blue-600 mt-1">\u7BA1\u7406\u54E1\u53EF\u4F7F\u7528\u5F37\u5236\u6A21\u5F0F\u5EFA\u7ACB\u8A02\u4F4D</p>
+                        </div>
+                    </div>
+                `;
       }
     }
   }
-  // 加載所有時間槽 (調整為當前專案的 API 端點)
-  async loadAllTimeSlots(date) {
-    const adultCount = this.hasAdultCountTarget ? this.adultCountTarget.value : 2;
-    const childCount = this.hasChildCountTarget ? this.childCountTarget.value : 0;
-    if (!this.hasTimeSlotsTarget) {
-      console.error("\u7F3A\u5C11 timeSlots \u76EE\u6A19\u5143\u7D20");
-      return;
+  // 獲取 CSRF Token
+  getCSRFToken() {
+    const token = document.querySelector('[name="csrf-token"]');
+    return token ? token.content : "";
+  }
+  // 表單提交前的驗證
+  validateForm(event) {
+    const partySize = parseInt(this.partySizeFieldTarget.value) || 0;
+    const adults = parseInt(this.adultsFieldTarget.value) || 0;
+    const children = parseInt(this.childrenFieldTarget.value) || 0;
+    if (adults + children !== partySize) {
+      event.preventDefault();
+      alert("\u5927\u4EBA\u6578\u548C\u5C0F\u5B69\u6578\u7684\u7E3D\u548C\u5FC5\u9808\u7B49\u65BC\u7E3D\u4EBA\u6578");
+      return false;
     }
-    this.timeSlotsTarget.innerHTML = '<p class="text-gray-400 w-full">\u8F09\u5165\u4E2D...</p>';
-    if (this.hasPeriodInfoTarget) {
-      this.periodInfoTarget.innerHTML = "";
+    if (adults < 1) {
+      event.preventDefault();
+      alert("\u81F3\u5C11\u9700\u89811\u4F4D\u5927\u4EBA");
+      return false;
     }
-    try {
-      const response = await fetch(
-        `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adultCount}&child_count=${childCount}`
-      );
-      const data = await response.json();
-      this.timeSlotsTarget.innerHTML = "";
-      const slots = data.slots;
-      if (!slots || slots.length === 0) {
-        if (this.hasPeriodInfoTarget) {
-          this.periodInfoTarget.innerHTML = '<span class="text-yellow-500">\u8A72\u65E5\u7121\u53EF\u7528\u9910\u671F</span>';
-        }
-        this.timeSlotsTarget.innerHTML = '<p class="text-yellow-500 w-full">\u8A72\u65E5\u7121\u53EF\u7528\u6642\u9593</p>';
-        return;
-      }
-      const periodSlots = {};
-      slots.forEach((slot) => {
-        const periodName = slot.period_name;
-        if (!periodSlots[periodName]) {
-          periodSlots[periodName] = [];
-        }
-        periodSlots[periodName].push(slot);
-      });
-      const periodNames = Object.keys(periodSlots);
-      if (periodNames.length > 0 && this.hasPeriodInfoTarget) {
-        this.periodInfoTarget.innerHTML = `<span>\u53EF\u7528\u9910\u671F: ${periodNames.join(", ")}</span>`;
-      }
-      Object.keys(periodSlots).forEach((periodName) => {
-        const slotsInPeriod = periodSlots[periodName];
-        const periodDiv = document.createElement("div");
-        periodDiv.className = "mb-4";
-        const heading = document.createElement("h3");
-        heading.className = "flex items-center font-semibold text-gray-800 mb-4 text-lg";
-        const icon = document.createElement("span");
-        icon.className = "inline-block w-2 h-2 bg-blue-500 rounded-full mr-3";
-        heading.appendChild(icon);
-        heading.appendChild(document.createTextNode(periodName));
-        periodDiv.appendChild(heading);
-        const timeContainer = document.createElement("div");
-        timeContainer.className = "grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4";
-        slotsInPeriod.forEach((slot) => {
-          const timeElement = document.createElement("button");
-          timeElement.type = "button";
-          timeElement.className = "time-option group relative px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
-          const timeSpan = document.createElement("span");
-          timeSpan.className = "block text-lg font-semibold";
-          timeSpan.textContent = slot.time;
-          const indicator = document.createElement("div");
-          indicator.className = "absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full opacity-80 group-hover:opacity-100 transition-opacity";
-          const label = document.createElement("span");
-          label.className = "block text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors";
-          label.textContent = "\u53EF\u9810\u7D04";
-          timeElement.appendChild(indicator);
-          timeElement.appendChild(timeSpan);
-          timeElement.appendChild(label);
-          timeElement.dataset.periodId = slot.period_id;
-          timeElement.dataset.periodName = slot.period_name;
-          timeElement.addEventListener("click", (event) => this.selectTimeSlot(event));
-          timeContainer.appendChild(timeElement);
-        });
-        periodDiv.appendChild(timeContainer);
-        this.timeSlotsTarget.appendChild(periodDiv);
-      });
-    } catch (error2) {
-      console.error("\u7121\u6CD5\u8F09\u5165\u6642\u9593:", error2);
-      if (this.hasPeriodInfoTarget) {
-        this.periodInfoTarget.innerHTML = '<span class="text-red-500">\u7121\u6CD5\u8F09\u5165\u9910\u671F</span>';
-      }
-      this.timeSlotsTarget.innerHTML = '<p class="text-red-500 w-full">\u7121\u6CD5\u8F09\u5165\u6642\u9593</p>';
+    return true;
+  }
+  // 禁用提交按鈕
+  disableSubmit() {
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTarget.disabled = true;
+      this.submitButtonTarget.textContent = "\u8655\u7406\u4E2D...";
     }
   }
-  // 選擇時間槽
-  selectTimeSlot(event) {
-    this.element.querySelectorAll(".time-option").forEach((el) => {
-      el.classList.remove("selected");
-      el.className = "time-option group relative px-6 py-4 rounded-xl border-2 border-gray-200 bg-white text-gray-700 font-medium transition-all duration-300 ease-in-out transform hover:scale-105 hover:shadow-lg hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-4 focus:ring-blue-100 focus:border-blue-400";
-      const timeSpan2 = el.querySelector("span:first-of-type");
-      const label2 = el.querySelector("span:last-of-type");
-      const indicator2 = el.querySelector("div");
-      if (timeSpan2) {
-        timeSpan2.className = "block text-lg font-semibold";
-      }
-      if (label2) {
-        label2.className = "block text-xs text-gray-500 mt-1 group-hover:text-blue-600 transition-colors";
-        label2.textContent = "\u53EF\u9810\u7D04";
-      }
-      if (indicator2) {
-        indicator2.className = "absolute top-2 right-2 w-3 h-3 bg-green-400 rounded-full opacity-80 group-hover:opacity-100 transition-opacity";
-      }
-    });
-    const selectedElement = event.currentTarget;
-    selectedElement.classList.add("selected");
-    selectedElement.className = "time-option selected relative px-6 py-4 rounded-xl border-2 border-blue-500 bg-gradient-to-r from-blue-500 to-blue-600 text-white font-medium transition-all duration-300 ease-in-out transform scale-105 shadow-xl ring-4 ring-blue-200";
-    const timeSpan = selectedElement.querySelector("span:first-of-type");
-    const label = selectedElement.querySelector("span:last-of-type");
-    const indicator = selectedElement.querySelector("div");
-    if (timeSpan) {
-      timeSpan.className = "block text-lg font-bold text-white";
-    }
-    if (label) {
-      label.className = "block text-xs text-blue-100 mt-1";
-      label.textContent = "\u5DF2\u9078\u64C7";
-    }
-    if (indicator) {
-      indicator.className = "absolute top-2 right-2 w-3 h-3 bg-white rounded-full shadow-sm";
-    }
-    this.selectedTime = selectedElement.querySelector("span:first-of-type").textContent;
-    this.selectedPeriodId = selectedElement.dataset.periodId;
-    console.log("\u9078\u64C7\u6642\u9593\u69FD:", this.selectedTime, "\u9910\u671FID:", this.selectedPeriodId);
-    this.updateFormState();
-  }
-  // 更新表單狀態
-  updateFormState() {
-    const dateField = document.querySelector('input[name="date"], #reservation_date');
-    const timeField = document.querySelector('input[name="time"], #reservation_time');
-    const periodIdField = document.querySelector('input[name="period_id"], #operating_period_id');
-    const adultCountField = document.querySelector(
-      'select[name="reservation[adult_count]"], [data-reservation-target="adultCount"]'
-    );
-    const childCountField = document.querySelector(
-      'select[name="reservation[child_count]"], [data-reservation-target="childCount"]'
-    );
-    if (dateField && this.selectedDate) {
-      dateField.value = this.selectedDate;
-    }
-    if (timeField && this.selectedTime) {
-      timeField.value = this.selectedTime;
-    }
-    if (periodIdField && this.selectedPeriodId) {
-      periodIdField.value = this.selectedPeriodId;
-    }
-    const form = this.element.closest("form") || document.getElementById("reservation-form");
-    if (this.selectedDate && this.selectedTime && this.selectedPeriodId && form) {
-      if (this.hasNextStepTarget) {
-        this.nextStepTarget.disabled = false;
-      }
-      const adultCount = adultCountField ? adultCountField.value : 2;
-      const childCount = childCountField ? childCountField.value : 0;
-      const adultHiddenField = form.querySelector('input[name="adults"]');
-      const childHiddenField = form.querySelector('input[name="children"]');
-      if (!adultHiddenField && adultCount) {
-        const adultHidden = document.createElement("input");
-        adultHidden.type = "hidden";
-        adultHidden.name = "adults";
-        adultHidden.value = adultCount;
-        form.appendChild(adultHidden);
-      } else if (adultHiddenField) {
-        adultHiddenField.value = adultCount;
-      }
-      if (!childHiddenField && childCount) {
-        const childHidden = document.createElement("input");
-        childHidden.type = "hidden";
-        childHidden.name = "children";
-        childHidden.value = childCount;
-        form.appendChild(childHidden);
-      } else if (childHiddenField) {
-        childHiddenField.value = childCount;
-      }
-      let dateParamField = form.querySelector('input[name="date"]');
-      if (!dateParamField) {
-        dateParamField = document.createElement("input");
-        dateParamField.type = "hidden";
-        dateParamField.name = "date";
-        form.appendChild(dateParamField);
-      }
-      dateParamField.value = this.selectedDate;
-      let timeParamField = form.querySelector('input[name="time"]');
-      if (!timeParamField) {
-        timeParamField = document.createElement("input");
-        timeParamField.type = "hidden";
-        timeParamField.name = "time";
-        form.appendChild(timeParamField);
-      }
-      timeParamField.value = this.selectedTime;
-      let periodParamField = form.querySelector('input[name="period_id"]');
-      if (!periodParamField) {
-        periodParamField = document.createElement("input");
-        periodParamField.type = "hidden";
-        periodParamField.name = "period_id";
-        form.appendChild(periodParamField);
-      }
-      periodParamField.value = this.selectedPeriodId;
-      console.log("\u8868\u55AE\u5DF2\u66F4\u65B0:", {
-        date: dateField ? dateField.value : "\u672A\u627E\u5230\u65E5\u671F\u6B04\u4F4D",
-        time: timeField ? timeField.value : "\u672A\u627E\u5230\u6642\u9593\u6B04\u4F4D",
-        periodId: periodIdField ? periodIdField.value : "\u672A\u627E\u5230\u9910\u671F\u6B04\u4F4D",
-        adultCount,
-        childCount,
-        dateParam: dateParamField.value,
-        timeParam: timeParamField.value,
-        periodParam: periodParamField.value
-      });
-    } else {
-      if (this.hasNextStepTarget) {
-        this.nextStepTarget.disabled = true;
-      }
+  // 啟用提交按鈕
+  enableSubmit() {
+    if (this.hasSubmitButtonTarget) {
+      this.submitButtonTarget.disabled = false;
+      this.submitButtonTarget.textContent = this.submitButtonTarget.dataset.originalText || "\u9001\u51FA";
     }
   }
 };
 
 // app/javascript/controllers/reservation_policy_controller.js
 var reservation_policy_controller_default = class extends Controller {
-  static targets = ["checkbox", "toggle", "toggleButton", "status", "settings", "depositCheckbox", "depositFields"];
+  static targets = [
+    "checkbox",
+    "toggle",
+    "toggleButton",
+    "status",
+    "settings",
+    "depositCheckbox",
+    "depositFields",
+    "unlimitedCheckbox",
+    "limitedTimeSettings",
+    "diningDurationField",
+    "bufferTimeField",
+    "durationPreview",
+    "examplePreview"
+  ];
   static values = { enabled: Boolean };
   connect() {
     console.log("\u{1F527} ReservationPolicy controller connected");
     this.updateUI();
     this.initializeDeposit();
+    this.initializeDiningTime();
+    this.updateDiningTimePreview();
   }
   // 處理切換開關點擊
   toggle(event) {
@@ -12806,6 +12876,65 @@ var reservation_policy_controller_default = class extends Controller {
         this.depositFieldsTarget.classList.remove("hidden");
       }
     }
+  }
+  // 處理無限用餐時間切換
+  toggleUnlimitedTime(event) {
+    const unlimited = event.target.checked;
+    console.log("\u{1F527} \u7121\u9650\u7528\u9910\u6642\u9593\u5207\u63DB\u70BA:", unlimited);
+    if (this.hasLimitedTimeSettingsTarget) {
+      if (unlimited) {
+        this.limitedTimeSettingsTarget.classList.add("opacity-50", "pointer-events-none");
+      } else {
+        this.limitedTimeSettingsTarget.classList.remove("opacity-50", "pointer-events-none");
+      }
+    }
+    this.updateDiningTimePreview();
+  }
+  // 初始化用餐時間設定
+  initializeDiningTime() {
+    if (this.hasUnlimitedCheckboxTarget && this.hasLimitedTimeSettingsTarget) {
+      const unlimited = this.unlimitedCheckboxTarget.checked;
+      console.log("\u{1F527} \u521D\u59CB\u5316\u7528\u9910\u6642\u9593\u8A2D\u5B9A:", unlimited ? "\u7121\u9650\u6642" : "\u6709\u9650\u6642");
+      if (unlimited) {
+        this.limitedTimeSettingsTarget.classList.add("opacity-50", "pointer-events-none");
+      } else {
+        this.limitedTimeSettingsTarget.classList.remove("opacity-50", "pointer-events-none");
+      }
+    }
+  }
+  // 更新用餐時間預覽
+  updateDiningTimePreview() {
+    if (!this.hasDurationPreviewTarget || !this.hasExamplePreviewTarget) {
+      return;
+    }
+    if (this.hasUnlimitedCheckboxTarget && this.unlimitedCheckboxTarget.checked) {
+      this.durationPreviewTarget.innerHTML = '\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-yellow-600">\u7121\u9650\u5236</span>';
+      this.examplePreviewTarget.innerHTML = '\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C<span class="font-medium text-yellow-600">\u4E0D\u9650\u5236\u7528\u9910\u6642\u9593</span>';
+      return;
+    }
+    const diningMinutes = this.hasDiningDurationFieldTarget ? parseInt(this.diningDurationFieldTarget.value) || 120 : 120;
+    const bufferMinutes = this.hasBufferTimeFieldTarget ? parseInt(this.bufferTimeFieldTarget.value) || 15 : 15;
+    const totalMinutes = diningMinutes + bufferMinutes;
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    let durationText;
+    if (hours > 0 && minutes > 0) {
+      durationText = `${hours}\u5C0F\u6642${minutes}\u5206\u9418`;
+    } else if (hours > 0) {
+      durationText = `${hours}\u5C0F\u6642`;
+    } else {
+      durationText = `${minutes}\u5206\u9418`;
+    }
+    const exampleStart = /* @__PURE__ */ new Date();
+    exampleStart.setHours(18, 0, 0, 0);
+    const exampleEnd = new Date(exampleStart.getTime() + totalMinutes * 6e4);
+    const endTimeString = exampleEnd.toLocaleTimeString("zh-TW", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
+    this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${durationText}</span>`;
+    this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u684C\u4F4D\u6703\u88AB\u4F54\u7528\u5230 <span class="font-medium text-blue-600">${endTimeString}</span>`;
   }
 };
 
@@ -13565,6 +13694,24 @@ var restaurant_management_controller_default = class extends Controller {
       }
     }, 200);
     console.log("\u2705 Controller reinitialization requested");
+  }
+};
+
+// app/javascript/controllers/restaurant_info_controller.js
+var restaurant_info_controller_default = class extends Controller {
+  static targets = ["infoButton", "infoPanel"];
+  connect() {
+    console.log("\u{1F525} Restaurant Info Controller connected");
+  }
+  toggleInfo() {
+    console.log("\u{1F525} Toggle restaurant info");
+    if (this.infoPanelTarget.classList.contains("hidden")) {
+      this.infoPanelTarget.classList.remove("hidden");
+      this.infoPanelTarget.classList.add("animate-slideDown");
+    } else {
+      this.infoPanelTarget.classList.add("hidden");
+      this.infoPanelTarget.classList.remove("animate-slideDown");
+    }
   }
 };
 
@@ -16028,13 +16175,17 @@ var sortable_controller_default = class extends Controller {
 application.register("calendar", calendar_controller_default);
 application.register("closure-dates", closure_dates_controller_default);
 application.register("confirmation", confirmation_controller_default);
+application.register("dining-settings", dining_settings_controller_default);
+application.register("dropdown", dropdown_controller_default);
 application.register("flash", flash_controller_default);
 application.register("hello", hello_controller_default);
 application.register("modal", modal_controller_default);
 application.register("reservation-calendar", reservation_calendar_controller_default);
 application.register("reservation", reservation_controller_default);
+application.register("reservation-form", reservation_form_controller_default);
 application.register("reservation-policy", reservation_policy_controller_default);
 application.register("restaurant-management", restaurant_management_controller_default);
+application.register("restaurant-info", restaurant_info_controller_default);
 application.register("sortable", sortable_controller_default);
 /*! Bundled license information:
 
