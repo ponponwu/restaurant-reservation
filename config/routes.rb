@@ -27,13 +27,6 @@ Rails.application.routes.draw do
     # 密碼修改
     resource :password_change, only: [:show, :update]
     
-    # 黑名單管理
-    resources :blacklists do
-      member do
-        patch :toggle_active
-      end
-    end
-    
     # 管理員管理
     resources :users, except: [:show] do
       member do
@@ -45,6 +38,13 @@ Rails.application.routes.draw do
     resources :restaurants do
       member do
         patch :toggle_status
+      end
+      
+      # 黑名單管理
+      resources :blacklists do
+        member do
+          patch :toggle_active
+        end
       end
       
       # 營業時段管理

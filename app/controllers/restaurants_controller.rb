@@ -232,7 +232,7 @@ class RestaurantsController < ApplicationController
     Rails.logger.info "Getting available times for date=#{date}, party_size=#{party_size}, adults=#{adults}, children=#{children}"
     
     available_times = []
-    target_date = Date.parse(date)
+    target_date = date.is_a?(Date) ? date : Date.parse(date.to_s)
     
     # 使用餐廳的動態時間產生方法
     available_time_options = @restaurant.available_time_options_for_date(target_date)

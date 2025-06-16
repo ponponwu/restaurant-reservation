@@ -137,9 +137,19 @@
                     </a>
                   <% end %>
                   <div class="border-t border-gray-100"></div>
-                  <%= link_to new_admin_blacklist_path(customer_phone: @reservation.customer_phone, customer_name: @reservation.customer_name), 
+                  <%= button_to admin_restaurant_blacklists_path(@restaurant), 
+                      method: :post,
+                      local: true,
+                      params: { 
+                        blacklist: { 
+                          customer_phone: @reservation.customer_phone, 
+                          customer_name: @reservation.customer_name,
+                          reason: "從訂位 ##{@reservation.id} 加入"
+                        } 
+                      },
                       class: "flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50",
-                      target: "_blank" do %>
+                      data: { confirm: "確定要將 #{@reservation.customer_name} 加入黑名單嗎？" },
+                      form_class: "w-full" do %>
                     <svg class="mr-3 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
                     </svg>
@@ -336,7 +346,7 @@
             <% end %>
 
             <!-- 加入黑名單按鈕 -->
-            <%= button_to admin_blacklists_path, 
+            <%= button_to admin_restaurant_blacklists_path(@restaurant), 
                 method: :post,
                 local: true,
                 params: { 

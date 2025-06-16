@@ -36,14 +36,14 @@ class Admin::BlacklistsController < Admin::BaseController
   end
 
   def create
-    @blacklist = current_restaurant.blacklists.new(blacklist_params)
+    @blacklist = @restaurant.blacklists.new(blacklist_params)
     @blacklist.added_by = current_user
 
     respond_to do |format|
       if @blacklist.save
         flash.now[:notice] = "黑名單已成功建立"
         format.turbo_stream
-        format.html { redirect_to admin_blacklists_path, notice: "黑名單已成功建立" }
+        format.html { redirect_to admin_restaurant_blacklists_path(@restaurant), notice: "黑名單已成功建立" }
       else
         format.turbo_stream {
           render turbo_stream: turbo_stream.update('modal-content',
@@ -61,7 +61,7 @@ class Admin::BlacklistsController < Admin::BaseController
 
   def update
     if @blacklist.update(blacklist_params)
-      redirect_to admin_blacklists_path, notice: '黑名單已更新'
+      redirect_to admin_restaurant_blacklists_path(@restaurant), notice: '黑名單已更新'
     else
       render :edit, status: :unprocessable_entity
     end
@@ -72,7 +72,7 @@ class Admin::BlacklistsController < Admin::BaseController
     @blacklist.destroy
     
     # 強制使用 HTML 格式重導向
-    redirect_to admin_blacklists_path, notice: "已成功刪除黑名單：#{customer_name}"
+    redirect_to admin_restaurant_blacklists_path(@restaurant), notice: "已成功刪除黑名單：#{customer_name}"
   end
 
   def toggle_active
@@ -95,7 +95,7 @@ class Admin::BlacklistsController < Admin::BaseController
                              locals: { message: message, type: 'success' })
         ]
       end
-      format.html { redirect_to admin_blacklists_path, notice: message }
+      format.html { redirect_to admin_restaurant_blacklists_path(@restaurant), notice: message }
     end
   end
 
@@ -103,11 +103,25 @@ class Admin::BlacklistsController < Admin::BaseController
 
   def set_restaurant
     if current_user.super_admin?
-      @restaurant = Restaurant.find_by!(slug: params[:restaurant_id]) if params[:restaurant_id]
-      @restaurant ||= current_user.restaurant # 如果沒有指定餐廳，使用當前用戶的餐廳
+      # 從路由參數中獲取餐廳
+      @restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
     else
       # 餐廳管理員和員工只能存取自己的餐廳
       @restaurant = current_user.restaurant
+      
+      # 檢查路由參數中的餐廳是否與用戶的餐廳一致
+      if params[:restaurant_id].present?
+        requested_restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
+        unless @restaurant == requested_restaurant
+          redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳'
+          return
+        end
+      end
+    end
+    
+    # 如果還是沒有餐廳，拋出錯誤
+    unless @restaurant
+      redirect_to admin_restaurants_path, alert: '找不到指定的餐廳'
     end
   end
 
