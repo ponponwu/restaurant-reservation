@@ -310,44 +310,6 @@ class AvailabilityService
     !(reservation_end <= target_start || target_end <= reservation_start)
   end
 
-  # 檢查是否有可併桌的桌位組合
-  def has_combinable_tables_for_party?(combinable_tables, party_size)
-    return false if combinable_tables.empty?
-    
-    # 按群組分組桌位
-    tables_by_group = combinable_tables.group_by(&:table_group_id)
-    
-    tables_by_group.each do |group_id, group_tables|
-      # 檢查該群組是否能組成適合的組合
-      if can_form_suitable_combination?(group_tables, party_size)
-        return true
-      end
-    end
-    
-    false
-  end
-
-  # 檢查是否能組成適合的桌位組合
-  def can_form_suitable_combination?(group_tables, party_size)
-    return false if group_tables.size < 2
-    
-    # 簡化版本：檢查最多3張桌子的組合
-    max_tables = [@restaurant.max_tables_per_combination, group_tables.size].min
-    
-    # 按容量排序，優先使用較小的桌位
-    sorted_tables = group_tables.sort_by(&:capacity)
-    
-    # 嘗試不同數量的桌位組合
-    (2..max_tables).each do |table_count|
-      sorted_tables.combination(table_count) do |combination|
-        total_capacity = combination.sum(&:capacity)
-        return true if total_capacity >= party_size
-      end
-    end
-    
-    false
-  end
-
   private
 
   # 檢查特定時段是否有可用桌位
