@@ -82,6 +82,7 @@ export default class extends Controller {
     selectDate(event) {
         const dateButton = event.target.closest('[data-date]')
         if (!dateButton) return
+        if (!this.hasDaysGridTarget) return
 
         const dateString = dateButton.dataset.date
         this.selectedDateValue = new Date(dateString)
@@ -106,10 +107,10 @@ export default class extends Controller {
         const month = this.currentDate.getMonth()
 
         // 檢查必要的 targets 是否存在
-        if (!this.monthYearTarget || !this.daysGridTarget) {
+        if (!this.hasMonthYearTarget || !this.hasDaysGridTarget) {
             console.error('Calendar targets not found:', {
-                monthYear: this.monthYearTarget,
-                daysGrid: this.daysGridTarget,
+                monthYear: this.hasMonthYearTarget,
+                daysGrid: this.hasDaysGridTarget,
             })
             return
         }
@@ -201,6 +202,8 @@ export default class extends Controller {
     }
 
     updateSelectedDateDisplay() {
+        if (!this.hasSelectedDateTarget) return
+
         if (this.showAllMode) {
             this.selectedDateTarget.textContent = '全部訂位'
         } else if (this.selectedDateValue) {
@@ -222,7 +225,7 @@ export default class extends Controller {
             url.searchParams.set('date_filter', dateString)
 
             // 直接跳轉到新的 URL，這樣 query 參數會保留在 URL 上
-            window.location.href = url.toString()
+            Turbo.visit(url.toString(), { action: 'replace' })
         } catch (error) {
             console.error('Failed to filter reservations:', error)
         }
