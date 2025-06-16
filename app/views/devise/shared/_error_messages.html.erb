@@ -8,12 +8,12 @@
       </div>
       <div class="ml-3">
         <h3 class="text-sm font-medium text-red-800">
-          請修正以下 <%= pluralize(resource.errors.count, "個") %> 錯誤：
+          請修正以下 <%= resource.errors.count %> 個錯誤：
         </h3>
         <div class="mt-2 text-sm text-red-700">
           <ul class="list-disc space-y-1 pl-5">
             <% resource.errors.full_messages.each do |message| %>
-              <li><%= message %></li>
+              <li><%= sanitize(message) %></li>
             <% end %>
           </ul>
         </div>

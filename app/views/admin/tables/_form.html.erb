@@ -18,7 +18,7 @@
             <div class="mt-2 text-sm text-red-700">
               <ul class="list-disc space-y-1 pl-5">
                 <% table.errors.full_messages.each do |message| %>
-                  <li><%= message %></li>
+                  <li><%= sanitize(message) %></li>
                 <% end %>
               </ul>
             </div>
@@ -103,7 +103,7 @@
             第 <%= table.sort_order || 'N/A' %> 順位（自動產生）
           <% end %>
         </div>
-        <%= f.hidden_field :sort_order %>
+        
         <p class="mt-2 text-sm text-gray-500">
           <% if table.persisted? %>
             可在桌位列表中拖曳調整順序
