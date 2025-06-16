@@ -1,5 +1,6 @@
 class Admin::DebugController < ApplicationController
   before_action :authenticate_user!
+  before_action :ensure_admin_or_dev!
   
   def user_info
     @user_debug = {
@@ -19,5 +20,13 @@ class Admin::DebugController < ApplicationController
     }
     
     render json: @user_debug, status: :ok
+  end
+
+
+  private
+
+  def ensure_admin_or_dev!
+    return if Rails.env.development? || current_user&.can_access_admin?
+    head :forbidden
   end
 end 
