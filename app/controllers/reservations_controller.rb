@@ -226,8 +226,8 @@ class ReservationsController < ApplicationController
       return [nil, nil, nil, nil]
     end
     
-    adults = params[:adult_count].to_i
-    children = params[:child_count].to_i
+    adults    = (params[:adults]       || params[:adult_count]).to_i
+    children  = (params[:children]     || params[:child_count]).to_i
     party_size = adults + children
     
     # 驗證人數
@@ -314,7 +314,10 @@ class ReservationsController < ApplicationController
     begin
       ReservationLockService.with_lock(@restaurant.id, @reservation.reservation_datetime, @reservation.party_size) do
         ActiveRecord::Base.transaction do
-          allocate_table_and_save_reservation
+          result = allocate_table_and_save_reservation
+          # 如果分配失敗，觸發 rollback
+          raise ActiveRecord::Rollback unless result[:success]
+          result
         end
       end
     rescue ConcurrentReservationError => e
@@ -339,12 +342,14 @@ class ReservationsController < ApplicationController
     # 再次檢查可用性（防止 race condition）
     availability_check = allocator.check_availability
     unless availability_check[:has_availability]
+      Rails.logger.warn "Availability check failed for reservation: #{@reservation.inspect}"
       return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間。'] }
     end
     
     # 分配桌位
     allocated_table = allocator.allocate_table
     if allocated_table.nil?
+      Rails.logger.warn "Table allocation failed for reservation: #{@reservation.inspect}"
       return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間。'] }
     end
     
@@ -354,8 +359,10 @@ class ReservationsController < ApplicationController
     if save_result[:success]
       # 清除相關快取
       clear_availability_cache
+      Rails.logger.info "Reservation created successfully: #{@reservation.id}"
       { success: true }
     else
+      Rails.logger.error "Failed to save reservation: #{save_result[:errors].join(', ')}"
       { success: false, errors: save_result[:errors] }
     end
   end
@@ -371,24 +378,40 @@ class ReservationsController < ApplicationController
 
   # 保存併桌訂位
   def save_combination_reservation(tables)
-    combination = TableCombination.new(
-      reservation: @reservation,
-      name: "併桌 #{tables.map(&:table_number).join('+')}"
-    )
-    
-    tables.each do |table|
-      combination.table_combination_tables.build(restaurant_table: table)
-    end
-    
-    @reservation.table = tables.first
-    
-    if @reservation.save && combination.save
+    # 使用事務確保原子性操作
+    ActiveRecord::Base.transaction do
+      combination = TableCombination.new(
+        reservation: @reservation,
+        name: "併桌 #{tables.map(&:table_number).join('+')}"
+      )
+      
+      tables.each do |table|
+        combination.table_combination_tables.build(restaurant_table: table)
+      end
+      
+      @reservation.table = tables.first
+      
+      # 先保存訂位，再保存併桌組合
+      unless @reservation.save
+        Rails.logger.error "前台創建併桌訂位失敗 - 訂位保存失敗: #{@reservation.errors.full_messages.join(', ')}"
+        raise ActiveRecord::Rollback
+      end
+      
+      unless combination.save
+        Rails.logger.error "前台創建併桌訂位失敗 - 併桌組合保存失敗: #{combination.errors.full_messages.join(', ')}"
+        raise ActiveRecord::Rollback
+      end
+      
       Rails.logger.info "前台創建併桌訂位成功: #{tables.map(&:table_number).join(', ')}"
       { success: true }
-    else
-      Rails.logger.error "前台創建併桌訂位失敗: #{@reservation.errors.full_messages.join(', ')}, #{combination.errors.full_messages.join(', ')}"
-      { success: false, errors: @reservation.errors.full_messages + combination.errors.full_messages }
     end
+  rescue ActiveRecord::Rollback
+    # 收集所有錯誤訊息
+    all_errors = []
+    all_errors.concat(@reservation.errors.full_messages) if @reservation.errors.any?
+    all_errors.concat(combination.errors.full_messages) if defined?(combination) && combination&.errors&.any?
+    
+    { success: false, errors: all_errors.presence || ['併桌訂位建立失敗'] }
   end
 
   # 保存單桌訂位
@@ -413,7 +436,7 @@ class ReservationsController < ApplicationController
   # 清除可用性相關快取
   def clear_availability_cache
     # 清除當天和未來幾天的快取
-    (Date.current..3.days.from_now).each do |date|
+    (Date.current..3.days.from_now.to_date).each do |date|
       Rails.cache.delete_matched("availability_status:#{@restaurant.id}:#{date}:*")
       Rails.cache.delete_matched("available_slots:#{@restaurant.id}:#{date}:*")
     end
