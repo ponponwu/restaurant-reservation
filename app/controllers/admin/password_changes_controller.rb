@@ -29,11 +29,11 @@ class Admin::PasswordChangesController < ApplicationController
     unless current_user.needs_password_change?
       # 如果不需要修改密碼，根據角色重定向
       if current_user.super_admin?
-        redirect_to admin_root_path
+        redirect_to admin_root_path and return
       elsif current_user.manager?
-        redirect_to admin_restaurant_reservations_path(current_user.restaurant)
+        redirect_to admin_restaurant_reservations_path(current_user.restaurant) and return
       else
-        redirect_to admin_root_path
+        redirect_to admin_root_path and return
       end
     end
   end
