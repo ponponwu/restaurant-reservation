@@ -127,8 +127,10 @@ class RestaurantTable < ApplicationRecord
     end_time = datetime + duration_minutes.minutes
     
     conflicting_reservations = reservations.where(status: 'confirmed')
-                                          .where("reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
-                                                 end_time, datetime)
+      .where(
+        "reservation_datetime < ? AND reservation_datetime + (INTERVAL '1 minute' * ?) > ?",
+          end_time, duration_minutes.to_i, datetime
+      )
     
     conflicting_reservations.empty?
   end
@@ -272,8 +274,10 @@ class RestaurantTable < ApplicationRecord
     end_time = datetime + duration_minutes.minutes
     
     reservations.where(status: 'confirmed')
-                .where("reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
-                       end_time, datetime)
+      .where(
+        "reservation_datetime < ? AND reservation_datetime + (INTERVAL '1 minute' * ?) > ?",
+        end_time, duration_minutes.to_i, datetime
+      )
   end
 
   private
