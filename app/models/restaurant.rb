@@ -27,6 +27,11 @@ class Restaurant < ApplicationRecord
   validates :address, presence: true, length: { maximum: 255 }
   validates :description, length: { maximum: 1000 }
   validates :reservation_interval_minutes, presence: true, inclusion: { in: [15, 30, 60], message: '預約間隔必須是 15、30 或 60 分鐘' }
+  
+  # 新增欄位驗證
+  validates :business_name, length: { maximum: 100 }
+  validates :tax_id, length: { maximum: 20 }
+  validates :reminder_notes, length: { maximum: 2000 }
 
   # 3. Scope 定義
   scope :active, -> { where(active: true, deleted_at: nil) }
@@ -198,12 +203,20 @@ class Restaurant < ApplicationRecord
   # 檢查特定日期是否有足夠容量容納指定人數
   def has_capacity_for_party_size?(party_size)
     # 檢查是否有適合該人數的桌位組合
-    return false if restaurant_tables.active.empty?
+    return false if party_size <= 0
     
-    # 檢查是否有單張桌子能容納該人數
-    return true if restaurant_tables.active.where('max_capacity >= ?', party_size).exists?
+    # 檢查單桌是否能容納
+    return true if restaurant_tables.active.any? { |table| table.capacity >= party_size }
     
-    # 檢查是否能透過併桌滿足需求（預留給未來實作）
+    # 檢查併桌是否能容納（如果允許併桌）
+    if can_combine_tables?
+      max_combinable_capacity = restaurant_tables.active
+                                                .where(can_combine: true)
+                                                .limit(max_tables_per_combination)
+                                                .sum(:capacity)
+      return true if max_combinable_capacity >= party_size
+    end
+    
     false
   end
   
@@ -373,6 +386,27 @@ class Restaurant < ApplicationRecord
     formatted_hours
   end
 
+  # 格式化提醒事項
+  def formatted_reminder_notes
+    return [] if reminder_notes.blank?
+    
+    # 將提醒事項按行分割，並過濾空行
+    reminder_notes.split("\n").map(&:strip).reject(&:blank?)
+  end
+  
+  # 檢查是否有營業資訊
+  def has_business_info?
+    business_name.present? || tax_id.present?
+  end
+  
+  # 格式化營業資訊
+  def formatted_business_info
+    info = []
+    info << "營業人名稱：#{business_name}" if business_name.present?
+    info << "統一編號：#{tax_id}" if tax_id.present?
+    info
+  end
+
   # 6. 私有方法
   private
 
@@ -381,6 +415,9 @@ class Restaurant < ApplicationRecord
     self.phone = phone&.strip
     self.address = address&.strip
     self.description = description&.strip
+    self.business_name = business_name&.strip
+    self.tax_id = tax_id&.strip
+    self.reminder_notes = reminder_notes&.strip
   end
 
 

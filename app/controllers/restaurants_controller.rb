@@ -330,7 +330,7 @@ class RestaurantsController < ApplicationController
   def check_reservation_enabled
     reservation_policy = @restaurant.reservation_policy
     
-    unless reservation_policy&.online_reservation_enabled?
+    unless reservation_policy&.accepts_online_reservations?
       render json: {
         reservation_enabled: false,
         message: "很抱歉，#{@restaurant.name} 目前暫停接受線上訂位。如需訂位，請直接致電餐廳洽詢。"

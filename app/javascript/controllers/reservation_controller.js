@@ -11,11 +11,13 @@ export default class extends Controller {
     }
 
     connect() {
-        console.log('🔥 Reservation controller connected')
-        console.log('🔥 Controller targets:', this.targets)
-        console.log('🔥 timeSlots target available:', this.hasTimeSlotsTarget)
-        console.log('🔥 dateTarget available:', this.hasDateTarget)
-        console.log('🔥 Restaurant slug:', this.restaurantSlugValue)
+        if (process.env.NODE_ENV === 'development') {
+            console.log('🔥 Reservation controller connected')
+            console.log('🔥 Controller targets:', this.targets)
+            console.log('🔥 timeSlots target available:', this.hasTimeSlotsTarget)
+            console.log('🔥 dateTarget available:', this.hasDateTarget)
+            console.log('🔥 Restaurant slug:', this.restaurantSlugValue)
+        }
 
         this.selectedDate = null
         this.selectedPeriodId = null
@@ -30,26 +32,27 @@ export default class extends Controller {
     }
 
     setupGuestCountListeners() {
-        // 監聽成人人數變化
-        if (this.hasAdultCountTarget) {
-            this.adultCountTarget.addEventListener('change', () => {
-                this.updateHiddenFields()
+        const handleGuestCountChange = () => {
+            this.updateHiddenFields()
+
+            // Only refresh available dates if date picker exists
+            if (this.datePicker) {
+                this.refreshAvailableDates()
+            } else {
                 this.initDatePicker()
-                if (this.selectedDate) {
-                    this.loadAllTimeSlots(this.selectedDate)
-                }
-            })
+            }
+
+            if (this.selectedDate) {
+                this.loadAllTimeSlots(this.selectedDate)
+            }
         }
 
-        // 監聽兒童人數變化
+        if (this.hasAdultCountTarget) {
+            this.adultCountTarget.addEventListener('change', handleGuestCountChange)
+        }
+
         if (this.hasChildCountTarget) {
-            this.childCountTarget.addEventListener('change', () => {
-                this.updateHiddenFields()
-                this.initDatePicker()
-                if (this.selectedDate) {
-                    this.loadAllTimeSlots(this.selectedDate)
-                }
-            })
+            this.childCountTarget.addEventListener('change', handleGuestCountChange)
         }
 
         // 初始化隱藏欄位

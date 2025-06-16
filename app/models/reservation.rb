@@ -145,13 +145,7 @@ class Reservation < ApplicationRecord
   end
 
   # 檢查是否需要無障礙設施
-  def requires_accessibility?
-    # 檢查特殊需求中是否包含無障礙相關關鍵字
-    return false if special_requests.blank?
-    
-    accessibility_keywords = %w[輪椅 無障礙 行動不便 wheelchair accessible disability]
-    special_requests.downcase.include?(accessibility_keywords.any? { |keyword| special_requests.downcase.include?(keyword) })
-  end
+
 
   # 檢查是否為家庭客戶（有兒童）
   def family_with_children?

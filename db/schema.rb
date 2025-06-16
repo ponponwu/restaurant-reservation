@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_12_072243) do
+ActiveRecord::Schema[7.1].define(version: 2025_06_16_063044) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -167,6 +167,9 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_12_072243) do
     t.integer "total_capacity", default: 0, null: false
     t.string "slug", null: false
     t.integer "reservation_interval_minutes", default: 30, null: false
+    t.text "reminder_notes"
+    t.string "business_name"
+    t.string "tax_id"
     t.index ["active"], name: "index_restaurants_on_active"
     t.index ["deleted_at"], name: "index_restaurants_on_deleted_at"
     t.index ["name"], name: "index_restaurants_on_name"

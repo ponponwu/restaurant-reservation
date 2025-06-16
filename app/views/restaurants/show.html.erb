@@ -81,20 +81,25 @@
         </div>
         
         <!-- 提醒事項 -->
-        <div>
-          <h3 class="text-sm font-medium text-gray-300 mb-2">提醒事項</h3>
-          <div class="space-y-1 text-sm text-gray-400">
-            <p>🚫 開放27日內的日子，日一公休</p>
-            <p>🚫 包場需來詢問IG私訊，</p>
-            <p>🚫 店內提供多種自然酒搭配餐點，恕不接受自帶酒水。</p>
+        <% if @restaurant.formatted_reminder_notes.any? %>
+          <div>
+            <h3 class="text-sm font-medium text-gray-300 mb-2">提醒事項</h3>
+            <div class="space-y-1 text-sm text-gray-400">
+              <% @restaurant.formatted_reminder_notes.each do |note| %>
+                <p><%= sanitize(note) %></p>
+              <% end %>
+            </div>
           </div>
-        </div>
+        <% end %>
         
         <!-- 營業人名稱 -->
-        <div class="pt-2 border-t border-gray-700">
-          <p class="text-xs text-gray-500">營業人名稱：(假日有限公司)</p>
-          <p class="text-xs text-gray-500">統一編號：97603386</p>
-        </div>
+        <% if @restaurant.has_business_info? %>
+          <div class="pt-2 border-t border-gray-700">
+            <% @restaurant.formatted_business_info.each do |info| %>
+              <p class="text-xs text-gray-500"><%= sanitize(info) %></p>
+            <% end %>
+          </div>
+        <% end %>
       </div>
     </div>
 
