@@ -1,4 +1,5 @@
 # 可用性檢查服務 - 整合重複的可用性檢查邏輯
+require 'set'
 class AvailabilityService
   def initialize(restaurant)
     @restaurant = restaurant
