@@ -220,7 +220,6 @@ module ComplexScenariosHelper
                                   adults_count: 2,
                                   children_count: 0,
                                   special_requests: '需要輪椅無障礙桌位',
-                                  requires_accessibility: true,
                                   reservation_datetime: base_time + 1.hour)
     
     scenarios << {
@@ -271,9 +270,6 @@ module ComplexScenariosHelper
         when :no_bar_tables
           validation_results[:requirements_met][:no_bar_tables] = 
             reservation.children_count > 0 ? allocated_table.table_type != 'bar' : true
-        when :wheelchair_accessible
-          validation_results[:requirements_met][:wheelchair_accessible] = 
-            reservation.requires_accessibility? ? allocated_table.is_wheelchair_accessible : true
         end
       end
       

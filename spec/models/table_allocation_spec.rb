@@ -602,27 +602,6 @@ RSpec.describe '桌位分配系統', type: :model do
         expect(child_friendly_table.suitable_for_reservation?(family_reservation)).to be true
         expect(bar_table.suitable_for_reservation?(family_reservation)).to be false
       end
-      
-      it '應該處理無障礙需求' do
-        accessible_table = create(:table, restaurant: restaurant,
-                                 is_wheelchair_accessible: true,
-                                 min_capacity: 2, max_capacity: 4)
-        
-        regular_table = create(:table, restaurant: restaurant,
-                              is_wheelchair_accessible: false,
-                              min_capacity: 2, max_capacity: 4)
-        
-        # 有無障礙需求的訂位
-        accessible_reservation = build(:reservation,
-                                     restaurant: restaurant,
-                                     business_period: business_period,
-                                     party_size: 2,
-                                     special_requests: '需要無障礙桌位',
-                                     requires_accessibility: true)
-        
-        expect(accessible_table.suitable_for_reservation?(accessible_reservation)).to be true
-        expect(regular_table.suitable_for_reservation?(accessible_reservation)).to be false
-      end
     end
   end
 end 

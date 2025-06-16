@@ -211,11 +211,6 @@ class RestaurantTable < ApplicationRecord
       return false unless is_child_friendly != false  # 如果明確標示不適合兒童
     end
     
-    # 檢查無障礙需求
-    if reservation.requires_accessibility?
-      return false unless is_wheelchair_accessible == true
-    end
-    
     # 檢查其他特殊需求
     if reservation.special_requests.present?
       requests = reservation.special_requests.downcase

@@ -13,11 +13,21 @@ class Admin::ReservationsController < Admin::BaseController
       @filter_date = nil
       @show_all = true
     elsif params[:date_filter].present?
-      @filter_date = Date.parse(params[:date_filter])
-      reservations_query = reservations_query.where(
-        reservation_datetime: @filter_date.beginning_of_day..@filter_date.end_of_day
-      )
-      @show_all = false
+      begin
+        @filter_date = Date.parse(params[:date_filter])
+        reservations_query = reservations_query.where(
+          reservation_datetime: @filter_date.beginning_of_day..@filter_date.end_of_day
+        )
+        @show_all = false
+      rescue ArgumentError
+        # 如果日期格式無效，回退到顯示今天的訂位
+        @filter_date = Date.current
+        reservations_query = reservations_query.where(
+          reservation_datetime: @filter_date.beginning_of_day..@filter_date.end_of_day
+        )
+        @show_all = false
+        flash.now[:alert] = "無效的日期格式，已顯示今天的訂位"
+      end
     else
       # 預設顯示今天的訂位
       @filter_date = Date.current
