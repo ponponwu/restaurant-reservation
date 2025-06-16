@@ -209,7 +209,9 @@ class RestaurantsController < ApplicationController
       :restaurant_tables, 
       :table_groups,
       :closure_dates
-    ).find_by!(slug: params[:id])
+    ).find_by!(slug: params[:slug])
+  rescue ActiveRecord::RecordNotFound
+    redirect_to root_path, alert: '找不到指定的餐廳'
   end
 
   def get_available_dates_with_allocator(party_size, adults, children)
