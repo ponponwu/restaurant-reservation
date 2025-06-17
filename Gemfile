@@ -92,6 +92,16 @@ group :development, :test do
   gem 'capybara', '>= 3.39'
   gem 'selenium-webdriver', '>= 4.9.0'
   gem 'webdrivers'
+  
+  # CI/CD 相關工具
+  gem 'rubocop', '~> 1.57', require: false
+  gem 'rubocop-rails', '~> 2.21', require: false
+  gem 'rubocop-rspec', '~> 2.24', require: false
+  gem 'rubocop-performance', '~> 1.19', require: false
+  gem 'brakeman', '~> 6.0', require: false
+  gem 'bundler-audit', '~> 0.9', require: false
+  gem 'simplecov', '~> 0.22', require: false
+  gem 'rspec_junit_formatter', '~> 0.6', require: false
 end
 
 group :development do

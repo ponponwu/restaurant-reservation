@@ -1,0 +1,100 @@
+# RuboCop 配置檔案
+require:
+    - rubocop-rails
+    - rubocop-rspec
+    - rubocop-performance
+
+AllCops:
+    NewCops: enable
+    TargetRubyVersion: 2.7
+    Exclude:
+        - 'db/schema.rb'
+        - 'db/migrate/*'
+        - 'bin/*'
+        - 'config/boot.rb'
+        - 'config/environment.rb'
+        - 'config/initializers/*'
+        - 'vendor/**/*'
+        - 'node_modules/**/*'
+        - 'tmp/**/*'
+        - 'log/**/*'
+        - 'public/**/*'
+
+# Layout
+Layout/LineLength:
+    Max: 120
+    Exclude:
+        - 'spec/**/*'
+        - 'config/routes.rb'
+
+Layout/MultilineMethodCallIndentation:
+    EnforcedStyle: indented
+
+# Style
+Style/Documentation:
+    Enabled: false
+
+Style/StringLiterals:
+    EnforcedStyle: single_quotes
+
+Style/ClassAndModuleChildren:
+    Enabled: false
+
+Style/FrozenStringLiteralComment:
+    Enabled: false
+
+# Metrics
+Metrics/ClassLength:
+    Max: 150
+    Exclude:
+        - 'app/controllers/**/*'
+        - 'app/models/**/*'
+
+Metrics/MethodLength:
+    Max: 20
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+Metrics/BlockLength:
+    Max: 30
+    Exclude:
+        - 'spec/**/*'
+        - 'config/routes.rb'
+        - 'db/seeds.rb'
+
+Metrics/AbcSize:
+    Max: 20
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+# Rails specific
+Rails/FilePath:
+    Enabled: false
+
+Rails/BulkChangeTable:
+    Enabled: false
+
+Rails/UnknownEnv:
+    Environments:
+        - production
+        - development
+        - test
+        - staging
+
+# RSpec specific
+RSpec/ExampleLength:
+    Max: 15
+
+RSpec/MultipleExpectations:
+    Max: 5
+
+RSpec/DescribeClass:
+    Exclude:
+        - 'spec/system/**/*'
+        - 'spec/requests/**/*'
+
+# Performance
+Performance/UnfreezeString:
+    Enabled: true
