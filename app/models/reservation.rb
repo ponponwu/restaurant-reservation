@@ -263,4 +263,8 @@ class Reservation < ApplicationRecord
     
     Rails.logger.info "Cleared availability cache for restaurant #{restaurant_id} on #{target_date}"
   end
+
+  def generate_cancellation_token
+    self.cancellation_token = SecureRandom.uuid
+  end
 end

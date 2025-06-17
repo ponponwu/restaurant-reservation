@@ -124,7 +124,9 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_16_063044) do
     t.datetime "updated_at", null: false
     t.integer "adults_count", default: 1, null: false
     t.integer "children_count", default: 0, null: false
+    t.string "cancellation_token", null: false
     t.index ["business_period_id"], name: "index_reservations_on_business_period_id"
+    t.index ["cancellation_token"], name: "index_reservations_on_cancellation_token", unique: true
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"
     t.index ["table_id"], name: "index_reservations_on_table_id"
   end

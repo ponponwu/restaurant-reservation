@@ -93,8 +93,14 @@ class ReservationsController < ApplicationController
     result = create_reservation_with_concurrency_control
     
     if result[:success]
+      success_message = '訂位建立成功！'
+      if @reservation.cancellation_token.present?
+        cancel_url = restaurant_reservation_cancel_url(@restaurant.slug, @reservation.cancellation_token)
+        success_message += "<br/>如需取消訂位，請使用此連結：<a href='#{cancel_url}' class='text-blue-600 underline'>取消訂位</a>"
+      end
+      
       redirect_to restaurant_public_path(@restaurant.slug), 
-                  notice: '訂位建立成功！'
+                  notice: success_message.html_safe
     else
       handle_reservation_creation_failure(result[:errors])
     end

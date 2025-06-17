@@ -94,11 +94,11 @@ group :development, :test do
   gem 'webdrivers'
   
   # CI/CD 相關工具
-  gem 'rubocop', '~> 1.57', require: false
-  gem 'rubocop-rails', '~> 2.21', require: false
-  gem 'rubocop-rspec', '~> 2.24', require: false
-  gem 'rubocop-performance', '~> 1.19', require: false
-  gem 'brakeman', '~> 6.0', require: false
+  gem 'rubocop', '~> 1.56', require: false
+  gem 'rubocop-rails', '~> 2.20', require: false
+  gem 'rubocop-rspec', '~> 2.23', require: false
+  gem 'rubocop-performance', '~> 1.18', require: false
+  gem 'brakeman', '~> 5.4', require: false
   gem 'bundler-audit', '~> 0.9', require: false
   gem 'simplecov', '~> 0.22', require: false
   gem 'rspec_junit_formatter', '~> 0.6', require: false
