@@ -48,7 +48,8 @@ class Reservation < ApplicationRecord
       adults_count business_period_id children_count created_at 
       customer_email customer_name customer_phone id party_size 
       reservation_datetime restaurant_id special_requests status 
-      table_id updated_at
+      table_id updated_at cancelled_by cancelled_at cancellation_reason
+      cancellation_method cancellation_token
     ]
   end
 
@@ -80,6 +81,34 @@ class Reservation < ApplicationRecord
 
   def can_cancel?
     pending? || confirmed?
+  end
+
+  def can_cancel_by_customer?
+    # 客戶可以取消的條件：
+    # 1. 訂位狀態為 pending 或 confirmed
+    # 2. 還沒有到訂位時間
+    # 3. 距離訂位時間至少還有指定的取消提前時間
+    return false unless can_cancel?
+    return false if is_past?
+    
+    min_cancel_hours = restaurant.reservation_policy&.minimum_cancel_hours || 1
+    Time.current <= (reservation_datetime - min_cancel_hours.hours)
+  end
+
+  def cancellation_url
+    return nil unless cancellation_token.present?
+    
+    Rails.application.routes.url_helpers.restaurant_reservation_cancel_url(
+      restaurant.slug,
+      cancellation_token,
+      host: Rails.application.config.action_mailer.default_url_options[:host]
+    )
+  end
+
+  def cancellation_deadline
+    return nil unless restaurant.reservation_policy&.minimum_cancel_hours
+    
+    reservation_datetime - restaurant.reservation_policy.minimum_cancel_hours.hours
   end
 
   def can_modify?
@@ -266,5 +295,80 @@ class Reservation < ApplicationRecord
 
   def generate_cancellation_token
     self.cancellation_token = SecureRandom.uuid
+  end
+
+  def cancel_by_customer!(reason = nil)
+    return false unless can_cancel_by_customer?
+    
+    transaction do
+      self.status = :cancelled
+      self.cancelled_by = 'customer'
+      self.cancelled_at = Time.current
+      self.cancellation_reason = reason if reason.present?
+      self.cancellation_method = 'online_self_service'
+      
+      # 保留舊的 notes 記錄方式作為備份
+      old_notes = notes
+      cancellation_info = [
+        "客戶取消於 #{cancelled_at.strftime('%Y/%m/%d %H:%M')}",
+        reason.present? ? "原因：#{reason}" : nil
+      ].compact.join(' | ')
+      
+      self.notes = [old_notes, cancellation_info].compact.join(' | ')
+      
+      save!
+      
+      # 清除桌位分配
+      if table_combination.present?
+        table_combination.destroy!
+      else
+        self.table = nil
+        save!
+      end
+      
+      # 通知餐廳（可以發送 email 或其他通知）
+      # NotificationService.new.notify_restaurant_of_cancellation(self)
+    end
+    
+    true
+  rescue => e
+    Rails.logger.error "Failed to cancel reservation #{id}: #{e.message}"
+    false
+  end
+
+  def cancel_by_admin!(user, reason = nil)
+    return false unless can_cancel?
+    
+    transaction do
+      self.status = :cancelled
+      self.cancelled_by = "admin:#{user.name}"
+      self.cancelled_at = Time.current
+      self.cancellation_reason = reason if reason.present?
+      self.cancellation_method = 'admin_interface'
+      
+      # 保留舊的 notes 記錄方式作為備份
+      old_notes = notes
+      cancellation_info = [
+        "管理員#{user.name}取消於 #{cancelled_at.strftime('%Y/%m/%d %H:%M')}",
+        reason.present? ? "原因：#{reason}" : nil
+      ].compact.join(' | ')
+      
+      self.notes = [old_notes, cancellation_info].compact.join(' | ')
+      
+      save!
+      
+      # 清除桌位分配
+      if table_combination.present?
+        table_combination.destroy!
+      else
+        self.table = nil
+        save!
+      end
+    end
+    
+    true
+  rescue => e
+    Rails.logger.error "Failed to cancel reservation #{id} by admin: #{e.message}"
+    false
   end
 end
