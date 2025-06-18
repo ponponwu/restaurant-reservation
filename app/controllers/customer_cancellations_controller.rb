@@ -7,6 +7,9 @@ class CustomerCancellationsController < ApplicationController
     @can_cancel = @reservation.can_cancel_by_customer?
     @cancellation_deadline = @reservation.cancellation_deadline
     
+    # 檢查是否有成功取消的通知
+    @success_message = flash[:notice] if flash[:notice]&.include?('已成功取消')
+    
     if @reservation.cancelled? || @reservation.no_show?
       @status_message = case @reservation.status
                        when 'cancelled'
@@ -36,8 +39,6 @@ class CustomerCancellationsController < ApplicationController
     cancellation_reason = params[:cancellation_reason]&.strip
     
     if @reservation.cancel_by_customer!(cancellation_reason)
-      @success_message = '訂位已成功取消'
-      
       # 發送確認通知
       if @reservation.customer_email.present?
         # CustomerMailer.cancellation_confirmation(@reservation).deliver_later
@@ -48,11 +49,14 @@ class CustomerCancellationsController < ApplicationController
       end
       
       Rails.logger.info "Customer cancelled reservation #{@reservation.id} for restaurant #{@restaurant.name}"
+      
+      # 跳轉到成功頁面，避免重複提交
+      redirect_to restaurant_reservation_cancel_path(@restaurant.slug, @reservation.cancellation_token), 
+                  notice: '訂位已成功取消'
     else
       @error_message = '取消訂位失敗，請聯繫餐廳'
+      render :show
     end
-    
-    render :show
   end
   
   private

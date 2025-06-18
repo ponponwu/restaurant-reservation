@@ -12,14 +12,14 @@ Rails.application.routes.draw do
   get '/restaurant/:slug/available_dates', to: 'restaurants#available_dates', as: 'restaurant_available_dates'
   get '/restaurant/:slug/available_times', to: 'restaurants#available_times', as: 'restaurant_available_times'
   
-  # 客戶自助取消訂位
-  get '/restaurants/:slug/reservations/:token', to: 'customer_cancellations#show', as: 'restaurant_reservation_cancel'
-  post '/restaurants/:slug/reservations/:token', to: 'customer_cancellations#create'
-  
-  # 新增路由：支援新的 reservation 控制器 (使用 slug 保持一致)
+  # 訂位相關 API 路由（具體路由必須放在通用路由之前）
   get '/restaurants/:slug/available_days', to: 'restaurants#available_days', as: 'restaurant_available_days'
   get '/restaurants/:slug/reservations/availability_status', to: 'reservations#availability_status', as: 'restaurant_availability_status'
   get '/restaurants/:slug/reservations/available_slots', to: 'reservations#available_slots', as: 'restaurant_available_slots'
+  
+  # 客戶自助取消訂位（通用路由放在後面）
+  get '/restaurants/:slug/reservations/:token', to: 'customer_cancellations#show', as: 'restaurant_reservation_cancel'
+  post '/restaurants/:slug/reservations/:token', to: 'customer_cancellations#create'
   
   get '/restaurant/:slug/reservation', to: 'reservations#new', as: 'new_restaurant_reservation'
   post '/restaurant/:slug/reservation', to: 'reservations#create', as: 'restaurant_reservations'
