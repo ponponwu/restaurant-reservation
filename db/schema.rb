@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_16_063044) do
+ActiveRecord::Schema[7.1].define(version: 2025_06_17_080000) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -125,8 +125,14 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_16_063044) do
     t.integer "adults_count", default: 1, null: false
     t.integer "children_count", default: 0, null: false
     t.string "cancellation_token", null: false
+    t.string "cancelled_by"
+    t.datetime "cancelled_at"
+    t.text "cancellation_reason"
+    t.string "cancellation_method"
     t.index ["business_period_id"], name: "index_reservations_on_business_period_id"
     t.index ["cancellation_token"], name: "index_reservations_on_cancellation_token", unique: true
+    t.index ["cancelled_at"], name: "index_reservations_on_cancelled_at"
+    t.index ["cancelled_by"], name: "index_reservations_on_cancelled_by"
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"
     t.index ["table_id"], name: "index_reservations_on_table_id"
   end

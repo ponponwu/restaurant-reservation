@@ -60,6 +60,7 @@ class Reservation < ApplicationRecord
   
   # 5. 回調函數
   before_validation :sanitize_inputs
+  before_create :generate_cancellation_token
   after_update_commit :broadcast_status_change, if: :saved_change_to_status?
   
   # 6. 實例方法
