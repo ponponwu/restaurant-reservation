@@ -1,6 +1,6 @@
 class ReservationsController < ApplicationController
   before_action :set_restaurant
-  before_action :check_reservation_enabled
+  before_action :check_reservation_enabled, except: [:available_slots]
   before_action :set_selected_date, only: [:new, :create]
   
   # 明確載入服務類別

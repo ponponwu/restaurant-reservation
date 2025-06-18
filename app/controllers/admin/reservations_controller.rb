@@ -37,6 +37,14 @@ class Admin::ReservationsController < Admin::BaseController
       @show_all = false
     end
     
+    # 取得所有訂位並按用餐期分組
+    reservations_ordered = reservations_query.order(reservation_datetime: :asc)
+    
+    # 按用餐期分組，並確保用餐期按開始時間排序
+    @reservations_by_period = reservations_ordered.group_by(&:business_period)
+                                                  .sort_by { |period, _| period&.start_time || Time.parse("00:00") }
+    
+    # 為了保持分頁功能，也保留原本的 @reservations
     @reservations = reservations_query.order(reservation_datetime: :desc)
                                      .page(params[:page])
                                      .per(20)
@@ -46,7 +54,10 @@ class Admin::ReservationsController < Admin::BaseController
       format.turbo_stream do
         render turbo_stream: turbo_stream.update("reservations-container", 
                                                  partial: "reservations_table", 
-                                                 locals: { reservations: @reservations })
+                                                 locals: { 
+                                                   reservations: @reservations,
+                                                   reservations_by_period: @reservations_by_period 
+                                                 })
       end
       format.json { render json: @reservations }
     end

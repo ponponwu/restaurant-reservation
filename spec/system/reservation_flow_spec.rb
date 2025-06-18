@@ -154,4 +154,65 @@ RSpec.describe '訂位流程', type: :system, js: true do
     # 應該顯示桌位已滿的錯誤訊息
     expect(page).to have_content('該時段已無可用桌位')
   end
+
+  describe 'Dynamic party size adjustment', js: true do
+    it 'dynamically adjusts child options when adult count changes' do
+      visit restaurant_public_path(restaurant.slug)
+      
+      # 等待頁面載入完成
+      expect(page).to have_selector('[data-reservation-target="adultCount"]')
+      
+      # 檢查初始狀態：大人選2，小孩可選0-4
+      adult_select = find('[data-reservation-target="adultCount"]')
+      child_select = find('[data-reservation-target="childCount"]')
+      
+      expect(adult_select.value).to eq('2')
+      child_options = child_select.all('option').map(&:value)
+      expect(child_options).to eq(['0', '1', '2', '3', '4'])
+      
+      # 將大人數改為4，小孩選項應該變為0-2
+      adult_select.select('4')
+      
+      # 等待JavaScript處理
+      sleep 1
+      
+      child_options = child_select.all('option').map(&:value)
+      expect(child_options).to eq(['0', '1', '2'])
+      
+      # 將大人數改為6（最大值），小孩選項應該只有0
+      adult_select.select('6')
+      
+      # 等待JavaScript處理
+      sleep 1
+      
+      child_options = child_select.all('option').map(&:value)
+      expect(child_options).to eq(['0'])
+    end
+    
+    it 'prevents total party size from exceeding maximum' do
+      visit restaurant_public_path(restaurant.slug)
+      
+      # 等待頁面載入完成
+      expect(page).to have_selector('[data-reservation-target="adultCount"]')
+      
+      adult_select = find('[data-reservation-target="adultCount"]')
+      child_select = find('[data-reservation-target="childCount"]')
+      
+      # 選擇3個大人，3個小孩
+      adult_select.select('3')
+      sleep 0.5
+      child_select.select('3')
+      sleep 1
+      
+      # 總人數應該是6，符合上限
+      expect(adult_select.value).to eq('3')
+      expect(child_select.value).to eq('3')
+      
+      # 嘗試增加大人數到5，小孩數應該自動調整為1
+      adult_select.select('5')
+      sleep 1
+      
+      expect(child_select.value).to eq('1')
+    end
+  end
 end 

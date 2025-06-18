@@ -9,7 +9,9 @@
   <!-- 主要內容 -->
   <div class="w-full max-w-md mx-auto bg-gray-900 min-h-screen md:max-w-lg lg:max-w-xl"
        data-controller="reservation restaurant-info"
-       data-reservation-restaurant-slug-value="<%= @restaurant.slug %>">
+       data-reservation-restaurant-slug-value="<%= @restaurant.slug %>"
+       data-reservation-max-party-size-value="<%= @max_party_size %>"
+       data-reservation-min-party-size-value="<%= @min_party_size %>">
     
     <!-- 餐廳標題區域 -->
     <div class="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
@@ -114,7 +116,7 @@
       <!-- 用餐人數選擇 -->
       <div class="p-4 border-b border-gray-700 bg-gray-900">
         <h2 class="text-lg font-semibold text-white mb-3">用餐人數</h2>
-        <p class="text-sm text-gray-400 mb-4">可預約 1 - 6 位（含大人與小孩）</p>
+        <p class="text-sm text-gray-400 mb-4">可預約 <%= @min_party_size %> - <%= @max_party_size %> 位（含大人與小孩）</p>
         
         <div class="space-y-3">
           <div>
@@ -296,6 +298,21 @@
     .flatpickr-day.nextMonthDay {
       color: #718096 !important;
       opacity: 0.6 !important;
+    }
+    
+    /* 改善上個月和下個月日期的可見度，避免與disabled日期混淆 */
+    .flatpickr-day.prevMonthDay:not(.flatpickr-disabled):hover,
+    .flatpickr-day.nextMonthDay:not(.flatpickr-disabled):hover {
+      color: #ffffff !important;
+      background: #374151 !important;
+      opacity: 1 !important;
+    }
+    
+    /* 確保真正disabled的日期有明顯的禁用樣式 */
+    .flatpickr-day.flatpickr-disabled:hover {
+      background: #1f2937 !important;
+      color: #6b7280 !important;
+      opacity: 0.4 !important;
     }
     
     /* 月份導航改善 */

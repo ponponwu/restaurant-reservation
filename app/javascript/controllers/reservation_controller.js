@@ -8,6 +8,8 @@ export default class extends Controller {
     static values = {
         restaurantSlug: String,
         businessHours: Object,
+        maxPartySize: Number,
+        minPartySize: Number,
     }
 
     connect() {
@@ -17,6 +19,8 @@ export default class extends Controller {
             console.log('🔥 timeSlots target available:', this.hasTimeSlotsTarget)
             console.log('🔥 dateTarget available:', this.hasDateTarget)
             console.log('🔥 Restaurant slug:', this.restaurantSlugValue)
+            console.log('🔥 Max party size:', this.maxPartySizeValue)
+            console.log('🔥 Min party size:', this.minPartySizeValue)
         }
 
         this.selectedDate = null
@@ -28,21 +32,32 @@ export default class extends Controller {
         setTimeout(() => {
             this.initDatePicker()
             this.setupGuestCountListeners()
+            this.updateGuestCountOptions() // 初始化人數選項
         }, 100)
     }
 
     setupGuestCountListeners() {
         const handleGuestCountChange = () => {
+            console.log('🔥 Guest count changed, updating form...')
+
+            // 動態更新選項
+            this.updateGuestCountOptions()
+
             this.updateHiddenFields()
 
-            // Only refresh available dates if date picker exists
+            // 清除當前選中的時段，因為人數變更可能會影響可用性
+            this.clearSelectedTimeSlot()
+
+            // 重新獲取可用日期（因為人數變更可能影響日期可用性）
             if (this.datePicker) {
                 this.refreshAvailableDates()
             } else {
                 this.initDatePicker()
             }
 
+            // 如果已經選了日期，重新載入該日期的時段
             if (this.selectedDate) {
+                console.log('🔥 Reloading time slots for selected date:', this.selectedDate)
                 this.loadAllTimeSlots(this.selectedDate)
             }
         }
@@ -57,6 +72,70 @@ export default class extends Controller {
 
         // 初始化隱藏欄位
         this.updateHiddenFields()
+    }
+
+    updateGuestCountOptions() {
+        if (!this.hasAdultCountTarget || !this.hasChildCountTarget) return
+
+        const currentAdults = parseInt(this.adultCountTarget.value) || 1
+        const currentChildren = parseInt(this.childCountTarget.value) || 0
+        const maxPartySize = this.maxPartySizeValue || 6
+        const minPartySize = this.minPartySizeValue || 1
+
+        console.log('🔥 Updating guest count options:', { currentAdults, currentChildren, maxPartySize, minPartySize })
+
+        // 更新大人選項 (至少1人)
+        this.updateSelectOptions(this.adultCountTarget, currentAdults, 1, maxPartySize - currentChildren)
+
+        // 更新小孩選項 (可以是0人)
+        this.updateSelectOptions(this.childCountTarget, currentChildren, 0, maxPartySize - currentAdults)
+
+        // 驗證當前選擇是否合法
+        this.validateCurrentSelection()
+    }
+
+    updateSelectOptions(selectElement, currentValue, minValue, maxValue) {
+        // 清空現有選項
+        selectElement.innerHTML = ''
+
+        // 生成新選項
+        for (let i = minValue; i <= maxValue; i++) {
+            const option = document.createElement('option')
+            option.value = i
+            option.textContent = i
+            if (i === currentValue) {
+                option.selected = true
+            }
+            selectElement.appendChild(option)
+        }
+
+        console.log(`🔥 Updated ${selectElement.name} options: ${minValue}-${maxValue}, current: ${currentValue}`)
+    }
+
+    validateCurrentSelection() {
+        const adults = parseInt(this.adultCountTarget.value) || 1
+        const children = parseInt(this.childCountTarget.value) || 0
+        const totalPartySize = adults + children
+        const maxPartySize = this.maxPartySizeValue || 6
+
+        console.log('🔥 Validating selection:', { adults, children, totalPartySize, maxPartySize })
+
+        // 如果總人數超過上限，調整小孩數
+        if (totalPartySize > maxPartySize) {
+            const adjustedChildren = Math.max(0, maxPartySize - adults)
+            console.log('🔥 Adjusting children count from', children, 'to', adjustedChildren)
+            this.childCountTarget.value = adjustedChildren
+
+            // 重新更新選項以反映新的狀態
+            setTimeout(() => this.updateGuestCountOptions(), 10)
+        }
+
+        // 如果大人數為0，調整為1
+        if (adults < 1) {
+            console.log('🔥 Adjusting adults count to minimum 1')
+            this.adultCountTarget.value = 1
+            setTimeout(() => this.updateGuestCountOptions(), 10)
+        }
     }
 
     updateHiddenFields() {
@@ -98,7 +177,12 @@ export default class extends Controller {
             const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`
             console.log('🔥 Fetching from:', apiUrl)
 
-            const response = await fetch(apiUrl)
+            const response = await fetch(apiUrl, {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            })
             console.log('🔥 API response status:', response.status)
 
             if (response.status === 503) {
@@ -217,7 +301,12 @@ export default class extends Controller {
             const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`
             console.log('🔥 Fetching time slots from:', url)
 
-            const response = await fetch(url)
+            const response = await fetch(url, {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            })
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`)
             }
@@ -408,10 +497,18 @@ export default class extends Controller {
             })
         }
 
-        // 處理特殊休息日
+        // 處理特殊休息日 - 將字串轉換為 Date 物件比較
         if (special_closures && special_closures.length > 0) {
-            special_closures.forEach((closure) => {
-                disabledDates.push(closure)
+            special_closures.forEach((closureStr) => {
+                const closureDate = new Date(closureStr)
+                // 比較年、月、日
+                disabledDates.push((date) => {
+                    return (
+                        date.getFullYear() === closureDate.getFullYear() &&
+                        date.getMonth() === closureDate.getMonth() &&
+                        date.getDate() === closureDate.getDate()
+                    )
+                })
             })
         }
 
@@ -432,5 +529,87 @@ export default class extends Controller {
         window.history.pushState({}, '', url.toString())
 
         console.log('🔥 URL updated to:', url.toString())
+    }
+
+    clearSelectedTimeSlot() {
+        // 清除選中的時段
+        this.selectedTime = null
+        this.selectedPeriodId = null
+
+        // 清除視覺上的選中狀態
+        if (this.hasTimeSlotsTarget) {
+            this.timeSlotsTarget.querySelectorAll('button').forEach((btn) => {
+                btn.classList.remove('bg-blue-600', 'border-blue-500')
+                btn.classList.add('bg-gray-800', 'border-gray-600')
+            })
+        }
+
+        // 清除隱藏欄位的值
+        const timeField = document.getElementById('reservation_time')
+        const periodField = document.getElementById('operating_period_id')
+
+        if (timeField) timeField.value = ''
+        if (periodField) periodField.value = ''
+
+        // 更新表單狀態
+        this.updateFormState()
+    }
+
+    async refreshAvailableDates() {
+        console.log('🔥 Refreshing available dates due to party size change...')
+
+        try {
+            // 重新獲取可用日期資訊
+            const partySize = this.getCurrentPartySize()
+            const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`
+            console.log('🔥 Fetching updated available days from:', apiUrl)
+
+            const response = await fetch(apiUrl, {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            const data = await response.json()
+            console.log('🔥 Updated available days data:', data)
+
+            // 重新計算禁用日期
+            const disabledDates = this.calculateDisabledDates(
+                data.weekly_closures || [],
+                data.special_closures || [],
+                data.has_capacity
+            )
+
+            // 更新 flatpickr 的禁用日期設定
+            if (this.datePicker) {
+                this.datePicker.set('disable', disabledDates)
+                this.datePicker.redraw()
+            }
+
+            // 更新額滿提示訊息
+            this.updateFullBookingNotice(data)
+
+            // 如果當前選中的日期變成不可用，清除選擇
+            if (this.selectedDate && !data.has_capacity) {
+                console.log('🔥 Current selected date is no longer available, clearing selection')
+                this.selectedDate = null
+                if (this.hasDateTarget) {
+                    this.dateTarget.value = ''
+                }
+
+                // 清除時段選擇
+                if (this.hasTimeSlotsTarget) {
+                    this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">請先選擇日期</p>'
+                }
+            }
+        } catch (error) {
+            console.error('🔥 Error refreshing available dates:', error)
+            this.showError('重新載入可用日期時發生錯誤')
+        }
     }
 }

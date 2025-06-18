@@ -103,7 +103,7 @@
         <% end %>
       <% end %>
 
-      <%= link_to new_admin_blacklist_path(customer_phone: reservation.customer_phone, customer_name: reservation.customer_name), 
+      <%= link_to new_admin_restaurant_blacklist_path(@restaurant, customer_phone: reservation.customer_phone, customer_name: reservation.customer_name), 
           class: "text-red-700 hover:text-red-900 p-1 rounded hover:bg-red-50",
           title: "加入黑名單",
           target: "_blank" do %>
@@ -230,7 +230,7 @@
         <% end %>
       <% end %>
 
-      <%= link_to new_admin_blacklist_path(customer_phone: reservation.customer_phone, customer_name: reservation.customer_name), 
+      <%= link_to new_admin_restaurant_blacklist_path(@restaurant, customer_phone: reservation.customer_phone, customer_name: reservation.customer_name), 
           class: "text-red-700 hover:text-red-900 p-1.5 rounded hover:bg-red-50",
           title: "加入黑名單",
           target: "_blank" do %>
