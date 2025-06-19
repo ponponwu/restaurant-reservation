@@ -158,8 +158,8 @@ class Admin::ReservationsController < Admin::BaseController
                       notice: '訂位建立成功'
         end
         format.turbo_stream do
-          # 使用 Turbo Stream 重定向到列表頁面
-          render turbo_stream: turbo_stream.action(:redirect, admin_restaurant_reservations_path(@restaurant))
+          # 直接重定向，不使用 turbo_stream action
+          redirect_to admin_restaurant_reservations_path(@restaurant), notice: '訂位建立成功'
         end
       end
     else

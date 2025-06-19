@@ -2,7 +2,7 @@
 <tr id="reservation_<%= reservation.id %>" class="<%= 
   if reservation.admin_override? 
     'bg-orange-50 border-l-4 border-orange-400 hover:bg-orange-100' 
-  elsif reservation.status.in?(["cancelled", "no_show"])
+  elsif reservation.party_size > (reservation.table&.capacity || reservation.table_combination&.total_capacity || 0) && (reservation.table.present? || reservation.table_combination.present?)
     'bg-red-50 border-l-4 border-red-400 hover:bg-red-100'
   else 
     'hover:bg-gray-50' 
