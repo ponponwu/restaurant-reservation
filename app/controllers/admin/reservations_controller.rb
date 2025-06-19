@@ -140,14 +140,8 @@ class Admin::ReservationsController < Admin::BaseController
                       notice: '訂位建立成功'
         end
         format.turbo_stream do
-          render turbo_stream: [
-            turbo_stream.prepend('reservations-list',
-                               partial: 'reservation_row',
-                               locals: { reservation: @reservation }),
-            turbo_stream.update('flash',
-                               partial: 'shared/flash',
-                               locals: { message: '訂位建立成功', type: 'success' })
-          ]
+          # 使用 Turbo Stream 重定向到列表頁面
+          render turbo_stream: turbo_stream.action(:redirect, admin_restaurant_reservations_path(@restaurant))
         end
       end
     else

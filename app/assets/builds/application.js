@@ -10976,7 +10976,10 @@ var admin_reservation_controller_default = class extends Controller {
     "adultsCount",
     "childrenCount",
     "forceMode",
-    "adminOverride"
+    "adminOverride",
+    "businessPeriodField",
+    "businessPeriodHint",
+    "businessPeriodTime"
   ];
   static values = {
     restaurantSlug: String
@@ -11123,6 +11126,40 @@ var admin_reservation_controller_default = class extends Controller {
     console.log("\u{1F527} Force mode toggled:", this.forceMode);
     if (this.hasAdminOverrideTarget) {
       this.adminOverrideTarget.value = this.forceMode ? "true" : "false";
+    }
+  }
+  handleBusinessPeriodChange() {
+    console.log("\u{1F527} Business period changed");
+    if (!this.hasBusinessPeriodFieldTarget) {
+      console.error("\u{1F527} No business period field target found");
+      return;
+    }
+    const selectedOption = this.businessPeriodFieldTarget.selectedOptions[0];
+    if (selectedOption && selectedOption.value) {
+      console.log("\u{1F527} Selected business period:", selectedOption.text);
+      if (this.hasBusinessPeriodHintTarget && this.hasBusinessPeriodTimeTarget) {
+        this.businessPeriodTimeTarget.textContent = selectedOption.text;
+        this.businessPeriodHintTarget.classList.remove("hidden");
+      }
+      this.setDefaultTimeForPeriod(selectedOption.text);
+    } else {
+      if (this.hasBusinessPeriodHintTarget) {
+        this.businessPeriodHintTarget.classList.add("hidden");
+      }
+    }
+  }
+  setDefaultTimeForPeriod(periodText) {
+    const timeMatch = periodText.match(/\((\d{2}:\d{2})\s*-\s*(\d{2}:\d{2})\)/);
+    if (timeMatch && this.hasTimeFieldTarget) {
+      const startTime = timeMatch[1];
+      const [hours, minutes] = startTime.split(":");
+      const startDate = /* @__PURE__ */ new Date();
+      startDate.setHours(parseInt(hours), parseInt(minutes) + 30);
+      const defaultTime = startDate.toTimeString().slice(0, 5);
+      this.timeFieldTarget.value = defaultTime;
+      this.selectedTime = defaultTime;
+      console.log("\u{1F527} Set default time for period:", defaultTime);
+      this.updateDateTimeField();
     }
   }
 };
