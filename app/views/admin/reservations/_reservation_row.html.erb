@@ -1,9 +1,16 @@
 <!-- 桌面版表格行 -->
-<tr id="reservation_<%= reservation.id %>" class="hover:bg-gray-50">
+<tr id="reservation_<%= reservation.id %>" class="<%= reservation.admin_override? ? 'bg-orange-50 border-l-4 border-orange-400 hover:bg-orange-100' : 'hover:bg-gray-50' %>">
   <td class="px-4 py-4 whitespace-nowrap">
     <div class="flex items-center">
       <div class="min-w-0 flex-1">
-        <div class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></div>
+        <div class="flex items-center space-x-2">
+          <div class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></div>
+          <% if reservation.admin_override? %>
+            <span class="inline-flex px-1.5 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-800 border border-orange-200">
+              強制
+            </span>
+          <% end %>
+        </div>
         <div class="text-sm text-gray-500 truncate">
           <%= reservation.customer_phone %>
         </div>
@@ -116,12 +123,17 @@
 </tr>
 
 <!-- 手機版卡片 -->
-<div id="reservation_mobile_<%= reservation.id %>" class="bg-white border border-gray-200 rounded-lg shadow-sm p-3 hidden">
+<div id="reservation_mobile_<%= reservation.id %>" class="<%= reservation.admin_override? ? 'bg-orange-50 border border-orange-200' : 'bg-white border border-gray-200' %> rounded-lg shadow-sm p-3 hidden">
   <!-- 第一行：客戶資訊和狀態 -->
   <div class="flex items-center justify-between mb-2">
     <div class="flex-1 min-w-0">
       <div class="flex items-center space-x-2">
         <h4 class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></h4>
+        <% if reservation.admin_override? %>
+          <span class="inline-flex px-1.5 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-800 border border-orange-200">
+            強制
+          </span>
+        <% end %>
         <span class="text-xs text-gray-500">|</span>
         <span class="text-xs text-gray-500 truncate"><%= reservation.customer_phone %></span>
       </div>

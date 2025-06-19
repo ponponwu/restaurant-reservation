@@ -28,6 +28,8 @@ class Reservation < ApplicationRecord
   
   # 3. Scope 定義
   scope :active, -> { where.not(status: %w[cancelled no_show]) }
+  scope :admin_override, -> { where(admin_override: true) }
+  scope :normal_bookings, -> { where(admin_override: false) }
   scope :for_date, ->(date) { where(reservation_datetime: date.all_day) }
   scope :for_time_range, ->(start_time, end_time) { where(reservation_datetime: start_time..end_time) }
   scope :with_adults, ->(count) { where(adults_count: count) }
@@ -287,6 +289,23 @@ class Reservation < ApplicationRecord
   after_create :clear_availability_cache
   after_update :clear_availability_cache, if: :saved_change_to_status?
   after_destroy :clear_availability_cache
+
+  # 管理員強制建立相關方法
+  def admin_override?
+    admin_override
+  end
+
+  def forced_booking?
+    admin_override
+  end
+
+  def admin_created?
+    admin_override
+  end
+
+  def normal_booking?
+    !admin_override
+  end
 
   # 7. 私有方法
   private

@@ -347,9 +347,11 @@ class Admin::ReservationsController < Admin::BaseController
     
     Rails.logger.info "🔧 Determining business period for time: #{reservation_time} (taipei: #{taipei_time})"
     
-    # 查找匹配的營業時段
+    # 查找匹配的營業時段 - 使用 EXTRACT 函數處理 time 類型比較
     business_period = @restaurant.business_periods.active
-      .where('start_time <= ? AND end_time >= ?', reservation_time, reservation_time)
+      .where("EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?", 
+             taipei_time.hour * 3600 + taipei_time.min * 60, 
+             taipei_time.hour * 3600 + taipei_time.min * 60)
       .first
     
     Rails.logger.info "🔧 Found exact match: #{business_period&.name} (ID: #{business_period&.id})"

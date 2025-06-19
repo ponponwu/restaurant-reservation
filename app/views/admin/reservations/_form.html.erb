@@ -110,25 +110,10 @@
       <input type="hidden" data-admin-reservation-target="dateField" />
     </div>
 
-    <!-- 餐期選擇 -->
-    <div class="mb-4">
-      <%= f.label :business_period_id, "營業時段 *", class: "block text-sm font-medium text-gray-700" %>
-      <%= f.select :business_period_id, 
-          options_from_collection_for_select(@business_periods, :id, :display_name, reservation.business_period_id),
-          { prompt: "請先選擇日期" },
-          { 
-            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
-            data: { 
-              admin_reservation_target: "businessPeriod",
-              action: "change->admin-reservation#handlePeriodChange" 
-            }
-          } %>
-    </div>
-
-    <!-- 時間槽選擇 -->
+    <!-- 時間選擇 -->
     <div class="mb-4">
       <div class="flex items-center justify-between mb-2">
-        <label class="block text-sm font-medium text-gray-700">選擇時間 *</label>
+        <%= f.label :reservation_time, "訂位時間 *", class: "block text-sm font-medium text-gray-700" %>
         <div class="flex items-center">
           <%= check_box_tag :admin_force_mode, true, false, 
               id: "admin_force_mode",
@@ -140,14 +125,16 @@
       </div>
       <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
         <p class="text-xs text-yellow-700">
-          <strong>強制模式：</strong>啟用後可以選擇已滿的時間槽，無視容量限制建立訂位
+          <strong>強制模式：</strong>啟用後可以無視容量限制建立訂位
         </p>
       </div>
-      <div data-admin-reservation-target="timeSlots" class="text-gray-500 text-center py-4">
-        請先選擇日期和餐期
-      </div>
-      <!-- 用於存儲選中的時間字串 -->
-      <input type="hidden" data-admin-reservation-target="timeField" />
+      <%= f.time_field :reservation_time, 
+          required: true,
+          class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+          data: { 
+            admin_reservation_target: "timeField",
+            action: "change->admin-reservation#handleTimeChange"
+          } %>
       <%= hidden_field_tag :admin_override, false, data: { admin_reservation_target: "adminOverride" } %>
     </div>
 

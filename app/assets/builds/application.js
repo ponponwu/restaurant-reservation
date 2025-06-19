@@ -10970,8 +10970,6 @@ var admin_reservation_controller_default = class extends Controller {
   static targets = [
     "calendar",
     "dateField",
-    "businessPeriod",
-    "timeSlots",
     "timeField",
     "datetimeField",
     "partySize",
@@ -10993,7 +10991,6 @@ var admin_reservation_controller_default = class extends Controller {
     console.log("\u{1F527} Flatpickr available:", typeof esm_default !== "undefined");
     this.selectedDate = null;
     this.selectedTime = null;
-    this.selectedPeriodId = null;
     this.forceMode = false;
     setTimeout(() => {
       console.log("\u{1F527} Starting delayed initialization...");
@@ -11091,206 +11088,17 @@ var admin_reservation_controller_default = class extends Controller {
     if (this.hasDateFieldTarget) {
       this.dateFieldTarget.value = dateStr;
     }
-    this.clearTimeSelection();
-    this.updateBusinessPeriodOptions();
-    this.loadAllTimeSlots(dateStr);
+    this.updateDateTimeField();
   }
-  handlePeriodChange() {
-    const selectedValue = this.businessPeriodTarget.value;
-    this.selectedPeriodId = selectedValue ? parseInt(selectedValue) : null;
-    console.log("\u{1F527} Period selected:", this.selectedPeriodId);
-    this.clearTimeSelection();
-    if (this.selectedDate && this.selectedPeriodId) {
-      this.loadTimeSlots();
-    } else {
-      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u9078\u64C7\u9910\u671F</p>';
-    }
+  handleTimeChange() {
+    const timeValue = this.timeFieldTarget.value;
+    this.selectedTime = timeValue;
+    console.log("\u{1F527} Time changed:", timeValue);
+    this.updateDateTimeField();
   }
   handlePartySizeChange() {
     console.log("\u{1F527} Party size changed, refreshing date picker...");
     this.initDatePicker();
-    if (this.selectedDate && this.selectedPeriodId) {
-      this.loadTimeSlots();
-    }
-  }
-  async loadAllTimeSlots(date) {
-    console.log("\u{1F527} Loading all time slots for date:", date);
-    if (!this.hasTimeSlotsTarget) {
-      console.error("\u{1F527} No timeSlots target found!");
-      return;
-    }
-    try {
-      const partySize = this.getCurrentPartySize();
-      const adults = this.hasAdultsCountTarget ? parseInt(this.adultsCountTarget.value) || 0 : partySize;
-      const children = this.hasChildrenCountTarget ? parseInt(this.childrenCountTarget.value) || 0 : 0;
-      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`;
-      console.log("\u{1F527} Fetching time slots from:", url);
-      const response = await fetch(url, {
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json"
-        }
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log("\u{1F527} Time slots data:", data);
-      this.renderAllTimeSlots(data.slots || []);
-    } catch (error2) {
-      console.error("\u{1F527} Error loading time slots:", error2);
-      this.timeSlotsTarget.innerHTML = `
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <p class="text-red-800">\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4</p>
-                </div>
-            `;
-    }
-  }
-  async loadTimeSlots() {
-    if (!this.selectedDate || !this.selectedPeriodId) {
-      return;
-    }
-    console.log("\u{1F527} Loading time slots for:", this.selectedDate, "period:", this.selectedPeriodId);
-    try {
-      const partySize = this.getCurrentPartySize();
-      const adults = this.hasAdultsCountTarget ? parseInt(this.adultsCountTarget.value) || 0 : partySize;
-      const children = this.hasChildrenCountTarget ? parseInt(this.childrenCountTarget.value) || 0 : 0;
-      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${this.selectedDate}&adult_count=${adults}&child_count=${children}`;
-      const response = await fetch(url, {
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json"
-        }
-      });
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
-      const data = await response.json();
-      console.log("\u{1F527} Time slots data:", data);
-      const periodSlots = (data.slots || []).filter(
-        (slot) => slot.period_id === this.selectedPeriodId
-      );
-      this.renderTimeSlots(periodSlots);
-    } catch (error2) {
-      console.error("\u{1F527} Error loading time slots:", error2);
-      this.timeSlotsTarget.innerHTML = `
-                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
-                    <p class="text-red-800">\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4</p>
-                </div>
-            `;
-    }
-  }
-  renderAllTimeSlots(timeSlots) {
-    this.timeSlotsTarget.innerHTML = "";
-    if (timeSlots.length === 0) {
-      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u6B64\u65E5\u671F\u7121\u53EF\u7528\u6642\u9593</p>';
-      return;
-    }
-    const groupedSlots = this.groupTimeSlotsByPeriod(timeSlots);
-    Object.entries(groupedSlots).forEach(([periodName, slots]) => {
-      const periodDiv = document.createElement("div");
-      periodDiv.className = "mb-6";
-      const periodTitle = document.createElement("h3");
-      periodTitle.className = "text-gray-700 font-medium mb-3 flex items-center";
-      periodTitle.innerHTML = `
-                <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
-                ${periodName}
-            `;
-      periodDiv.appendChild(periodTitle);
-      const slotsGrid = document.createElement("div");
-      slotsGrid.className = "grid grid-cols-3 gap-3";
-      slots.forEach((slot) => {
-        const button = document.createElement("button");
-        button.type = "button";
-        const canSelect = slot.available || this.forceMode;
-        button.className = `
-                    border rounded-lg px-3 py-2 text-sm text-center transition-colors
-                    focus:outline-none focus:ring-2 focus:ring-blue-500
-                    ${slot.available ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50" : this.forceMode ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100" : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}
-                `;
-        button.innerHTML = `
-                    <div class="font-medium">${slot.time}</div>
-                    <div class="text-xs mt-1">
-                        ${slot.available ? "\u53EF\u9810\u7D04" : this.forceMode ? "\u5DF2\u6EFF(\u5F37\u5236)" : "\u5DF2\u984D\u6EFF"}
-                    </div>
-                `;
-        if (canSelect) {
-          button.addEventListener("click", () => this.selectTimeSlot(slot, button));
-        } else {
-          button.disabled = true;
-        }
-        slotsGrid.appendChild(button);
-      });
-      periodDiv.appendChild(slotsGrid);
-      this.timeSlotsTarget.appendChild(periodDiv);
-    });
-  }
-  groupTimeSlotsByPeriod(timeSlots) {
-    return timeSlots.reduce((groups, slot) => {
-      const period = slot.period_name || "\u7528\u9910\u6642\u6BB5";
-      if (!groups[period]) {
-        groups[period] = [];
-      }
-      groups[period].push(slot);
-      return groups;
-    }, {});
-  }
-  renderTimeSlots(slots) {
-    if (slots.length === 0) {
-      this.timeSlotsTarget.innerHTML = `
-                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
-                    <p class="text-yellow-800">\u6B64\u65E5\u671F\u6B64\u9910\u671F\u7121\u53EF\u7528\u6642\u9593</p>
-                </div>
-            `;
-      return;
-    }
-    const slotsGrid = document.createElement("div");
-    slotsGrid.className = "grid grid-cols-3 gap-3";
-    slots.forEach((slot) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      const canSelect = slot.available || this.forceMode;
-      button.className = `
-                border rounded-lg px-3 py-2 text-sm text-center transition-colors
-                focus:outline-none focus:ring-2 focus:ring-blue-500
-                ${slot.available ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50" : this.forceMode ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100" : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}
-            `;
-      button.innerHTML = `
-                <div class="font-medium">${slot.time}</div>
-                <div class="text-xs mt-1">
-                    ${slot.available ? "\u53EF\u9810\u7D04" : this.forceMode ? "\u5DF2\u6EFF(\u5F37\u5236)" : "\u5DF2\u984D\u6EFF"}
-                </div>
-            `;
-      if (canSelect) {
-        button.addEventListener("click", () => this.selectTimeSlot(slot, button));
-      } else {
-        button.disabled = true;
-      }
-      slotsGrid.appendChild(button);
-    });
-    this.timeSlotsTarget.innerHTML = "";
-    this.timeSlotsTarget.appendChild(slotsGrid);
-  }
-  selectTimeSlot(slot, buttonElement) {
-    console.log("\u{1F527} Time slot selected:", slot);
-    this.timeSlotsTarget.querySelectorAll("button").forEach((btn) => {
-      btn.classList.remove("bg-blue-600", "border-blue-500", "text-white");
-      if (slot.available) {
-        btn.classList.add("bg-white", "border-gray-300", "text-gray-700");
-      } else {
-        btn.classList.add("bg-red-50", "border-red-300", "text-red-700");
-      }
-    });
-    buttonElement.classList.remove("bg-white", "border-gray-300", "text-gray-700", "bg-red-50", "border-red-300", "text-red-700");
-    buttonElement.classList.add("bg-blue-600", "border-blue-500", "text-white");
-    this.selectedTime = slot.time;
-    if (this.hasTimeFieldTarget) {
-      this.timeFieldTarget.value = slot.time;
-    }
-    if (this.hasAdminOverrideTarget) {
-      this.adminOverrideTarget.value = this.forceMode && !slot.available ? "true" : "false";
-    }
-    this.updateDateTimeField();
   }
   updateDateTimeField() {
     console.log("\u{1F527} Updating datetime field:", {
@@ -11307,55 +11115,14 @@ var admin_reservation_controller_default = class extends Controller {
       console.log("\u{1F527} Cannot update datetime field - missing data or target");
     }
   }
-  clearTimeSelection() {
-    this.selectedTime = null;
-    if (this.hasTimeFieldTarget) {
-      this.timeFieldTarget.value = "";
-    }
-    if (this.hasTimeSlotsTarget) {
-      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u9078\u64C7\u9910\u671F</p>';
-    }
-  }
-  updateBusinessPeriodOptions() {
-    if (this.hasBusinessPeriodTarget) {
-      this.businessPeriodTarget.disabled = false;
-    }
-  }
   getCurrentPartySize() {
     return this.hasPartySizeTarget ? parseInt(this.partySizeTarget.value) || 2 : 2;
-  }
-  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
-    const disabledDates = [];
-    if (!hasCapacity) {
-      const today = /* @__PURE__ */ new Date();
-      for (let i = 0; i <= 30; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        disabledDates.push(date);
-      }
-      return disabledDates;
-    }
-    if (weekly_closures && weekly_closures.length > 0) {
-      disabledDates.push((date) => {
-        const dayOfWeek = date.getDay();
-        return weekly_closures.includes(dayOfWeek);
-      });
-    }
-    if (special_closures && special_closures.length > 0) {
-      special_closures.forEach((closureStr) => {
-        const closureDate = new Date(closureStr);
-        disabledDates.push((date) => {
-          return date.getFullYear() === closureDate.getFullYear() && date.getMonth() === closureDate.getMonth() && date.getDate() === closureDate.getDate();
-        });
-      });
-    }
-    return disabledDates;
   }
   toggleForceMode() {
     this.forceMode = this.hasForceModeTarget ? this.forceModeTarget.checked : false;
     console.log("\u{1F527} Force mode toggled:", this.forceMode);
-    if (this.selectedDate && this.selectedPeriodId) {
-      this.loadTimeSlots();
+    if (this.hasAdminOverrideTarget) {
+      this.adminOverrideTarget.value = this.forceMode ? "true" : "false";
     }
   }
 };

@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_17_080000) do
+ActiveRecord::Schema[7.1].define(version: 2025_06_19_083631) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -129,6 +129,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_17_080000) do
     t.datetime "cancelled_at"
     t.text "cancellation_reason"
     t.string "cancellation_method"
+    t.boolean "admin_override", default: false, null: false, comment: "是否為管理員強制建立（無視容量限制）"
+    t.index ["admin_override"], name: "index_reservations_on_admin_override"
     t.index ["business_period_id"], name: "index_reservations_on_business_period_id"
     t.index ["cancellation_token"], name: "index_reservations_on_cancellation_token", unique: true
     t.index ["cancelled_at"], name: "index_reservations_on_cancelled_at"
