@@ -95,38 +95,56 @@ class Admin::ReservationsController < Admin::BaseController
   end
 
   def create
-    @reservation = @restaurant.reservations.build(reservation_params)
+    # 處理時間組合邏輯
+    processed_params = reservation_params.dup
     
-    # 處理時區問題 - 確保使用台北時區
-    if params[:reservation][:reservation_datetime].present?
-      @reservation.reservation_datetime = parse_time_in_timezone(params[:reservation][:reservation_datetime])
+    # 如果有 reservation_time 參數，需要特別處理
+    if params[:reservation][:reservation_time].present?
+      processed_params = processed_params.except(:reservation_time)
+      
+      # 使用 parse_time_in_timezone 方法處理完整的日期時間
+      if params[:reservation][:reservation_datetime].present?
+        processed_params[:reservation_datetime] = parse_time_in_timezone(params[:reservation][:reservation_datetime])
+      end
     end
     
-    # 自動判斷營業時段
-    if @reservation.business_period_id.blank? && @reservation.reservation_datetime.present?
+    @reservation = @restaurant.reservations.build(processed_params)
+    
+    # 複製訂位功能
+    if params[:copy_from].present?
+      source_reservation = @restaurant.reservations.find(params[:copy_from])
+      @reservation.assign_attributes(
+        customer_name: source_reservation.customer_name,
+        customer_phone: source_reservation.customer_phone,
+        customer_email: source_reservation.customer_email,
+        party_size: source_reservation.party_size,
+        adults_count: source_reservation.adults_count,
+        children_count: source_reservation.children_count,
+        special_requests: source_reservation.special_requests
+      )
+    end
+
+    # 自動確定營業時段
+    if @reservation.reservation_datetime.present? && @reservation.business_period_id.blank?
       @reservation.business_period_id = determine_business_period(@reservation.reservation_datetime)
     end
-    
-    # 處理大人數和小孩數的自動調整
-    if @reservation.adults_count.blank? && @reservation.children_count.blank?
-      @reservation.adults_count = [@reservation.party_size - (@reservation.children_count || 0), 1].max
-      @reservation.children_count ||= 0
-    end
-    
-    # 設定預設狀態為已確認
-    @reservation.status = :confirmed
-    
-    # 檢查是否為管理員強制模式
+
+    # 檢查是否有 admin_override 參數
     admin_override = params[:admin_override] == 'true'
     @reservation.admin_override = admin_override
-    
+
+    # 設定訂位為已確認狀態
+    @reservation.status = :confirmed
+
     if @reservation.save
-      # 嘗試自動分配桌位（如果沒有手動指定）
-      unless @reservation.table_id.present?
+      # 如果手動選擇了桌位，直接分配
+      if @reservation.table_id.present?
+        Rails.logger.info "管理後台 - 手動指定桌位 #{@reservation.table.table_number} 給訂位 #{@reservation.id}"
+      else
+        # 自動分配桌位
         allocation_success = allocate_table_for_reservation(@reservation, admin_override)
-        if allocation_success
-          @reservation.save  # 儲存桌位分配結果
-        else
+        
+        unless allocation_success
           if admin_override
             Rails.logger.warn "管理後台 - 強制模式下訂位 #{@reservation.id} 建立成功但桌位分配失敗"
           else
@@ -410,7 +428,7 @@ class Admin::ReservationsController < Admin::BaseController
     params.require(:reservation).permit(
       :customer_name, :customer_phone, :customer_email,
       :party_size, :adults_count, :children_count,
-      :reservation_datetime, :reservation_time, :status, :notes, :special_requests, 
+      :reservation_datetime, :status, :notes, :special_requests, 
       :table_id, :business_period_id, :admin_override
     )
   end
