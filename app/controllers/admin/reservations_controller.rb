@@ -410,7 +410,7 @@ class Admin::ReservationsController < Admin::BaseController
     params.require(:reservation).permit(
       :customer_name, :customer_phone, :customer_email,
       :party_size, :adults_count, :children_count,
-      :reservation_datetime, :status, :notes, :special_requests, 
+      :reservation_datetime, :reservation_time, :status, :notes, :special_requests, 
       :table_id, :business_period_id, :admin_override
     )
   end
