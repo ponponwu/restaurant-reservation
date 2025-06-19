@@ -95,20 +95,20 @@ class Admin::ReservationsController < Admin::BaseController
   end
 
   def create
-    # 處理時間組合邏輯
-    processed_params = reservation_params.dup
-    
-    # 如果有 reservation_time 參數，需要特別處理
+    # 先處理時間組合邏輯，避免 Unpermitted parameter 警告
     if params[:reservation][:reservation_time].present?
-      processed_params = processed_params.except(:reservation_time)
-      
-      # 使用 parse_time_in_timezone 方法處理完整的日期時間
+      # 如果有 reservation_time，使用 reservation_datetime 來設定完整時間
       if params[:reservation][:reservation_datetime].present?
-        processed_params[:reservation_datetime] = parse_time_in_timezone(params[:reservation][:reservation_datetime])
+        # 解析完整的日期時間
+        parsed_datetime = parse_time_in_timezone(params[:reservation][:reservation_datetime])
+        # 更新參數中的 reservation_datetime，移除 reservation_time
+        params[:reservation][:reservation_datetime] = parsed_datetime&.strftime('%Y-%m-%d %H:%M:%S')
+        params[:reservation].delete(:reservation_time)
       end
     end
     
-    @reservation = @restaurant.reservations.build(processed_params)
+    # 現在可以安全地調用 reservation_params
+    @reservation = @restaurant.reservations.build(reservation_params)
     
     # 複製訂位功能
     if params[:copy_from].present?
@@ -164,8 +164,12 @@ class Admin::ReservationsController < Admin::BaseController
                       notice: success_message
         end
         format.turbo_stream do
-          # 直接重定向，確保跳轉到列表頁面
-          redirect_to admin_restaurant_reservations_path(@restaurant), notice: success_message
+          # 創建一個臨時的 flash 訊息並跳轉
+          flash.now[:notice] = success_message
+          render turbo_stream: [
+            turbo_stream.update('flash', partial: 'shared/flash_notification', locals: { flash: { notice: success_message } }),
+            turbo_stream.action(:redirect, admin_restaurant_reservations_path(@restaurant))
+          ]
         end
       end
     else
