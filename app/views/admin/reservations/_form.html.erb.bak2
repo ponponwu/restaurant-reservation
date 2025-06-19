@@ -1,7 +1,7 @@
 <%= form_with model: reservation, 
               url: reservation.persisted? ? admin_restaurant_reservation_path(@restaurant, reservation) : admin_restaurant_reservations_path(@restaurant),
               local: true,
-              
+              data: { turbo_frame: "reservation_form" },
               class: "space-y-6" do |f| %>
   
   <% if reservation.errors.any? %>

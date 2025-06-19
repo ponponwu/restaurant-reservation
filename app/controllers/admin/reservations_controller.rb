@@ -165,19 +165,10 @@ class Admin::ReservationsController < Admin::BaseController
           redirect_to admin_restaurant_reservations_path(@restaurant),
                       notice: success_message
         end
-        format.turbo_stream do
-          # 直接重定向到列表頁面，讓 HTML 格式處理 flash 訊息
-          redirect_to admin_restaurant_reservations_path(@restaurant), notice: success_message
-        end
       end
     else
       respond_to do |format|
         format.html { render :new, status: :unprocessable_entity }
-        format.turbo_stream do
-          render turbo_stream: turbo_stream.update('reservation_form',
-                                                  partial: 'form',
-                                                  locals: { reservation: @reservation })
-        end
       end
     end
   end
