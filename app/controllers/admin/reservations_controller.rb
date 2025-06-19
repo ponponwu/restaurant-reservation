@@ -75,6 +75,23 @@ class Admin::ReservationsController < Admin::BaseController
 
   def new
     @reservation = @restaurant.reservations.build
+    
+    # 檢查是否為複製訂位
+    if params[:copy_from].present?
+      original_reservation = @restaurant.reservations.find_by(id: params[:copy_from])
+      if original_reservation
+        @reservation.assign_attributes(
+          customer_name: original_reservation.customer_name,
+          customer_phone: original_reservation.customer_phone,
+          customer_email: original_reservation.customer_email,
+          party_size: original_reservation.party_size,
+          adults_count: original_reservation.adults_count,
+          children_count: original_reservation.children_count,
+          special_requests: original_reservation.special_requests
+        )
+        flash.now[:info] = "已複製 #{original_reservation.customer_name} 的訂位資訊，請確認並調整日期時間"
+      end
+    end
   end
 
   def create

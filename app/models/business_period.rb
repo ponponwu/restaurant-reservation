@@ -172,6 +172,10 @@ class BusinessPeriod < ApplicationRecord
     "#{display_name_or_name} (#{formatted_time_range})"
   end
 
+  def display_with_time
+    "#{display_name_or_name} (#{formatted_time_range})"
+  end
+
   def formatted_time_range
     "#{local_start_time.strftime('%H:%M')} - #{local_end_time.strftime('%H:%M')}"
   end
