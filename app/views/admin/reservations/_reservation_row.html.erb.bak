@@ -14,7 +14,7 @@
           <div class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></div>
           <% if reservation.admin_override? %>
             <span class="inline-flex px-1.5 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-800 border border-orange-200">
-              🔧 管理員建立
+              強制
             </span>
           <% end %>
         </div>
@@ -138,7 +138,7 @@
         <h4 class="text-sm font-medium text-gray-900 truncate"><%= reservation.customer_name %></h4>
         <% if reservation.admin_override? %>
           <span class="inline-flex px-1.5 py-0.5 text-xs font-semibold rounded bg-orange-100 text-orange-800 border border-orange-200">
-            🔧 管理員建立
+            強制
           </span>
         <% end %>
         <span class="text-xs text-gray-500">|</span>
