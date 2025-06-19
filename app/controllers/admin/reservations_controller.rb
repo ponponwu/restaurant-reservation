@@ -129,9 +129,11 @@ class Admin::ReservationsController < Admin::BaseController
       @reservation.business_period_id = determine_business_period(@reservation.reservation_datetime)
     end
 
-    # 檢查是否有 admin_override 參數
+    # 檢查是否有 admin_override 參數（用於跳過驗證）
     admin_override = params[:admin_override] == 'true'
-    @reservation.admin_override = admin_override
+    
+    # 所有後台建立的訂位都標記為管理員建立
+    @reservation.admin_override = true
 
     # 設定訂位為已確認狀態
     @reservation.status = :confirmed
@@ -164,12 +166,8 @@ class Admin::ReservationsController < Admin::BaseController
                       notice: success_message
         end
         format.turbo_stream do
-          # 創建一個臨時的 flash 訊息並跳轉
-          flash.now[:notice] = success_message
-          render turbo_stream: [
-            turbo_stream.update('flash', partial: 'shared/flash_notification', locals: { flash: { notice: success_message } }),
-            turbo_stream.action(:redirect, admin_restaurant_reservations_path(@restaurant))
-          ]
+          # 直接重定向到列表頁面，讓 HTML 格式處理 flash 訊息
+          redirect_to admin_restaurant_reservations_path(@restaurant), notice: success_message
         end
       end
     else
