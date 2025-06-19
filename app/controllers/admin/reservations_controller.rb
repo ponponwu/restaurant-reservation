@@ -85,6 +85,11 @@ class Admin::ReservationsController < Admin::BaseController
       @reservation.reservation_datetime = parse_time_in_timezone(params[:reservation][:reservation_datetime])
     end
     
+    # 自動判斷營業時段
+    if @reservation.business_period_id.blank? && @reservation.reservation_datetime.present?
+      @reservation.business_period_id = determine_business_period(@reservation.reservation_datetime)
+    end
+    
     # 處理大人數和小孩數的自動調整
     if @reservation.adults_count.blank? && @reservation.children_count.blank?
       @reservation.adults_count = [@reservation.party_size - (@reservation.children_count || 0), 1].max
@@ -96,6 +101,7 @@ class Admin::ReservationsController < Admin::BaseController
     
     # 檢查是否為管理員強制模式
     admin_override = params[:admin_override] == 'true'
+    @reservation.admin_override = admin_override
     
     if @reservation.save
       # 嘗試自動分配桌位（如果沒有手動指定）
@@ -113,7 +119,7 @@ class Admin::ReservationsController < Admin::BaseController
       end
       respond_to do |format|
         format.html do
-          redirect_to admin_restaurant_reservation_path(@restaurant, @reservation),
+          redirect_to admin_restaurant_reservations_path(@restaurant),
                       notice: '訂位建立成功'
         end
         format.turbo_stream do
@@ -191,7 +197,7 @@ class Admin::ReservationsController < Admin::BaseController
       
       respond_to do |format|
         format.html do
-          redirect_to admin_restaurant_reservation_path(@restaurant, @reservation),
+          redirect_to admin_restaurant_reservations_path(@restaurant),
                       notice: '訂位已更新成功'
         end
         format.turbo_stream do
@@ -332,6 +338,33 @@ class Admin::ReservationsController < Admin::BaseController
     redirect_to admin_restaurants_path, alert: '找不到指定的餐廳'
   end
 
+  def determine_business_period(datetime)
+    return nil unless datetime
+
+    # 確保使用台北時區的時間來比較
+    taipei_time = datetime.in_time_zone('Asia/Taipei')
+    reservation_time = taipei_time.strftime('%H:%M:%S')
+    
+    Rails.logger.info "🔧 Determining business period for time: #{reservation_time} (original: #{datetime})"
+    
+    # 查找匹配的營業時段
+    business_period = @restaurant.business_periods
+      .where('start_time <= ? AND end_time >= ?', reservation_time, reservation_time)
+      .first
+    
+    Rails.logger.info "🔧 Found business period: #{business_period&.name} (ID: #{business_period&.id})"
+    
+    # 如果找不到完全匹配的時段，找最接近的時段
+    if business_period.blank?
+      business_period = @restaurant.business_periods
+        .order(:start_time)
+        .first
+      Rails.logger.info "🔧 Using fallback business period: #{business_period&.name} (ID: #{business_period&.id})"
+    end
+    
+    business_period&.id
+  end
+
   def set_reservation
     @reservation = @restaurant.reservations.find(params[:id])
   end
@@ -346,7 +379,7 @@ class Admin::ReservationsController < Admin::BaseController
       :customer_name, :customer_phone, :customer_email,
       :party_size, :adults_count, :children_count,
       :reservation_datetime, :status, :notes, :special_requests, 
-      :table_id, :business_period_id
+      :table_id, :business_period_id, :admin_override
     )
   end
 
