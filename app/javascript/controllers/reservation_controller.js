@@ -1,7 +1,6 @@
 import { Controller } from '@hotwired/stimulus'
 import flatpickr from 'flatpickr'
 import zhTw from 'flatpickr/dist/l10n/zh-tw.js'
-import 'flatpickr/dist/themes/dark.css'
 
 export default class extends Controller {
     static targets = ['date', 'calendar', 'timeSlots', 'periodInfo', 'nextStep', 'adultCount', 'childCount']

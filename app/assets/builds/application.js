@@ -676,9 +676,9 @@ var require_zh_tw = __commonJS({
         toggleTitle: "\u9EDE\u64CA\u5207\u63DB 12/24 \u5C0F\u6642\u6642\u5236"
       };
       fp.l10ns.zh_tw = MandarinTraditional;
-      var zhTw2 = fp.l10ns;
+      var zhTw3 = fp.l10ns;
       exports2.MandarinTraditional = MandarinTraditional;
-      exports2.default = zhTw2;
+      exports2.default = zhTw3;
       Object.defineProperty(exports2, "__esModule", { value: true });
     });
   }
@@ -8627,900 +8627,6 @@ var application = Application.start();
 application.debug = false;
 window.Stimulus = application;
 
-// app/javascript/controllers/calendar_controller.js
-var calendar_controller_default = class extends Controller {
-  static targets = ["monthYear", "daysGrid", "selectedDate"];
-  static values = { currentUrl: String };
-  static classes = ["selected", "today", "normal"];
-  connect() {
-    console.log("Calendar controller connected");
-    console.log("Available targets:", {
-      monthYear: this.hasMonthYearTarget,
-      daysGrid: this.hasDaysGridTarget,
-      selectedDate: this.hasSelectedDateTarget
-    });
-    const urlParams = new URLSearchParams(window.location.search);
-    const dateFilter = urlParams.get("date_filter");
-    const showAll = urlParams.get("show_all");
-    this.currentDate = /* @__PURE__ */ new Date();
-    if (showAll === "true") {
-      this.selectedDateValue = null;
-      this.showAllMode = true;
-    } else if (dateFilter) {
-      this.selectedDateValue = new Date(dateFilter);
-      this.currentDate = new Date(this.selectedDateValue);
-      this.showAllMode = false;
-    } else {
-      this.selectedDateValue = /* @__PURE__ */ new Date();
-      this.showAllMode = false;
-    }
-    this.monthNames = [
-      "\u4E00\u6708",
-      "\u4E8C\u6708",
-      "\u4E09\u6708",
-      "\u56DB\u6708",
-      "\u4E94\u6708",
-      "\u516D\u6708",
-      "\u4E03\u6708",
-      "\u516B\u6708",
-      "\u4E5D\u6708",
-      "\u5341\u6708",
-      "\u5341\u4E00\u6708",
-      "\u5341\u4E8C\u6708"
-    ];
-    if (document.readyState === "loading") {
-      document.addEventListener("DOMContentLoaded", () => this.initializeCalendar());
-    } else {
-      this.initializeCalendar();
-    }
-  }
-  initializeCalendar() {
-    try {
-      this.renderCalendar();
-      this.updateSelectedDateDisplay();
-    } catch (error2) {
-      console.error("Failed to initialize calendar:", error2);
-    }
-  }
-  previousMonth() {
-    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
-    this.renderCalendar();
-  }
-  nextMonth() {
-    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
-    this.renderCalendar();
-  }
-  selectDate(event) {
-    const dateButton = event.target.closest("[data-date]");
-    if (!dateButton) return;
-    if (!this.hasDaysGridTarget) return;
-    const dateString = dateButton.dataset.date;
-    this.selectedDateValue = new Date(dateString);
-    this.daysGridTarget.querySelectorAll(".bg-blue-500").forEach((el) => {
-      el.classList.remove("bg-blue-500", "text-white");
-      el.classList.add("hover:bg-gray-100");
-    });
-    dateButton.classList.remove("hover:bg-gray-100");
-    dateButton.classList.add("bg-blue-500", "text-white");
-    this.updateSelectedDateDisplay();
-    this.filterReservationsByDate(dateString);
-  }
-  renderCalendar() {
-    console.log("Rendering calendar...");
-    const year = this.currentDate.getFullYear();
-    const month = this.currentDate.getMonth();
-    if (!this.hasMonthYearTarget || !this.hasDaysGridTarget) {
-      console.error("Calendar targets not found:", {
-        monthYear: this.hasMonthYearTarget,
-        daysGrid: this.hasDaysGridTarget
-      });
-      return;
-    }
-    this.monthYearTarget.textContent = `${year}\u5E74 ${this.monthNames[month]}`;
-    this.daysGridTarget.innerHTML = "";
-    const firstDay = new Date(year, month, 1);
-    const lastDay = new Date(year, month + 1, 0);
-    const firstDayOfWeek = firstDay.getDay();
-    console.log("Calendar info:", { year, month, firstDayOfWeek, lastDay: lastDay.getDate() });
-    for (let i = 0; i < firstDayOfWeek; i++) {
-      const emptyDay = document.createElement("div");
-      emptyDay.className = "h-8";
-      this.daysGridTarget.appendChild(emptyDay);
-    }
-    for (let day = 1; day <= lastDay.getDate(); day++) {
-      const dayButton = this.createDayButton(year, month, day);
-      this.daysGridTarget.appendChild(dayButton);
-    }
-    console.log("Calendar rendered with", this.daysGridTarget.children.length, "elements");
-  }
-  createDayButton(year, month, day) {
-    const date = new Date(year, month, day);
-    const dateString = this.formatDateForServer(date);
-    const today = /* @__PURE__ */ new Date();
-    const isToday = this.isSameDate(date, today);
-    const isSelected = this.selectedDateValue && this.isSameDate(date, this.selectedDateValue);
-    const button = document.createElement("button");
-    button.type = "button";
-    button.textContent = day;
-    button.dataset.date = dateString;
-    button.dataset.action = "click->calendar#selectDate";
-    let classes = "h-8 w-8 text-sm rounded-full transition-colors duration-200 ";
-    if (this.showAllMode) {
-      if (isToday) {
-        classes += "bg-blue-100 text-blue-600 font-medium hover:bg-blue-200";
-      } else {
-        classes += "text-gray-700 hover:bg-gray-100";
-      }
-    } else if (isSelected) {
-      classes += "bg-blue-500 text-white";
-    } else if (isToday) {
-      classes += "bg-blue-100 text-blue-600 font-medium hover:bg-blue-200";
-    } else {
-      classes += "text-gray-700 hover:bg-gray-100";
-    }
-    button.className = classes;
-    return button;
-  }
-  isSameDate(date1, date2) {
-    return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate();
-  }
-  formatDateForServer(date) {
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, "0");
-    const day = String(date.getDate()).padStart(2, "0");
-    return `${year}-${month}-${day}`;
-  }
-  formatDateForDisplay(date) {
-    const year = date.getFullYear();
-    const month = date.getMonth() + 1;
-    const day = date.getDate();
-    return `${year}\u5E74${month}\u6708${day}\u65E5`;
-  }
-  updateSelectedDateDisplay() {
-    if (!this.hasSelectedDateTarget) return;
-    if (this.showAllMode) {
-      this.selectedDateTarget.textContent = "\u5168\u90E8\u8A02\u4F4D";
-    } else if (this.selectedDateValue) {
-      this.selectedDateTarget.textContent = this.formatDateForDisplay(this.selectedDateValue);
-    } else {
-      this.selectedDateTarget.textContent = "\u4ECA\u5929";
-    }
-  }
-  async filterReservationsByDate(dateString) {
-    try {
-      const url = new URL(window.location.href);
-      url.searchParams.delete("show_all");
-      url.searchParams.set("date_filter", dateString);
-      Turbo.visit(url.toString(), { action: "replace" });
-    } catch (error2) {
-      console.error("Failed to filter reservations:", error2);
-    }
-  }
-  showLoading() {
-    const reservationList = document.querySelector(".reservation-list");
-    if (reservationList) {
-      reservationList.style.opacity = "0.6";
-    }
-  }
-  hideLoading() {
-    const reservationList = document.querySelector(".reservation-list");
-    if (reservationList) {
-      reservationList.style.opacity = "1";
-    }
-  }
-};
-
-// app/javascript/controllers/closure_dates_controller.js
-var closure_dates_controller_default = class extends Controller {
-  static targets = [
-    "weeklyForm",
-    "specificForm",
-    "allDayCheckbox",
-    "timeFields",
-    "weekdayLabel",
-    "weekdayCheckbox",
-    "weeklyPattern"
-  ];
-  static values = {
-    restaurantSlug: String,
-    closureDatesUrl: String
-  };
-  static identifier = "closure-dates";
-  connect() {
-    this.setupGlobalFunctions();
-    this.boundTurboFrameLoad = this.handleTurboFrameLoad.bind(this);
-    this.boundBeforeStreamAction = this.handleBeforeStreamAction.bind(this);
-    document.addEventListener("turbo:frame-load", this.boundTurboFrameLoad);
-    document.addEventListener("turbo:before-stream-action", this.boundBeforeStreamAction);
-    setTimeout(() => {
-      this.checkExistingClosureDates();
-    }, 150);
-  }
-  disconnect() {
-    if (this.boundTurboFrameLoad) {
-      document.removeEventListener("turbo:frame-load", this.boundTurboFrameLoad);
-    }
-    if (this.boundBeforeStreamAction) {
-      document.removeEventListener("turbo:before-stream-action", this.boundBeforeStreamAction);
-    }
-  }
-  // 設定全域函數（為了向後相容動態載入的內容）
-  setupGlobalFunctions() {
-    window.handleWeeklyClosureSubmit = (event) => {
-      return this.submitWeeklyForm(event);
-    };
-    window.selectWeekdayInForm = (weekday) => {
-      return this.selectWeekdayInForm(weekday);
-    };
-    window.checkExistingClosureDates = () => {
-      checkExistingClosureDatesRetryCount = 0;
-      return this.checkExistingClosureDates();
-    };
-    window.updateStatistics = () => {
-      return this.updateStatistics();
-    };
-  }
-  // 檢查已存在的公休設定
-  checkExistingClosureDates() {
-    const existingWeekdays = /* @__PURE__ */ new Set();
-    const closureDateItems = document.querySelectorAll("#closure_dates_list .border");
-    closureDateItems.forEach((item, index2) => {
-      const titleElement = item.querySelector("h4");
-      if (titleElement) {
-        const titleText = titleElement.textContent.trim();
-        if (titleText.includes("\u6BCF\u9031") && titleText.includes("\u516C\u4F11")) {
-          const weekdayMatch = titleText.match(/每週\s*(週[一二三四五六日])\s*公休/);
-          if (weekdayMatch) {
-            const weekdayName = weekdayMatch[1];
-            const weekdayNumber = this.getWeekdayNumber(weekdayName);
-            if (weekdayNumber) {
-              existingWeekdays.add(weekdayNumber);
-            }
-          }
-        }
-      }
-    });
-    this.updateWeekdayCheckboxes(existingWeekdays);
-  }
-  // 更新週幾 checkbox 狀態
-  updateWeekdayCheckboxes(existingWeekdays) {
-    const weekdayCheckboxes = this.weekdayCheckboxTargets;
-    weekdayCheckboxes.forEach((checkbox) => {
-      const weekdayValue = parseInt(checkbox.value);
-      const label = checkbox.closest("label");
-      const textSpan = label ? label.querySelector("span:last-child") : null;
-      if (existingWeekdays.has(weekdayValue)) {
-        checkbox.checked = false;
-        checkbox.disabled = true;
-        if (label) {
-          label.classList.add("bg-red-50", "border-red-200", "cursor-not-allowed", "opacity-60");
-          label.classList.remove("hover:bg-blue-100", "border-gray-300");
-          if (textSpan) {
-            const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
-            const originalText = weekdayNames[weekdayValue] || textSpan.textContent.trim().replace(/\s*\(.*?\).*/, "");
-            textSpan.innerHTML = `${originalText} <br><span class="text-xs text-red-600 font-medium">(\u5DF2\u8A2D\u5B9A)</span>`;
-          }
-        }
-      } else {
-        checkbox.checked = false;
-        checkbox.disabled = false;
-        if (label) {
-          label.classList.remove("bg-red-50", "border-red-200", "cursor-not-allowed", "opacity-60");
-          label.classList.add("hover:bg-blue-100", "border-gray-300");
-          if (textSpan) {
-            const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
-            textSpan.innerHTML = weekdayNames[weekdayValue] || textSpan.textContent.replace(/\s*\(.*?\).*/, "").trim();
-          }
-        }
-      }
-    });
-  }
-  // 提交每週公休表單
-  async submitWeeklyForm(event) {
-    event.preventDefault();
-    try {
-      const allCheckedBoxes = this.element.querySelectorAll('input[name="weekdays[]"]:checked');
-      const enabledCheckedBoxes = this.element.querySelectorAll('input[name="weekdays[]"]:checked:not(:disabled)');
-      const disabledCheckedBoxes = Array.from(allCheckedBoxes).filter((cb) => cb.disabled);
-      if (disabledCheckedBoxes.length > 0) {
-        const disabledWeekdays = disabledCheckedBoxes.map((cb) => {
-          const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
-          return weekdayNames[parseInt(cb.value)];
-        }).join("\u3001");
-        alert(`\u7121\u6CD5\u9078\u64C7\u5DF2\u8A2D\u5B9A\u7684\u516C\u4F11\u65E5\uFF1A${disabledWeekdays}
-
-\u8ACB\u53D6\u6D88\u52FE\u9078\u5DF2\u8A2D\u5B9A\u7684\u9805\u76EE\uFF0C\u53EA\u9078\u64C7\u5C1A\u672A\u8A2D\u5B9A\u7684\u9031\u5E7E\u3002`);
-        disabledCheckedBoxes.forEach((cb) => cb.checked = false);
-        return;
-      }
-      if (enabledCheckedBoxes.length === 0) {
-        alert("\u8ACB\u81F3\u5C11\u9078\u64C7\u4E00\u500B\u5C1A\u672A\u8A2D\u5B9A\u7684\u5B9A\u4F11\u65E5");
-        return;
-      }
-      const selectedWeekdays = Array.from(enabledCheckedBoxes).map((cb) => parseInt(cb.value));
-      const existingWeekdays = this.getExistingWeekdays();
-      const duplicates = selectedWeekdays.filter((weekday) => existingWeekdays.has(weekday));
-      if (duplicates.length > 0) {
-        const duplicateNames = duplicates.map((weekday) => {
-          const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
-          return weekdayNames[weekday];
-        }).join("\u3001");
-        alert(`\u6AA2\u6E2C\u5230\u91CD\u8907\u7684\u516C\u4F11\u8A2D\u5B9A\uFF1A${duplicateNames}
-
-\u9019\u4E9B\u9031\u5E7E\u5DF2\u7D93\u8A2D\u5B9A\u904E\u516C\u4F11\u65E5\uFF0C\u7121\u6CD5\u91CD\u8907\u5EFA\u7ACB\u3002`);
-        return;
-      }
-      const reasonField = this.element.querySelector('input[name*="reason"]');
-      const reason = reasonField ? reasonField.value : "\u6BCF\u9031\u56FA\u5B9A\u516C\u4F11";
-      await this.submitWeeklyClosureRequests(enabledCheckedBoxes, reason);
-      alert("\u8A2D\u5B9A\u6210\u529F\uFF01");
-      enabledCheckedBoxes.forEach((checkbox) => checkbox.checked = false);
-      setTimeout(() => window.location.reload(), 500);
-    } catch (error2) {
-      console.error("\u{1F4A5} \u8A2D\u5B9A\u5931\u6557:", error2);
-      alert(`\u8A2D\u5B9A\u5931\u6557\uFF1A${error2.message}`);
-    }
-  }
-  // 提交每週公休請求
-  async submitWeeklyClosureRequests(checkboxes, reason) {
-    const csrfToken = this.getCSRFToken();
-    const promises = Array.from(checkboxes).map(async (checkbox, index2) => {
-      const weekday = parseInt(checkbox.value);
-      const targetDate = this.calculateTargetDate(weekday);
-      const formData = new FormData();
-      formData.append("closure_date[date]", targetDate);
-      formData.append("closure_date[reason]", reason);
-      formData.append("closure_date[closure_type]", "regular");
-      formData.append("closure_date[all_day]", "true");
-      formData.append("closure_date[recurring]", "true");
-      formData.append("closure_date[weekday]", weekday);
-      const response = await fetch(this.closureDatesUrlValue, {
-        method: "POST",
-        body: formData,
-        headers: {
-          "X-CSRF-Token": csrfToken,
-          Accept: "text/vnd.turbo-stream.html",
-          "X-Requested-With": "XMLHttpRequest"
-        }
-      });
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(`\u274C Request ${index2 + 1} failed:`, errorText);
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      return response;
-    });
-    await Promise.all(promises);
-  }
-  // 點選右側公休項目來選擇對應週幾
-  selectWeekdayInForm(weekday) {
-    if (!weekday) {
-      return;
-    }
-    const checkbox = this.element.querySelector(`input[name="weekdays[]"][value="${weekday}"]`);
-    if (checkbox && !checkbox.disabled) {
-      checkbox.checked = !checkbox.checked;
-      const label = checkbox.closest("label");
-      if (label) {
-        label.classList.add("bg-blue-200", "scale-105");
-        setTimeout(() => {
-          label.classList.remove("bg-blue-200", "scale-105");
-        }, 300);
-      }
-    } else if (checkbox && checkbox.disabled) {
-      alert("\u6B64\u9031\u5E7E\u5DF2\u7D93\u8A2D\u5B9A\u904E\u516C\u4F11\u65E5");
-    }
-  }
-  // 更新統計數字
-  updateStatistics() {
-    const allItems = document.querySelectorAll("#closure_dates_list .border");
-    const recurringCount = Array.from(document.querySelectorAll("#closure_dates_list h4")).filter(
-      (h4) => h4.textContent.includes("\u6BCF\u9031")
-    ).length;
-    const specialCount = Array.from(document.querySelectorAll("#closure_dates_list h4")).filter(
-      (h4) => !h4.textContent.includes("\u6BCF\u9031")
-    ).length;
-    const totalCount = allItems.length;
-    const badges = {
-      recurring: document.querySelector(".bg-blue-100.text-blue-800"),
-      special: document.querySelector(".bg-yellow-100.text-yellow-800"),
-      total: document.querySelector(".bg-gray-100.text-gray-800")
-    };
-    if (badges.recurring) badges.recurring.textContent = `${recurringCount} \u9805`;
-    if (badges.special) badges.special.textContent = `${specialCount} \u5929`;
-    if (badges.total) badges.total.textContent = `${totalCount} \u9805`;
-  }
-  // 輔助方法：獲取週幾數字（使用 0-6 格式）
-  getWeekdayNumber(weekdayName) {
-    const weekdayMap = {
-      \u9031\u65E5: 0,
-      \u9031\u4E00: 1,
-      \u9031\u4E8C: 2,
-      \u9031\u4E09: 3,
-      \u9031\u56DB: 4,
-      \u9031\u4E94: 5,
-      \u9031\u516D: 6
-    };
-    return weekdayMap[weekdayName];
-  }
-  // 輔助方法：獲取已存在的週幾
-  getExistingWeekdays() {
-    const existingWeekdays = /* @__PURE__ */ new Set();
-    const closureDateItems = document.querySelectorAll("#closure_dates_list .border");
-    closureDateItems.forEach((item) => {
-      const titleElement = item.querySelector("h4");
-      if (titleElement && titleElement.textContent.includes("\u6BCF\u9031") && titleElement.textContent.includes("\u516C\u4F11")) {
-        const weekdayMatch = titleElement.textContent.match(/每週\s*(週[一二三四五六日])\s*公休/);
-        if (weekdayMatch) {
-          const weekdayNumber = this.getWeekdayNumber(weekdayMatch[1]);
-          if (weekdayNumber) {
-            existingWeekdays.add(weekdayNumber);
-          }
-        }
-      }
-    });
-    return existingWeekdays;
-  }
-  // 輔助方法：計算目標日期（使用 0-6 格式）
-  calculateTargetDate(weekday) {
-    const today = /* @__PURE__ */ new Date();
-    const todayWeekday = today.getDay();
-    let daysToAdd = weekday - todayWeekday;
-    if (daysToAdd <= 0) {
-      daysToAdd += 7;
-    }
-    const targetDate = new Date(today);
-    targetDate.setDate(today.getDate() + daysToAdd);
-    return targetDate.toISOString().split("T")[0];
-  }
-  // 輔助方法：獲取 CSRF Token
-  getCSRFToken() {
-    const token = document.querySelector('[name="csrf-token"]')?.content;
-    if (!token) {
-      throw new Error("CSRF token not found");
-    }
-    return token;
-  }
-  // 處理 Turbo Frame 載入
-  handleTurboFrameLoad(event) {
-    setTimeout(() => {
-      this.checkExistingClosureDates();
-    }, 100);
-  }
-  // 處理 Turbo Stream 動作前事件
-  handleBeforeStreamAction(event) {
-    if (event.detail.action === "replace" && (event.detail.target === "weekly-closure-section" || event.detail.target === "closure-dates-content")) {
-      setTimeout(() => {
-        this.setupGlobalFunctions();
-        this.checkExistingClosureDates();
-        const flashElements = document.querySelectorAll("[data-flash-message]");
-        flashElements.forEach((flashElement) => {
-          const autoHideTime = flashElement.dataset.autoHide || 3e3;
-          setTimeout(() => {
-            flashElement.style.transition = "opacity 0.5s ease-out";
-            flashElement.style.opacity = "0";
-            setTimeout(() => {
-              flashElement.remove();
-            }, 500);
-          }, parseInt(autoHideTime));
-        });
-      }, 300);
-    }
-  }
-};
-var checkExistingClosureDatesRetryCount = 0;
-var maxRetries = 3;
-window.checkExistingClosureDates = window.checkExistingClosureDates || function() {
-  if (checkExistingClosureDatesRetryCount >= maxRetries) {
-    return;
-  }
-  checkExistingClosureDatesRetryCount++;
-};
-
-// app/javascript/controllers/confirmation_controller.js
-var confirmation_controller_default = class extends Controller {
-  static values = { message: String };
-  connect() {
-    this.element.addEventListener("click", this.handleClick.bind(this));
-  }
-  handleClick(event) {
-    const message = this.messageValue || "\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
-    if (!confirm(message)) {
-      event.preventDefault();
-      event.stopPropagation();
-      return false;
-    }
-  }
-};
-
-// app/javascript/controllers/dining_settings_controller.js
-var dining_settings_controller_default = class extends Controller {
-  static targets = [
-    "unlimitedCheckbox",
-    "limitedTimeSettings",
-    "diningDurationField",
-    "bufferTimeField",
-    "durationPreview",
-    "examplePreview"
-  ];
-  connect() {
-    this.toggleUnlimitedTime();
-    this.updatePreview();
-  }
-  toggleUnlimitedTime() {
-    const isUnlimited = this.unlimitedCheckboxTarget.checked;
-    if (isUnlimited) {
-      this.limitedTimeSettingsTarget.classList.add("opacity-50", "pointer-events-none");
-      this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-yellow-600">\u7121\u9650\u5236</span>`;
-      this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C<span class="font-medium text-yellow-600">\u684C\u4F4D\u4E0D\u6703\u81EA\u52D5\u91CB\u653E</span>`;
-    } else {
-      this.limitedTimeSettingsTarget.classList.remove("opacity-50", "pointer-events-none");
-      this.updatePreview();
-    }
-  }
-  updatePreview() {
-    if (this.unlimitedCheckboxTarget.checked) {
-      return;
-    }
-    const diningMinutes = parseInt(this.diningDurationFieldTarget.value) || 120;
-    const bufferMinutes = parseInt(this.bufferTimeFieldTarget.value) || 15;
-    const totalMinutes = diningMinutes + bufferMinutes;
-    const startTime = /* @__PURE__ */ new Date();
-    startTime.setHours(18, 0, 0, 0);
-    const endTime = new Date(startTime.getTime() + totalMinutes * 6e4);
-    this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${totalMinutes} \u5206\u9418</span>`;
-    this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u684C\u4F4D\u6703\u88AB\u4F54\u7528\u5230 <span class="font-medium text-blue-600">${endTime.getHours().toString().padStart(2, "0")}:${endTime.getMinutes().toString().padStart(2, "0")}</span>`;
-  }
-};
-
-// app/javascript/controllers/dropdown_controller.js
-var dropdown_controller_default = class extends Controller {
-  static targets = ["button", "menu"];
-  connect() {
-    this.boundClickOutside = this.clickOutside.bind(this);
-  }
-  disconnect() {
-    document.removeEventListener("click", this.boundClickOutside);
-  }
-  toggle(event) {
-    event.preventDefault();
-    event.stopPropagation();
-    if (this.menuTarget.classList.contains("hidden")) {
-      this.open();
-    } else {
-      this.close();
-    }
-  }
-  open() {
-    this.menuTarget.classList.remove("hidden");
-    document.addEventListener("click", this.boundClickOutside);
-  }
-  close() {
-    this.menuTarget.classList.add("hidden");
-    document.removeEventListener("click", this.boundClickOutside);
-  }
-  clickOutside(event) {
-    if (!this.element.contains(event.target)) {
-      this.close();
-    }
-  }
-};
-
-// app/javascript/controllers/flash_controller.js
-var flash_controller_default = class extends Controller {
-  static values = {
-    message: String,
-    type: String,
-    autoHide: Boolean,
-    redirectAfter: Boolean,
-    hideDelay: Number
-  };
-  connect() {
-    console.log("\uFFFD\uFFFD Flash \u63A7\u5236\u5668\u5DF2\u9023\u63A5!", {
-      autoHide: this.autoHideValue,
-      redirectAfter: this.redirectAfterValue,
-      hideDelay: this.hideDelayValue
-    });
-    this.showFlash();
-    if (this.autoHideValue) {
-      const delay = this.hideDelayValue || 800;
-      console.log(`\u23F0 \u5C07\u5728 ${delay}ms \u5F8C\u81EA\u52D5\u96B1\u85CF`);
-      setTimeout(() => {
-        this.hide();
-      }, delay);
-    }
-  }
-  showFlash() {
-    console.log("\u2728 \u986F\u793A Flash \u52D5\u756B");
-    this.element.style.opacity = "0";
-    this.element.style.transform = "translateX(100%)";
-    this.element.style.transition = "all 0.3s ease-out";
-    setTimeout(() => {
-      this.element.style.opacity = "1";
-      this.element.style.transform = "translateX(0)";
-    }, 100);
-  }
-  hide() {
-    console.log("\u{1F6AA} \u958B\u59CB\u96B1\u85CF Flash");
-    this.element.style.transition = "all 0.3s ease-in";
-    this.element.style.opacity = "0";
-    this.element.style.transform = "translateX(100%)";
-    setTimeout(() => {
-      if (this.redirectAfterValue) {
-        console.log("\u{1F504} \u91CD\u65B0\u8F09\u5165\u9801\u9762");
-        window.location.reload();
-      } else {
-        console.log("\u{1F5D1}\uFE0F \u79FB\u9664 Flash \u5143\u7D20");
-        this.element.remove();
-      }
-    }, 300);
-  }
-  // 手動關閉按鈕
-  close() {
-    console.log("\u274C \u624B\u52D5\u95DC\u9589 Flash");
-    this.hide();
-  }
-};
-
-// app/javascript/controllers/hello_controller.js
-var hello_controller_default = class extends Controller {
-  connect() {
-    this.element.textContent = "Hello World!";
-  }
-};
-
-// app/javascript/controllers/modal_controller.js
-var modal_controller_default = class extends Controller {
-  static targets = ["overlay", "content", "title", "message", "confirmBtn", "icon", "iconContainer"];
-  connect() {
-    this.pendingForm = null;
-    this.pendingAction = null;
-    window.showModalFlash = (message, type) => {
-      this.showFlash(message, type);
-    };
-    this.boundHandleModalClose = this.handleModalClose.bind(this);
-    document.addEventListener("click", this.boundHandleModalClose);
-  }
-  disconnect() {
-    if (this.boundHandleModalClose) {
-      document.removeEventListener("click", this.boundHandleModalClose);
-    }
-  }
-  // 處理 modal 關閉按鈕的全域點擊事件
-  handleModalClose(event) {
-    const closestActionElement = event.target.closest('[data-action*="modal#close"]');
-    if (closestActionElement) {
-      event.preventDefault();
-      this.close();
-    }
-  }
-  // 顯示確認對話框
-  show(event) {
-    event.preventDefault();
-    const button = event.currentTarget;
-    const form = button.closest("form");
-    const title = button.dataset.confirmTitle || "\u78BA\u8A8D\u64CD\u4F5C";
-    const message = button.dataset.confirmMessage || "\u60A8\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
-    const confirmText = button.dataset.confirmText || "\u78BA\u8A8D";
-    const type = button.dataset.confirmType || "danger";
-    const modal = document.getElementById("confirmation-modal");
-    const titleElement = modal?.querySelector('[data-modal-target="title"]');
-    const messageElement = modal?.querySelector('[data-modal-target="message"]');
-    const confirmBtnElement = modal?.querySelector('[data-modal-target="confirmBtn"]');
-    const overlayElement = modal?.querySelector('[data-modal-target="overlay"]');
-    const contentElement = modal?.querySelector('[data-modal-target="content"]');
-    if (!modal || !titleElement || !messageElement || !confirmBtnElement) {
-      console.error("\u274C Modal elements not found");
-      return;
-    }
-    titleElement.textContent = title;
-    messageElement.textContent = message;
-    confirmBtnElement.textContent = confirmText;
-    this.setModalStyleForElement(modal, type);
-    this.pendingForm = form;
-    this.pendingAction = () => {
-      if (form) {
-        form.submit();
-      } else {
-        const href = button.href;
-        if (href) {
-          window.location.href = href;
-        }
-      }
-    };
-    modal.classList.remove("hidden");
-    modal.classList.add("flex");
-    requestAnimationFrame(() => {
-      overlayElement?.classList.add("opacity-100");
-      contentElement?.classList.add("opacity-100", "translate-y-0", "sm:scale-100");
-    });
-  }
-  // 關閉對話框
-  close() {
-    const confirmationModal = document.getElementById("confirmation-modal");
-    if (confirmationModal && !confirmationModal.classList.contains("hidden")) {
-      const overlayElement = confirmationModal?.querySelector('[data-modal-target="overlay"]');
-      const contentElement = confirmationModal?.querySelector('[data-modal-target="content"]');
-      if (overlayElement && contentElement) {
-        overlayElement.classList.remove("opacity-100");
-        contentElement.classList.remove("opacity-100", "translate-y-0", "sm:scale-100");
-      }
-      setTimeout(() => {
-        if (confirmationModal) {
-          confirmationModal.classList.add("hidden");
-          confirmationModal.classList.remove("flex");
-        }
-        this.pendingForm = null;
-        this.pendingAction = null;
-      }, 200);
-      return;
-    }
-    const modalContainer = document.getElementById("modal-container");
-    if (modalContainer && !modalContainer.classList.contains("hidden")) {
-      modalContainer.classList.add("hidden");
-      const modalContent = document.getElementById("modal-content");
-      if (modalContent) {
-        modalContent.innerHTML = "";
-      }
-    }
-  }
-  // 確認操作
-  confirm() {
-    if (this.pendingAction) {
-      this.pendingAction();
-      this.close();
-    } else {
-      this.close();
-    }
-  }
-  // 設定 modal 的樣式（圖示和顏色）- 使用元素參數
-  setModalStyleForElement(modal, type) {
-    const iconContainer = modal.querySelector('[data-modal-target="iconContainer"]');
-    const icon = modal.querySelector('[data-modal-target="icon"]');
-    const confirmBtn = modal.querySelector('[data-modal-target="confirmBtn"]');
-    if (!iconContainer || !icon || !confirmBtn) {
-      console.error("\u274C Modal style elements not found");
-      return;
-    }
-    this.applyModalStyle(iconContainer, icon, confirmBtn, type);
-  }
-  // 設定 modal 的樣式（圖示和顏色）- 原始方法
-  setModalStyle(type) {
-    const iconContainer = this.iconContainerTarget;
-    const icon = this.iconTarget;
-    const confirmBtn = this.confirmBtnTarget;
-    this.applyModalStyle(iconContainer, icon, confirmBtn, type);
-  }
-  // 通用的樣式套用方法
-  applyModalStyle(iconContainer, icon, confirmBtn, type) {
-    iconContainer.className = "mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10";
-    confirmBtn.className = "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm";
-    switch (type) {
-      case "danger":
-        iconContainer.classList.add("bg-red-100");
-        icon.classList.add("text-red-600");
-        confirmBtn.classList.add("bg-red-600", "hover:bg-red-700", "focus:ring-red-500");
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />';
-        break;
-      case "warning":
-        iconContainer.classList.add("bg-yellow-100");
-        icon.classList.add("text-yellow-600");
-        confirmBtn.classList.add("bg-yellow-600", "hover:bg-yellow-700", "focus:ring-yellow-500");
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
-        break;
-      case "info":
-        iconContainer.classList.add("bg-blue-100");
-        icon.classList.add("text-blue-600");
-        confirmBtn.classList.add("bg-blue-600", "hover:bg-blue-700", "focus:ring-blue-500");
-        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
-        break;
-      default:
-        iconContainer.classList.add("bg-gray-100");
-        icon.classList.add("text-gray-600");
-        confirmBtn.classList.add("bg-gray-600", "hover:bg-gray-700", "focus:ring-gray-500");
-    }
-  }
-  // 鍵盤事件處理
-  keydown(event) {
-    if (event.key === "Escape") {
-      this.close();
-    } else if (event.key === "Enter") {
-      this.confirm();
-    }
-  }
-  // 顯示 flash 訊息
-  showFlash(message, type = "success") {
-    const flashContainer = document.getElementById("modal-flash-messages");
-    const flashContent = document.getElementById("modal-flash-content");
-    const flashIcon = document.getElementById("modal-flash-icon");
-    const flashText = document.getElementById("modal-flash-text");
-    if (!flashContainer || !flashContent || !flashIcon || !flashText) return;
-    flashContent.className = "rounded-md p-4";
-    flashIcon.innerHTML = "";
-    switch (type) {
-      case "success":
-        flashContent.classList.add("bg-green-50", "border", "border-green-200");
-        flashIcon.classList.add("text-green-400");
-        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>';
-        flashText.classList.add("text-green-800");
-        break;
-      case "error":
-        flashContent.classList.add("bg-red-50", "border", "border-red-200");
-        flashIcon.classList.add("text-red-400");
-        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>';
-        flashText.classList.add("text-red-800");
-        break;
-      case "warning":
-        flashContent.classList.add("bg-yellow-50", "border", "border-yellow-200");
-        flashIcon.classList.add("text-yellow-400");
-        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>';
-        flashText.classList.add("text-yellow-800");
-        break;
-    }
-    flashText.textContent = message;
-    flashContainer.classList.remove("hidden");
-    setTimeout(() => {
-      flashContainer.classList.add("hidden");
-    }, 3e3);
-  }
-  // 隱藏 flash 訊息
-  hideFlash() {
-    const flashContainer = document.getElementById("modal-flash-messages");
-    if (flashContainer) {
-      flashContainer.classList.add("hidden");
-    }
-  }
-  testClick() {
-    alert("Stimulus modal controller \u5DE5\u4F5C\u6B63\u5E38\uFF01");
-  }
-  // 遠程載入 Modal 內容
-  openRemote(event) {
-    event.preventDefault();
-    const link = event.currentTarget;
-    const url = link.href;
-    const modalContainer = document.getElementById("modal-container");
-    const modalContent = document.getElementById("modal-content");
-    if (!modalContainer || !modalContent) {
-      console.error("\u274C Modal container not found");
-      return;
-    }
-    modalContent.innerHTML = `
-            <div class="p-6 text-center">
-                <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
-                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                </svg>
-                <p class="mt-2 text-gray-500">\u8F09\u5165\u4E2D...</p>
-            </div>
-        `;
-    modalContainer.classList.remove("hidden");
-    fetch(url, {
-      headers: {
-        Accept: "text/html",
-        "X-Requested-With": "XMLHttpRequest"
-      }
-    }).then((response) => {
-      console.log("\u{1F4E1} Response status:", response.status);
-      console.log("\u{1F4E1} Response headers:", response.headers.get("Content-Type"));
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-      }
-      return response.text();
-    }).then((html) => {
-      console.log("\u2705 HTML loaded successfully, length:", html.length);
-      modalContent.innerHTML = html;
-    }).catch((error2) => {
-      console.error("\u{1F4A5} \u8F09\u5165\u5931\u6557\u8A73\u7D30\u932F\u8AA4:", error2);
-      modalContent.innerHTML = `
-                <div class="p-6 text-center">
-                    <p class="text-red-500">\u8F09\u5165\u5931\u6557\uFF1A${error2.message}</p>
-                    <p class="text-sm text-gray-500 mt-2">\u8ACB\u6AA2\u67E5\u63A7\u5236\u53F0\u4E86\u89E3\u8A73\u7D30\u932F\u8AA4</p>
-                </div>
-            `;
-    });
-  }
-};
-
 // node_modules/flatpickr/dist/esm/types/options.js
 var HOOKS = [
   "onChange",
@@ -11858,6 +10964,1296 @@ if (typeof window !== "undefined") {
 }
 var esm_default = flatpickr;
 
+// app/javascript/controllers/admin_reservation_controller.js
+var import_zh_tw = __toESM(require_zh_tw());
+var admin_reservation_controller_default = class extends Controller {
+  static targets = [
+    "calendar",
+    "dateField",
+    "businessPeriod",
+    "timeSlots",
+    "timeField",
+    "datetimeField",
+    "partySize",
+    "adultsCount",
+    "childrenCount",
+    "forceMode",
+    "adminOverride"
+  ];
+  static values = {
+    restaurantSlug: String
+  };
+  connect() {
+    console.log("\u{1F527} Admin reservation controller connected successfully!");
+    console.log("\u{1F527} Controller element:", this.element);
+    console.log("\u{1F527} Available targets:", this.targets);
+    console.log("\u{1F527} Has calendar target:", this.hasCalendarTarget);
+    console.log("\u{1F527} Calendar target element:", this.hasCalendarTarget ? this.calendarTarget : "NOT FOUND");
+    console.log("\u{1F527} Restaurant slug:", this.restaurantSlugValue);
+    console.log("\u{1F527} Flatpickr available:", typeof esm_default !== "undefined");
+    this.selectedDate = null;
+    this.selectedTime = null;
+    this.selectedPeriodId = null;
+    this.forceMode = false;
+    setTimeout(() => {
+      console.log("\u{1F527} Starting delayed initialization...");
+      try {
+        this.initDatePicker();
+      } catch (error2) {
+        console.error("\u{1F527} Error in initDatePicker:", error2);
+      }
+    }, 300);
+  }
+  disconnect() {
+    if (this.datePicker) {
+      this.datePicker.destroy();
+    }
+  }
+  initDatePicker() {
+    console.log("\u{1F527} Admin reservation: initializing date picker");
+    if (!this.hasCalendarTarget) {
+      console.error("\u{1F527} No calendar target found!");
+      return;
+    }
+    if (this.datePicker) {
+      this.datePicker.destroy();
+      this.datePicker = null;
+    }
+    this.initBasicDatePicker();
+  }
+  initBasicDatePicker() {
+    console.log("\u{1F527} Creating basic flatpickr instance");
+    if (!this.hasCalendarTarget) {
+      console.error("\u{1F527} No calendar target found for basic picker!");
+      return;
+    }
+    try {
+      const config2 = {
+        inline: true,
+        locale: import_zh_tw.default.zh_tw,
+        dateFormat: "Y-m-d",
+        minDate: "today",
+        maxDate: (/* @__PURE__ */ new Date()).fp_incr(90),
+        // 管理員可以選擇更遠的日期
+        static: true,
+        // 防止日曆被其他元素覆蓋
+        onChange: (selectedDates, dateStr) => {
+          console.log("\u{1F527} Basic picker date selected:", dateStr);
+          this.handleDateChange(dateStr);
+        },
+        onReady: () => {
+          console.log("\u{1F527} Basic picker ready");
+          setTimeout(() => {
+            this.styleFlatpickr();
+          }, 50);
+        },
+        onError: (error2) => {
+          console.error("\u{1F527} Flatpickr error:", error2);
+        }
+      };
+      console.log("\u{1F527} Creating flatpickr with config:", config2);
+      this.datePicker = esm_default(this.calendarTarget, config2);
+      if (this.datePicker) {
+        console.log("\u{1F527} Basic picker created successfully:", this.datePicker);
+      } else {
+        console.error("\u{1F527} Failed to create flatpickr instance");
+      }
+    } catch (error2) {
+      console.error("\u{1F527} Error creating basic picker:", error2);
+    }
+  }
+  styleFlatpickr() {
+    console.log("\u{1F527} Styling flatpickr calendar for inline display");
+    const calendarElement = this.calendarTarget.querySelector(".flatpickr-calendar");
+    if (calendarElement) {
+      console.log("\u{1F527} Found calendar element, applying inline styling");
+      calendarElement.classList.add("inline");
+      calendarElement.style.position = "relative";
+      calendarElement.style.top = "auto";
+      calendarElement.style.left = "auto";
+      calendarElement.style.display = "block";
+      calendarElement.style.width = "100%";
+      calendarElement.style.maxWidth = "none";
+      calendarElement.style.visibility = "visible";
+      calendarElement.style.opacity = "1";
+      const dayContainer = calendarElement.querySelector(".dayContainer");
+      if (dayContainer) {
+        dayContainer.style.width = "100%";
+        dayContainer.style.minWidth = "100%";
+        dayContainer.style.maxWidth = "100%";
+      }
+    } else {
+      console.error("\u{1F527} No calendar element found for styling");
+    }
+  }
+  handleDateChange(dateStr) {
+    this.selectedDate = dateStr;
+    if (this.hasDateFieldTarget) {
+      this.dateFieldTarget.value = dateStr;
+    }
+    this.clearTimeSelection();
+    this.updateBusinessPeriodOptions();
+    this.loadAllTimeSlots(dateStr);
+  }
+  handlePeriodChange() {
+    const selectedValue = this.businessPeriodTarget.value;
+    this.selectedPeriodId = selectedValue ? parseInt(selectedValue) : null;
+    console.log("\u{1F527} Period selected:", this.selectedPeriodId);
+    this.clearTimeSelection();
+    if (this.selectedDate && this.selectedPeriodId) {
+      this.loadTimeSlots();
+    } else {
+      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u9078\u64C7\u9910\u671F</p>';
+    }
+  }
+  handlePartySizeChange() {
+    console.log("\u{1F527} Party size changed, refreshing date picker...");
+    this.initDatePicker();
+    if (this.selectedDate && this.selectedPeriodId) {
+      this.loadTimeSlots();
+    }
+  }
+  async loadAllTimeSlots(date) {
+    console.log("\u{1F527} Loading all time slots for date:", date);
+    if (!this.hasTimeSlotsTarget) {
+      console.error("\u{1F527} No timeSlots target found!");
+      return;
+    }
+    try {
+      const partySize = this.getCurrentPartySize();
+      const adults = this.hasAdultsCountTarget ? parseInt(this.adultsCountTarget.value) || 0 : partySize;
+      const children = this.hasChildrenCountTarget ? parseInt(this.childrenCountTarget.value) || 0 : 0;
+      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`;
+      console.log("\u{1F527} Fetching time slots from:", url);
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("\u{1F527} Time slots data:", data);
+      this.renderAllTimeSlots(data.slots || []);
+    } catch (error2) {
+      console.error("\u{1F527} Error loading time slots:", error2);
+      this.timeSlotsTarget.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <p class="text-red-800">\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4</p>
+                </div>
+            `;
+    }
+  }
+  async loadTimeSlots() {
+    if (!this.selectedDate || !this.selectedPeriodId) {
+      return;
+    }
+    console.log("\u{1F527} Loading time slots for:", this.selectedDate, "period:", this.selectedPeriodId);
+    try {
+      const partySize = this.getCurrentPartySize();
+      const adults = this.hasAdultsCountTarget ? parseInt(this.adultsCountTarget.value) || 0 : partySize;
+      const children = this.hasChildrenCountTarget ? parseInt(this.childrenCountTarget.value) || 0 : 0;
+      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${this.selectedDate}&adult_count=${adults}&child_count=${children}`;
+      const response = await fetch(url, {
+        headers: {
+          "Accept": "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("\u{1F527} Time slots data:", data);
+      const periodSlots = (data.slots || []).filter(
+        (slot) => slot.period_id === this.selectedPeriodId
+      );
+      this.renderTimeSlots(periodSlots);
+    } catch (error2) {
+      console.error("\u{1F527} Error loading time slots:", error2);
+      this.timeSlotsTarget.innerHTML = `
+                <div class="bg-red-50 border border-red-200 rounded-lg p-4 text-center">
+                    <p class="text-red-800">\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4</p>
+                </div>
+            `;
+    }
+  }
+  renderAllTimeSlots(timeSlots) {
+    this.timeSlotsTarget.innerHTML = "";
+    if (timeSlots.length === 0) {
+      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u6B64\u65E5\u671F\u7121\u53EF\u7528\u6642\u9593</p>';
+      return;
+    }
+    const groupedSlots = this.groupTimeSlotsByPeriod(timeSlots);
+    Object.entries(groupedSlots).forEach(([periodName, slots]) => {
+      const periodDiv = document.createElement("div");
+      periodDiv.className = "mb-6";
+      const periodTitle = document.createElement("h3");
+      periodTitle.className = "text-gray-700 font-medium mb-3 flex items-center";
+      periodTitle.innerHTML = `
+                <span class="w-2 h-2 bg-blue-500 rounded-full mr-2"></span>
+                ${periodName}
+            `;
+      periodDiv.appendChild(periodTitle);
+      const slotsGrid = document.createElement("div");
+      slotsGrid.className = "grid grid-cols-3 gap-3";
+      slots.forEach((slot) => {
+        const button = document.createElement("button");
+        button.type = "button";
+        const canSelect = slot.available || this.forceMode;
+        button.className = `
+                    border rounded-lg px-3 py-2 text-sm text-center transition-colors
+                    focus:outline-none focus:ring-2 focus:ring-blue-500
+                    ${slot.available ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50" : this.forceMode ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100" : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}
+                `;
+        button.innerHTML = `
+                    <div class="font-medium">${slot.time}</div>
+                    <div class="text-xs mt-1">
+                        ${slot.available ? "\u53EF\u9810\u7D04" : this.forceMode ? "\u5DF2\u6EFF(\u5F37\u5236)" : "\u5DF2\u984D\u6EFF"}
+                    </div>
+                `;
+        if (canSelect) {
+          button.addEventListener("click", () => this.selectTimeSlot(slot, button));
+        } else {
+          button.disabled = true;
+        }
+        slotsGrid.appendChild(button);
+      });
+      periodDiv.appendChild(slotsGrid);
+      this.timeSlotsTarget.appendChild(periodDiv);
+    });
+  }
+  groupTimeSlotsByPeriod(timeSlots) {
+    return timeSlots.reduce((groups, slot) => {
+      const period = slot.period_name || "\u7528\u9910\u6642\u6BB5";
+      if (!groups[period]) {
+        groups[period] = [];
+      }
+      groups[period].push(slot);
+      return groups;
+    }, {});
+  }
+  renderTimeSlots(slots) {
+    if (slots.length === 0) {
+      this.timeSlotsTarget.innerHTML = `
+                <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
+                    <p class="text-yellow-800">\u6B64\u65E5\u671F\u6B64\u9910\u671F\u7121\u53EF\u7528\u6642\u9593</p>
+                </div>
+            `;
+      return;
+    }
+    const slotsGrid = document.createElement("div");
+    slotsGrid.className = "grid grid-cols-3 gap-3";
+    slots.forEach((slot) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      const canSelect = slot.available || this.forceMode;
+      button.className = `
+                border rounded-lg px-3 py-2 text-sm text-center transition-colors
+                focus:outline-none focus:ring-2 focus:ring-blue-500
+                ${slot.available ? "bg-white border-gray-300 text-gray-700 hover:bg-gray-50" : this.forceMode ? "bg-red-50 border-red-300 text-red-700 hover:bg-red-100" : "bg-gray-100 border-gray-200 text-gray-400 cursor-not-allowed"}
+            `;
+      button.innerHTML = `
+                <div class="font-medium">${slot.time}</div>
+                <div class="text-xs mt-1">
+                    ${slot.available ? "\u53EF\u9810\u7D04" : this.forceMode ? "\u5DF2\u6EFF(\u5F37\u5236)" : "\u5DF2\u984D\u6EFF"}
+                </div>
+            `;
+      if (canSelect) {
+        button.addEventListener("click", () => this.selectTimeSlot(slot, button));
+      } else {
+        button.disabled = true;
+      }
+      slotsGrid.appendChild(button);
+    });
+    this.timeSlotsTarget.innerHTML = "";
+    this.timeSlotsTarget.appendChild(slotsGrid);
+  }
+  selectTimeSlot(slot, buttonElement) {
+    console.log("\u{1F527} Time slot selected:", slot);
+    this.timeSlotsTarget.querySelectorAll("button").forEach((btn) => {
+      btn.classList.remove("bg-blue-600", "border-blue-500", "text-white");
+      if (slot.available) {
+        btn.classList.add("bg-white", "border-gray-300", "text-gray-700");
+      } else {
+        btn.classList.add("bg-red-50", "border-red-300", "text-red-700");
+      }
+    });
+    buttonElement.classList.remove("bg-white", "border-gray-300", "text-gray-700", "bg-red-50", "border-red-300", "text-red-700");
+    buttonElement.classList.add("bg-blue-600", "border-blue-500", "text-white");
+    this.selectedTime = slot.time;
+    if (this.hasTimeFieldTarget) {
+      this.timeFieldTarget.value = slot.time;
+    }
+    if (this.hasAdminOverrideTarget) {
+      this.adminOverrideTarget.value = this.forceMode && !slot.available ? "true" : "false";
+    }
+    this.updateDateTimeField();
+  }
+  updateDateTimeField() {
+    console.log("\u{1F527} Updating datetime field:", {
+      selectedDate: this.selectedDate,
+      selectedTime: this.selectedTime,
+      hasDatetimeField: this.hasDatetimeFieldTarget
+    });
+    if (this.selectedDate && this.selectedTime && this.hasDatetimeFieldTarget) {
+      const fullDateTime = `${this.selectedDate}T${this.selectedTime}`;
+      this.datetimeFieldTarget.value = fullDateTime;
+      console.log("\u{1F527} Updated datetime field:", fullDateTime);
+      this.datetimeFieldTarget.dispatchEvent(new Event("change"));
+    } else {
+      console.log("\u{1F527} Cannot update datetime field - missing data or target");
+    }
+  }
+  clearTimeSelection() {
+    this.selectedTime = null;
+    if (this.hasTimeFieldTarget) {
+      this.timeFieldTarget.value = "";
+    }
+    if (this.hasTimeSlotsTarget) {
+      this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u9078\u64C7\u9910\u671F</p>';
+    }
+  }
+  updateBusinessPeriodOptions() {
+    if (this.hasBusinessPeriodTarget) {
+      this.businessPeriodTarget.disabled = false;
+    }
+  }
+  getCurrentPartySize() {
+    return this.hasPartySizeTarget ? parseInt(this.partySizeTarget.value) || 2 : 2;
+  }
+  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+    const disabledDates = [];
+    if (!hasCapacity) {
+      const today = /* @__PURE__ */ new Date();
+      for (let i = 0; i <= 30; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        disabledDates.push(date);
+      }
+      return disabledDates;
+    }
+    if (weekly_closures && weekly_closures.length > 0) {
+      disabledDates.push((date) => {
+        const dayOfWeek = date.getDay();
+        return weekly_closures.includes(dayOfWeek);
+      });
+    }
+    if (special_closures && special_closures.length > 0) {
+      special_closures.forEach((closureStr) => {
+        const closureDate = new Date(closureStr);
+        disabledDates.push((date) => {
+          return date.getFullYear() === closureDate.getFullYear() && date.getMonth() === closureDate.getMonth() && date.getDate() === closureDate.getDate();
+        });
+      });
+    }
+    return disabledDates;
+  }
+  toggleForceMode() {
+    this.forceMode = this.hasForceModeTarget ? this.forceModeTarget.checked : false;
+    console.log("\u{1F527} Force mode toggled:", this.forceMode);
+    if (this.selectedDate && this.selectedPeriodId) {
+      this.loadTimeSlots();
+    }
+  }
+};
+
+// app/javascript/controllers/calendar_controller.js
+var calendar_controller_default = class extends Controller {
+  static targets = ["monthYear", "daysGrid", "selectedDate"];
+  static values = { currentUrl: String };
+  static classes = ["selected", "today", "normal"];
+  connect() {
+    console.log("Calendar controller connected");
+    console.log("Available targets:", {
+      monthYear: this.hasMonthYearTarget,
+      daysGrid: this.hasDaysGridTarget,
+      selectedDate: this.hasSelectedDateTarget
+    });
+    const urlParams = new URLSearchParams(window.location.search);
+    const dateFilter = urlParams.get("date_filter");
+    const showAll = urlParams.get("show_all");
+    this.currentDate = /* @__PURE__ */ new Date();
+    if (showAll === "true") {
+      this.selectedDateValue = null;
+      this.showAllMode = true;
+    } else if (dateFilter) {
+      this.selectedDateValue = new Date(dateFilter);
+      this.currentDate = new Date(this.selectedDateValue);
+      this.showAllMode = false;
+    } else {
+      this.selectedDateValue = /* @__PURE__ */ new Date();
+      this.showAllMode = false;
+    }
+    this.monthNames = [
+      "\u4E00\u6708",
+      "\u4E8C\u6708",
+      "\u4E09\u6708",
+      "\u56DB\u6708",
+      "\u4E94\u6708",
+      "\u516D\u6708",
+      "\u4E03\u6708",
+      "\u516B\u6708",
+      "\u4E5D\u6708",
+      "\u5341\u6708",
+      "\u5341\u4E00\u6708",
+      "\u5341\u4E8C\u6708"
+    ];
+    if (document.readyState === "loading") {
+      document.addEventListener("DOMContentLoaded", () => this.initializeCalendar());
+    } else {
+      this.initializeCalendar();
+    }
+  }
+  initializeCalendar() {
+    try {
+      this.renderCalendar();
+      this.updateSelectedDateDisplay();
+    } catch (error2) {
+      console.error("Failed to initialize calendar:", error2);
+    }
+  }
+  previousMonth() {
+    this.currentDate.setMonth(this.currentDate.getMonth() - 1);
+    this.renderCalendar();
+  }
+  nextMonth() {
+    this.currentDate.setMonth(this.currentDate.getMonth() + 1);
+    this.renderCalendar();
+  }
+  selectDate(event) {
+    const dateButton = event.target.closest("[data-date]");
+    if (!dateButton) return;
+    if (!this.hasDaysGridTarget) return;
+    const dateString = dateButton.dataset.date;
+    this.selectedDateValue = new Date(dateString);
+    this.daysGridTarget.querySelectorAll(".bg-blue-500").forEach((el) => {
+      el.classList.remove("bg-blue-500", "text-white");
+      el.classList.add("hover:bg-gray-100");
+    });
+    dateButton.classList.remove("hover:bg-gray-100");
+    dateButton.classList.add("bg-blue-500", "text-white");
+    this.updateSelectedDateDisplay();
+    this.filterReservationsByDate(dateString);
+  }
+  renderCalendar() {
+    console.log("Rendering calendar...");
+    const year = this.currentDate.getFullYear();
+    const month = this.currentDate.getMonth();
+    if (!this.hasMonthYearTarget || !this.hasDaysGridTarget) {
+      console.error("Calendar targets not found:", {
+        monthYear: this.hasMonthYearTarget,
+        daysGrid: this.hasDaysGridTarget
+      });
+      return;
+    }
+    this.monthYearTarget.textContent = `${year}\u5E74 ${this.monthNames[month]}`;
+    this.daysGridTarget.innerHTML = "";
+    const firstDay = new Date(year, month, 1);
+    const lastDay = new Date(year, month + 1, 0);
+    const firstDayOfWeek = firstDay.getDay();
+    console.log("Calendar info:", { year, month, firstDayOfWeek, lastDay: lastDay.getDate() });
+    for (let i = 0; i < firstDayOfWeek; i++) {
+      const emptyDay = document.createElement("div");
+      emptyDay.className = "h-8";
+      this.daysGridTarget.appendChild(emptyDay);
+    }
+    for (let day = 1; day <= lastDay.getDate(); day++) {
+      const dayButton = this.createDayButton(year, month, day);
+      this.daysGridTarget.appendChild(dayButton);
+    }
+    console.log("Calendar rendered with", this.daysGridTarget.children.length, "elements");
+  }
+  createDayButton(year, month, day) {
+    const date = new Date(year, month, day);
+    const dateString = this.formatDateForServer(date);
+    const today = /* @__PURE__ */ new Date();
+    const isToday = this.isSameDate(date, today);
+    const isSelected = this.selectedDateValue && this.isSameDate(date, this.selectedDateValue);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = day;
+    button.dataset.date = dateString;
+    button.dataset.action = "click->calendar#selectDate";
+    let classes = "h-8 w-8 text-sm rounded-full transition-colors duration-200 ";
+    if (this.showAllMode) {
+      if (isToday) {
+        classes += "bg-blue-100 text-blue-600 font-medium hover:bg-blue-200";
+      } else {
+        classes += "text-gray-700 hover:bg-gray-100";
+      }
+    } else if (isSelected) {
+      classes += "bg-blue-500 text-white";
+    } else if (isToday) {
+      classes += "bg-blue-100 text-blue-600 font-medium hover:bg-blue-200";
+    } else {
+      classes += "text-gray-700 hover:bg-gray-100";
+    }
+    button.className = classes;
+    return button;
+  }
+  isSameDate(date1, date2) {
+    return date1.getFullYear() === date2.getFullYear() && date1.getMonth() === date2.getMonth() && date1.getDate() === date2.getDate();
+  }
+  formatDateForServer(date) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, "0");
+    const day = String(date.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  }
+  formatDateForDisplay(date) {
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const day = date.getDate();
+    return `${year}\u5E74${month}\u6708${day}\u65E5`;
+  }
+  updateSelectedDateDisplay() {
+    if (!this.hasSelectedDateTarget) return;
+    if (this.showAllMode) {
+      this.selectedDateTarget.textContent = "\u5168\u90E8\u8A02\u4F4D";
+    } else if (this.selectedDateValue) {
+      this.selectedDateTarget.textContent = this.formatDateForDisplay(this.selectedDateValue);
+    } else {
+      this.selectedDateTarget.textContent = "\u4ECA\u5929";
+    }
+  }
+  async filterReservationsByDate(dateString) {
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("show_all");
+      url.searchParams.set("date_filter", dateString);
+      Turbo.visit(url.toString(), { action: "replace" });
+    } catch (error2) {
+      console.error("Failed to filter reservations:", error2);
+    }
+  }
+  showLoading() {
+    const reservationList = document.querySelector(".reservation-list");
+    if (reservationList) {
+      reservationList.style.opacity = "0.6";
+    }
+  }
+  hideLoading() {
+    const reservationList = document.querySelector(".reservation-list");
+    if (reservationList) {
+      reservationList.style.opacity = "1";
+    }
+  }
+};
+
+// app/javascript/controllers/closure_dates_controller.js
+var closure_dates_controller_default = class extends Controller {
+  static targets = [
+    "weeklyForm",
+    "specificForm",
+    "allDayCheckbox",
+    "timeFields",
+    "weekdayLabel",
+    "weekdayCheckbox",
+    "weeklyPattern"
+  ];
+  static values = {
+    restaurantSlug: String,
+    closureDatesUrl: String
+  };
+  static identifier = "closure-dates";
+  connect() {
+    this.setupGlobalFunctions();
+    this.boundTurboFrameLoad = this.handleTurboFrameLoad.bind(this);
+    this.boundBeforeStreamAction = this.handleBeforeStreamAction.bind(this);
+    document.addEventListener("turbo:frame-load", this.boundTurboFrameLoad);
+    document.addEventListener("turbo:before-stream-action", this.boundBeforeStreamAction);
+    setTimeout(() => {
+      this.checkExistingClosureDates();
+    }, 150);
+  }
+  disconnect() {
+    if (this.boundTurboFrameLoad) {
+      document.removeEventListener("turbo:frame-load", this.boundTurboFrameLoad);
+    }
+    if (this.boundBeforeStreamAction) {
+      document.removeEventListener("turbo:before-stream-action", this.boundBeforeStreamAction);
+    }
+  }
+  // 設定全域函數（為了向後相容動態載入的內容）
+  setupGlobalFunctions() {
+    window.handleWeeklyClosureSubmit = (event) => {
+      return this.submitWeeklyForm(event);
+    };
+    window.selectWeekdayInForm = (weekday) => {
+      return this.selectWeekdayInForm(weekday);
+    };
+    window.checkExistingClosureDates = () => {
+      checkExistingClosureDatesRetryCount = 0;
+      return this.checkExistingClosureDates();
+    };
+    window.updateStatistics = () => {
+      return this.updateStatistics();
+    };
+  }
+  // 檢查已存在的公休設定
+  checkExistingClosureDates() {
+    const existingWeekdays = /* @__PURE__ */ new Set();
+    const closureDateItems = document.querySelectorAll("#closure_dates_list .border");
+    closureDateItems.forEach((item, index2) => {
+      const titleElement = item.querySelector("h4");
+      if (titleElement) {
+        const titleText = titleElement.textContent.trim();
+        if (titleText.includes("\u6BCF\u9031") && titleText.includes("\u516C\u4F11")) {
+          const weekdayMatch = titleText.match(/每週\s*(週[一二三四五六日])\s*公休/);
+          if (weekdayMatch) {
+            const weekdayName = weekdayMatch[1];
+            const weekdayNumber = this.getWeekdayNumber(weekdayName);
+            if (weekdayNumber) {
+              existingWeekdays.add(weekdayNumber);
+            }
+          }
+        }
+      }
+    });
+    this.updateWeekdayCheckboxes(existingWeekdays);
+  }
+  // 更新週幾 checkbox 狀態
+  updateWeekdayCheckboxes(existingWeekdays) {
+    const weekdayCheckboxes = this.weekdayCheckboxTargets;
+    weekdayCheckboxes.forEach((checkbox) => {
+      const weekdayValue = parseInt(checkbox.value);
+      const label = checkbox.closest("label");
+      const textSpan = label ? label.querySelector("span:last-child") : null;
+      if (existingWeekdays.has(weekdayValue)) {
+        checkbox.checked = false;
+        checkbox.disabled = true;
+        if (label) {
+          label.classList.add("bg-red-50", "border-red-200", "cursor-not-allowed", "opacity-60");
+          label.classList.remove("hover:bg-blue-100", "border-gray-300");
+          if (textSpan) {
+            const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
+            const originalText = weekdayNames[weekdayValue] || textSpan.textContent.trim().replace(/\s*\(.*?\).*/, "");
+            textSpan.innerHTML = `${originalText} <br><span class="text-xs text-red-600 font-medium">(\u5DF2\u8A2D\u5B9A)</span>`;
+          }
+        }
+      } else {
+        checkbox.checked = false;
+        checkbox.disabled = false;
+        if (label) {
+          label.classList.remove("bg-red-50", "border-red-200", "cursor-not-allowed", "opacity-60");
+          label.classList.add("hover:bg-blue-100", "border-gray-300");
+          if (textSpan) {
+            const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
+            textSpan.innerHTML = weekdayNames[weekdayValue] || textSpan.textContent.replace(/\s*\(.*?\).*/, "").trim();
+          }
+        }
+      }
+    });
+  }
+  // 提交每週公休表單
+  async submitWeeklyForm(event) {
+    event.preventDefault();
+    try {
+      const allCheckedBoxes = this.element.querySelectorAll('input[name="weekdays[]"]:checked');
+      const enabledCheckedBoxes = this.element.querySelectorAll('input[name="weekdays[]"]:checked:not(:disabled)');
+      const disabledCheckedBoxes = Array.from(allCheckedBoxes).filter((cb) => cb.disabled);
+      if (disabledCheckedBoxes.length > 0) {
+        const disabledWeekdays = disabledCheckedBoxes.map((cb) => {
+          const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
+          return weekdayNames[parseInt(cb.value)];
+        }).join("\u3001");
+        alert(`\u7121\u6CD5\u9078\u64C7\u5DF2\u8A2D\u5B9A\u7684\u516C\u4F11\u65E5\uFF1A${disabledWeekdays}
+
+\u8ACB\u53D6\u6D88\u52FE\u9078\u5DF2\u8A2D\u5B9A\u7684\u9805\u76EE\uFF0C\u53EA\u9078\u64C7\u5C1A\u672A\u8A2D\u5B9A\u7684\u9031\u5E7E\u3002`);
+        disabledCheckedBoxes.forEach((cb) => cb.checked = false);
+        return;
+      }
+      if (enabledCheckedBoxes.length === 0) {
+        alert("\u8ACB\u81F3\u5C11\u9078\u64C7\u4E00\u500B\u5C1A\u672A\u8A2D\u5B9A\u7684\u5B9A\u4F11\u65E5");
+        return;
+      }
+      const selectedWeekdays = Array.from(enabledCheckedBoxes).map((cb) => parseInt(cb.value));
+      const existingWeekdays = this.getExistingWeekdays();
+      const duplicates = selectedWeekdays.filter((weekday) => existingWeekdays.has(weekday));
+      if (duplicates.length > 0) {
+        const duplicateNames = duplicates.map((weekday) => {
+          const weekdayNames = ["\u9031\u65E5", "\u9031\u4E00", "\u9031\u4E8C", "\u9031\u4E09", "\u9031\u56DB", "\u9031\u4E94", "\u9031\u516D"];
+          return weekdayNames[weekday];
+        }).join("\u3001");
+        alert(`\u6AA2\u6E2C\u5230\u91CD\u8907\u7684\u516C\u4F11\u8A2D\u5B9A\uFF1A${duplicateNames}
+
+\u9019\u4E9B\u9031\u5E7E\u5DF2\u7D93\u8A2D\u5B9A\u904E\u516C\u4F11\u65E5\uFF0C\u7121\u6CD5\u91CD\u8907\u5EFA\u7ACB\u3002`);
+        return;
+      }
+      const reasonField = this.element.querySelector('input[name*="reason"]');
+      const reason = reasonField ? reasonField.value : "\u6BCF\u9031\u56FA\u5B9A\u516C\u4F11";
+      await this.submitWeeklyClosureRequests(enabledCheckedBoxes, reason);
+      alert("\u8A2D\u5B9A\u6210\u529F\uFF01");
+      enabledCheckedBoxes.forEach((checkbox) => checkbox.checked = false);
+      setTimeout(() => window.location.reload(), 500);
+    } catch (error2) {
+      console.error("\u{1F4A5} \u8A2D\u5B9A\u5931\u6557:", error2);
+      alert(`\u8A2D\u5B9A\u5931\u6557\uFF1A${error2.message}`);
+    }
+  }
+  // 提交每週公休請求
+  async submitWeeklyClosureRequests(checkboxes, reason) {
+    const csrfToken = this.getCSRFToken();
+    const promises = Array.from(checkboxes).map(async (checkbox, index2) => {
+      const weekday = parseInt(checkbox.value);
+      const targetDate = this.calculateTargetDate(weekday);
+      const formData = new FormData();
+      formData.append("closure_date[date]", targetDate);
+      formData.append("closure_date[reason]", reason);
+      formData.append("closure_date[closure_type]", "regular");
+      formData.append("closure_date[all_day]", "true");
+      formData.append("closure_date[recurring]", "true");
+      formData.append("closure_date[weekday]", weekday);
+      const response = await fetch(this.closureDatesUrlValue, {
+        method: "POST",
+        body: formData,
+        headers: {
+          "X-CSRF-Token": csrfToken,
+          Accept: "text/vnd.turbo-stream.html",
+          "X-Requested-With": "XMLHttpRequest"
+        }
+      });
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`\u274C Request ${index2 + 1} failed:`, errorText);
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response;
+    });
+    await Promise.all(promises);
+  }
+  // 點選右側公休項目來選擇對應週幾
+  selectWeekdayInForm(weekday) {
+    if (!weekday) {
+      return;
+    }
+    const checkbox = this.element.querySelector(`input[name="weekdays[]"][value="${weekday}"]`);
+    if (checkbox && !checkbox.disabled) {
+      checkbox.checked = !checkbox.checked;
+      const label = checkbox.closest("label");
+      if (label) {
+        label.classList.add("bg-blue-200", "scale-105");
+        setTimeout(() => {
+          label.classList.remove("bg-blue-200", "scale-105");
+        }, 300);
+      }
+    } else if (checkbox && checkbox.disabled) {
+      alert("\u6B64\u9031\u5E7E\u5DF2\u7D93\u8A2D\u5B9A\u904E\u516C\u4F11\u65E5");
+    }
+  }
+  // 更新統計數字
+  updateStatistics() {
+    const allItems = document.querySelectorAll("#closure_dates_list .border");
+    const recurringCount = Array.from(document.querySelectorAll("#closure_dates_list h4")).filter(
+      (h4) => h4.textContent.includes("\u6BCF\u9031")
+    ).length;
+    const specialCount = Array.from(document.querySelectorAll("#closure_dates_list h4")).filter(
+      (h4) => !h4.textContent.includes("\u6BCF\u9031")
+    ).length;
+    const totalCount = allItems.length;
+    const badges = {
+      recurring: document.querySelector(".bg-blue-100.text-blue-800"),
+      special: document.querySelector(".bg-yellow-100.text-yellow-800"),
+      total: document.querySelector(".bg-gray-100.text-gray-800")
+    };
+    if (badges.recurring) badges.recurring.textContent = `${recurringCount} \u9805`;
+    if (badges.special) badges.special.textContent = `${specialCount} \u5929`;
+    if (badges.total) badges.total.textContent = `${totalCount} \u9805`;
+  }
+  // 輔助方法：獲取週幾數字（使用 0-6 格式）
+  getWeekdayNumber(weekdayName) {
+    const weekdayMap = {
+      \u9031\u65E5: 0,
+      \u9031\u4E00: 1,
+      \u9031\u4E8C: 2,
+      \u9031\u4E09: 3,
+      \u9031\u56DB: 4,
+      \u9031\u4E94: 5,
+      \u9031\u516D: 6
+    };
+    return weekdayMap[weekdayName];
+  }
+  // 輔助方法：獲取已存在的週幾
+  getExistingWeekdays() {
+    const existingWeekdays = /* @__PURE__ */ new Set();
+    const closureDateItems = document.querySelectorAll("#closure_dates_list .border");
+    closureDateItems.forEach((item) => {
+      const titleElement = item.querySelector("h4");
+      if (titleElement && titleElement.textContent.includes("\u6BCF\u9031") && titleElement.textContent.includes("\u516C\u4F11")) {
+        const weekdayMatch = titleElement.textContent.match(/每週\s*(週[一二三四五六日])\s*公休/);
+        if (weekdayMatch) {
+          const weekdayNumber = this.getWeekdayNumber(weekdayMatch[1]);
+          if (weekdayNumber) {
+            existingWeekdays.add(weekdayNumber);
+          }
+        }
+      }
+    });
+    return existingWeekdays;
+  }
+  // 輔助方法：計算目標日期（使用 0-6 格式）
+  calculateTargetDate(weekday) {
+    const today = /* @__PURE__ */ new Date();
+    const todayWeekday = today.getDay();
+    let daysToAdd = weekday - todayWeekday;
+    if (daysToAdd <= 0) {
+      daysToAdd += 7;
+    }
+    const targetDate = new Date(today);
+    targetDate.setDate(today.getDate() + daysToAdd);
+    return targetDate.toISOString().split("T")[0];
+  }
+  // 輔助方法：獲取 CSRF Token
+  getCSRFToken() {
+    const token = document.querySelector('[name="csrf-token"]')?.content;
+    if (!token) {
+      throw new Error("CSRF token not found");
+    }
+    return token;
+  }
+  // 處理 Turbo Frame 載入
+  handleTurboFrameLoad(event) {
+    setTimeout(() => {
+      this.checkExistingClosureDates();
+    }, 100);
+  }
+  // 處理 Turbo Stream 動作前事件
+  handleBeforeStreamAction(event) {
+    if (event.detail.action === "replace" && (event.detail.target === "weekly-closure-section" || event.detail.target === "closure-dates-content")) {
+      setTimeout(() => {
+        this.setupGlobalFunctions();
+        this.checkExistingClosureDates();
+        const flashElements = document.querySelectorAll("[data-flash-message]");
+        flashElements.forEach((flashElement) => {
+          const autoHideTime = flashElement.dataset.autoHide || 3e3;
+          setTimeout(() => {
+            flashElement.style.transition = "opacity 0.5s ease-out";
+            flashElement.style.opacity = "0";
+            setTimeout(() => {
+              flashElement.remove();
+            }, 500);
+          }, parseInt(autoHideTime));
+        });
+      }, 300);
+    }
+  }
+};
+var checkExistingClosureDatesRetryCount = 0;
+var maxRetries = 3;
+window.checkExistingClosureDates = window.checkExistingClosureDates || function() {
+  if (checkExistingClosureDatesRetryCount >= maxRetries) {
+    return;
+  }
+  checkExistingClosureDatesRetryCount++;
+};
+
+// app/javascript/controllers/confirmation_controller.js
+var confirmation_controller_default = class extends Controller {
+  static values = { message: String };
+  connect() {
+    this.element.addEventListener("click", this.handleClick.bind(this));
+  }
+  handleClick(event) {
+    const message = this.messageValue || "\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
+    if (!confirm(message)) {
+      event.preventDefault();
+      event.stopPropagation();
+      return false;
+    }
+  }
+};
+
+// app/javascript/controllers/dining_settings_controller.js
+var dining_settings_controller_default = class extends Controller {
+  static targets = [
+    "unlimitedCheckbox",
+    "limitedTimeSettings",
+    "diningDurationField",
+    "bufferTimeField",
+    "durationPreview",
+    "examplePreview"
+  ];
+  connect() {
+    this.toggleUnlimitedTime();
+    this.updatePreview();
+  }
+  toggleUnlimitedTime() {
+    const isUnlimited = this.unlimitedCheckboxTarget.checked;
+    if (isUnlimited) {
+      this.limitedTimeSettingsTarget.classList.add("opacity-50", "pointer-events-none");
+      this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-yellow-600">\u7121\u9650\u5236</span>`;
+      this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C<span class="font-medium text-yellow-600">\u684C\u4F4D\u4E0D\u6703\u81EA\u52D5\u91CB\u653E</span>`;
+    } else {
+      this.limitedTimeSettingsTarget.classList.remove("opacity-50", "pointer-events-none");
+      this.updatePreview();
+    }
+  }
+  updatePreview() {
+    if (this.unlimitedCheckboxTarget.checked) {
+      return;
+    }
+    const diningMinutes = parseInt(this.diningDurationFieldTarget.value) || 120;
+    const bufferMinutes = parseInt(this.bufferTimeFieldTarget.value) || 15;
+    const totalMinutes = diningMinutes + bufferMinutes;
+    const startTime = /* @__PURE__ */ new Date();
+    startTime.setHours(18, 0, 0, 0);
+    const endTime = new Date(startTime.getTime() + totalMinutes * 6e4);
+    this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${totalMinutes} \u5206\u9418</span>`;
+    this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u684C\u4F4D\u6703\u88AB\u4F54\u7528\u5230 <span class="font-medium text-blue-600">${endTime.getHours().toString().padStart(2, "0")}:${endTime.getMinutes().toString().padStart(2, "0")}</span>`;
+  }
+};
+
+// app/javascript/controllers/dropdown_controller.js
+var dropdown_controller_default = class extends Controller {
+  static targets = ["button", "menu"];
+  connect() {
+    this.boundClickOutside = this.clickOutside.bind(this);
+  }
+  disconnect() {
+    document.removeEventListener("click", this.boundClickOutside);
+  }
+  toggle(event) {
+    event.preventDefault();
+    event.stopPropagation();
+    if (this.menuTarget.classList.contains("hidden")) {
+      this.open();
+    } else {
+      this.close();
+    }
+  }
+  open() {
+    this.menuTarget.classList.remove("hidden");
+    document.addEventListener("click", this.boundClickOutside);
+  }
+  close() {
+    this.menuTarget.classList.add("hidden");
+    document.removeEventListener("click", this.boundClickOutside);
+  }
+  clickOutside(event) {
+    if (!this.element.contains(event.target)) {
+      this.close();
+    }
+  }
+};
+
+// app/javascript/controllers/flash_controller.js
+var flash_controller_default = class extends Controller {
+  static values = {
+    message: String,
+    type: String,
+    autoHide: Boolean,
+    redirectAfter: Boolean,
+    hideDelay: Number
+  };
+  connect() {
+    console.log("\uFFFD\uFFFD Flash \u63A7\u5236\u5668\u5DF2\u9023\u63A5!", {
+      autoHide: this.autoHideValue,
+      redirectAfter: this.redirectAfterValue,
+      hideDelay: this.hideDelayValue
+    });
+    this.showFlash();
+    if (this.autoHideValue) {
+      const delay = this.hideDelayValue || 800;
+      console.log(`\u23F0 \u5C07\u5728 ${delay}ms \u5F8C\u81EA\u52D5\u96B1\u85CF`);
+      setTimeout(() => {
+        this.hide();
+      }, delay);
+    }
+  }
+  showFlash() {
+    console.log("\u2728 \u986F\u793A Flash \u52D5\u756B");
+    this.element.style.opacity = "0";
+    this.element.style.transform = "translateX(100%)";
+    this.element.style.transition = "all 0.3s ease-out";
+    setTimeout(() => {
+      this.element.style.opacity = "1";
+      this.element.style.transform = "translateX(0)";
+    }, 100);
+  }
+  hide() {
+    console.log("\u{1F6AA} \u958B\u59CB\u96B1\u85CF Flash");
+    this.element.style.transition = "all 0.3s ease-in";
+    this.element.style.opacity = "0";
+    this.element.style.transform = "translateX(100%)";
+    setTimeout(() => {
+      if (this.redirectAfterValue) {
+        console.log("\u{1F504} \u91CD\u65B0\u8F09\u5165\u9801\u9762");
+        window.location.reload();
+      } else {
+        console.log("\u{1F5D1}\uFE0F \u79FB\u9664 Flash \u5143\u7D20");
+        this.element.remove();
+      }
+    }, 300);
+  }
+  // 手動關閉按鈕
+  close() {
+    console.log("\u274C \u624B\u52D5\u95DC\u9589 Flash");
+    this.hide();
+  }
+};
+
+// app/javascript/controllers/hello_controller.js
+var hello_controller_default = class extends Controller {
+  connect() {
+    this.element.textContent = "Hello World!";
+  }
+};
+
+// app/javascript/controllers/modal_controller.js
+var modal_controller_default = class extends Controller {
+  static targets = ["overlay", "content", "title", "message", "confirmBtn", "icon", "iconContainer"];
+  connect() {
+    this.pendingForm = null;
+    this.pendingAction = null;
+    window.showModalFlash = (message, type) => {
+      this.showFlash(message, type);
+    };
+    this.boundHandleModalClose = this.handleModalClose.bind(this);
+    document.addEventListener("click", this.boundHandleModalClose);
+  }
+  disconnect() {
+    if (this.boundHandleModalClose) {
+      document.removeEventListener("click", this.boundHandleModalClose);
+    }
+  }
+  // 處理 modal 關閉按鈕的全域點擊事件
+  handleModalClose(event) {
+    const closestActionElement = event.target.closest('[data-action*="modal#close"]');
+    if (closestActionElement) {
+      event.preventDefault();
+      this.close();
+    }
+  }
+  // 顯示確認對話框
+  show(event) {
+    event.preventDefault();
+    const button = event.currentTarget;
+    const form = button.closest("form");
+    const title = button.dataset.confirmTitle || "\u78BA\u8A8D\u64CD\u4F5C";
+    const message = button.dataset.confirmMessage || "\u60A8\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
+    const confirmText = button.dataset.confirmText || "\u78BA\u8A8D";
+    const type = button.dataset.confirmType || "danger";
+    const modal = document.getElementById("confirmation-modal");
+    const titleElement = modal?.querySelector('[data-modal-target="title"]');
+    const messageElement = modal?.querySelector('[data-modal-target="message"]');
+    const confirmBtnElement = modal?.querySelector('[data-modal-target="confirmBtn"]');
+    const overlayElement = modal?.querySelector('[data-modal-target="overlay"]');
+    const contentElement = modal?.querySelector('[data-modal-target="content"]');
+    if (!modal || !titleElement || !messageElement || !confirmBtnElement) {
+      console.error("\u274C Modal elements not found");
+      return;
+    }
+    titleElement.textContent = title;
+    messageElement.textContent = message;
+    confirmBtnElement.textContent = confirmText;
+    this.setModalStyleForElement(modal, type);
+    this.pendingForm = form;
+    this.pendingAction = () => {
+      if (form) {
+        form.submit();
+      } else {
+        const href = button.href;
+        if (href) {
+          window.location.href = href;
+        }
+      }
+    };
+    modal.classList.remove("hidden");
+    modal.classList.add("flex");
+    requestAnimationFrame(() => {
+      overlayElement?.classList.add("opacity-100");
+      contentElement?.classList.add("opacity-100", "translate-y-0", "sm:scale-100");
+    });
+  }
+  // 關閉對話框
+  close() {
+    const confirmationModal = document.getElementById("confirmation-modal");
+    if (confirmationModal && !confirmationModal.classList.contains("hidden")) {
+      const overlayElement = confirmationModal?.querySelector('[data-modal-target="overlay"]');
+      const contentElement = confirmationModal?.querySelector('[data-modal-target="content"]');
+      if (overlayElement && contentElement) {
+        overlayElement.classList.remove("opacity-100");
+        contentElement.classList.remove("opacity-100", "translate-y-0", "sm:scale-100");
+      }
+      setTimeout(() => {
+        if (confirmationModal) {
+          confirmationModal.classList.add("hidden");
+          confirmationModal.classList.remove("flex");
+        }
+        this.pendingForm = null;
+        this.pendingAction = null;
+      }, 200);
+      return;
+    }
+    const modalContainer = document.getElementById("modal-container");
+    if (modalContainer && !modalContainer.classList.contains("hidden")) {
+      modalContainer.classList.add("hidden");
+      const modalContent = document.getElementById("modal-content");
+      if (modalContent) {
+        modalContent.innerHTML = "";
+      }
+    }
+  }
+  // 確認操作
+  confirm() {
+    if (this.pendingAction) {
+      this.pendingAction();
+      this.close();
+    } else {
+      this.close();
+    }
+  }
+  // 設定 modal 的樣式（圖示和顏色）- 使用元素參數
+  setModalStyleForElement(modal, type) {
+    const iconContainer = modal.querySelector('[data-modal-target="iconContainer"]');
+    const icon = modal.querySelector('[data-modal-target="icon"]');
+    const confirmBtn = modal.querySelector('[data-modal-target="confirmBtn"]');
+    if (!iconContainer || !icon || !confirmBtn) {
+      console.error("\u274C Modal style elements not found");
+      return;
+    }
+    this.applyModalStyle(iconContainer, icon, confirmBtn, type);
+  }
+  // 設定 modal 的樣式（圖示和顏色）- 原始方法
+  setModalStyle(type) {
+    const iconContainer = this.iconContainerTarget;
+    const icon = this.iconTarget;
+    const confirmBtn = this.confirmBtnTarget;
+    this.applyModalStyle(iconContainer, icon, confirmBtn, type);
+  }
+  // 通用的樣式套用方法
+  applyModalStyle(iconContainer, icon, confirmBtn, type) {
+    iconContainer.className = "mx-auto flex-shrink-0 flex items-center justify-center h-12 w-12 rounded-full sm:mx-0 sm:h-10 sm:w-10";
+    confirmBtn.className = "w-full inline-flex justify-center rounded-md border border-transparent shadow-sm px-4 py-2 text-base font-medium text-white focus:outline-none focus:ring-2 focus:ring-offset-2 sm:ml-3 sm:w-auto sm:text-sm";
+    switch (type) {
+      case "danger":
+        iconContainer.classList.add("bg-red-100");
+        icon.classList.add("text-red-600");
+        confirmBtn.classList.add("bg-red-600", "hover:bg-red-700", "focus:ring-red-500");
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />';
+        break;
+      case "warning":
+        iconContainer.classList.add("bg-yellow-100");
+        icon.classList.add("text-yellow-600");
+        confirmBtn.classList.add("bg-yellow-600", "hover:bg-yellow-700", "focus:ring-yellow-500");
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+        break;
+      case "info":
+        iconContainer.classList.add("bg-blue-100");
+        icon.classList.add("text-blue-600");
+        confirmBtn.classList.add("bg-blue-600", "hover:bg-blue-700", "focus:ring-blue-500");
+        icon.innerHTML = '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />';
+        break;
+      default:
+        iconContainer.classList.add("bg-gray-100");
+        icon.classList.add("text-gray-600");
+        confirmBtn.classList.add("bg-gray-600", "hover:bg-gray-700", "focus:ring-gray-500");
+    }
+  }
+  // 鍵盤事件處理
+  keydown(event) {
+    if (event.key === "Escape") {
+      this.close();
+    } else if (event.key === "Enter") {
+      this.confirm();
+    }
+  }
+  // 顯示 flash 訊息
+  showFlash(message, type = "success") {
+    const flashContainer = document.getElementById("modal-flash-messages");
+    const flashContent = document.getElementById("modal-flash-content");
+    const flashIcon = document.getElementById("modal-flash-icon");
+    const flashText = document.getElementById("modal-flash-text");
+    if (!flashContainer || !flashContent || !flashIcon || !flashText) return;
+    flashContent.className = "rounded-md p-4";
+    flashIcon.innerHTML = "";
+    switch (type) {
+      case "success":
+        flashContent.classList.add("bg-green-50", "border", "border-green-200");
+        flashIcon.classList.add("text-green-400");
+        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"></path>';
+        flashText.classList.add("text-green-800");
+        break;
+      case "error":
+        flashContent.classList.add("bg-red-50", "border", "border-red-200");
+        flashIcon.classList.add("text-red-400");
+        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>';
+        flashText.classList.add("text-red-800");
+        break;
+      case "warning":
+        flashContent.classList.add("bg-yellow-50", "border", "border-yellow-200");
+        flashIcon.classList.add("text-yellow-400");
+        flashIcon.innerHTML = '<path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>';
+        flashText.classList.add("text-yellow-800");
+        break;
+    }
+    flashText.textContent = message;
+    flashContainer.classList.remove("hidden");
+    setTimeout(() => {
+      flashContainer.classList.add("hidden");
+    }, 3e3);
+  }
+  // 隱藏 flash 訊息
+  hideFlash() {
+    const flashContainer = document.getElementById("modal-flash-messages");
+    if (flashContainer) {
+      flashContainer.classList.add("hidden");
+    }
+  }
+  testClick() {
+    alert("Stimulus modal controller \u5DE5\u4F5C\u6B63\u5E38\uFF01");
+  }
+  // 遠程載入 Modal 內容
+  openRemote(event) {
+    event.preventDefault();
+    const link = event.currentTarget;
+    const url = link.href;
+    const modalContainer = document.getElementById("modal-container");
+    const modalContent = document.getElementById("modal-content");
+    if (!modalContainer || !modalContent) {
+      console.error("\u274C Modal container not found");
+      return;
+    }
+    modalContent.innerHTML = `
+            <div class="p-6 text-center">
+                <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-gray-500">\u8F09\u5165\u4E2D...</p>
+            </div>
+        `;
+    modalContainer.classList.remove("hidden");
+    fetch(url, {
+      headers: {
+        Accept: "text/html",
+        "X-Requested-With": "XMLHttpRequest"
+      }
+    }).then((response) => {
+      console.log("\u{1F4E1} Response status:", response.status);
+      console.log("\u{1F4E1} Response headers:", response.headers.get("Content-Type"));
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+      return response.text();
+    }).then((html) => {
+      console.log("\u2705 HTML loaded successfully, length:", html.length);
+      modalContent.innerHTML = html;
+    }).catch((error2) => {
+      console.error("\u{1F4A5} \u8F09\u5165\u5931\u6557\u8A73\u7D30\u932F\u8AA4:", error2);
+      modalContent.innerHTML = `
+                <div class="p-6 text-center">
+                    <p class="text-red-500">\u8F09\u5165\u5931\u6557\uFF1A${error2.message}</p>
+                    <p class="text-sm text-gray-500 mt-2">\u8ACB\u6AA2\u67E5\u63A7\u5236\u53F0\u4E86\u89E3\u8A73\u7D30\u932F\u8AA4</p>
+                </div>
+            `;
+    });
+  }
+};
+
 // app/javascript/controllers/reservation_calendar_controller.js
 var reservation_calendar_controller_default = class extends Controller {
   static targets = [
@@ -12315,12 +12711,14 @@ var reservation_calendar_controller_default = class extends Controller {
 };
 
 // app/javascript/controllers/reservation_controller.js
-var import_zh_tw = __toESM(require_zh_tw());
+var import_zh_tw2 = __toESM(require_zh_tw());
 var reservation_controller_default = class extends Controller {
   static targets = ["date", "calendar", "timeSlots", "periodInfo", "nextStep", "adultCount", "childCount"];
   static values = {
     restaurantSlug: String,
-    businessHours: Object
+    businessHours: Object,
+    maxPartySize: Number,
+    minPartySize: Number
   };
   connect() {
     if (true) {
@@ -12329,6 +12727,8 @@ var reservation_controller_default = class extends Controller {
       console.log("\u{1F525} timeSlots target available:", this.hasTimeSlotsTarget);
       console.log("\u{1F525} dateTarget available:", this.hasDateTarget);
       console.log("\u{1F525} Restaurant slug:", this.restaurantSlugValue);
+      console.log("\u{1F525} Max party size:", this.maxPartySizeValue);
+      console.log("\u{1F525} Min party size:", this.minPartySizeValue);
     }
     this.selectedDate = null;
     this.selectedPeriodId = null;
@@ -12337,17 +12737,22 @@ var reservation_controller_default = class extends Controller {
     setTimeout(() => {
       this.initDatePicker();
       this.setupGuestCountListeners();
+      this.updateGuestCountOptions();
     }, 100);
   }
   setupGuestCountListeners() {
     const handleGuestCountChange = () => {
+      console.log("\u{1F525} Guest count changed, updating form...");
+      this.updateGuestCountOptions();
       this.updateHiddenFields();
+      this.clearSelectedTimeSlot();
       if (this.datePicker) {
         this.refreshAvailableDates();
       } else {
         this.initDatePicker();
       }
       if (this.selectedDate) {
+        console.log("\u{1F525} Reloading time slots for selected date:", this.selectedDate);
         this.loadAllTimeSlots(this.selectedDate);
       }
     };
@@ -12358,6 +12763,48 @@ var reservation_controller_default = class extends Controller {
       this.childCountTarget.addEventListener("change", handleGuestCountChange);
     }
     this.updateHiddenFields();
+  }
+  updateGuestCountOptions() {
+    if (!this.hasAdultCountTarget || !this.hasChildCountTarget) return;
+    const currentAdults = parseInt(this.adultCountTarget.value) || 1;
+    const currentChildren = parseInt(this.childCountTarget.value) || 0;
+    const maxPartySize = this.maxPartySizeValue || 6;
+    const minPartySize = this.minPartySizeValue || 1;
+    console.log("\u{1F525} Updating guest count options:", { currentAdults, currentChildren, maxPartySize, minPartySize });
+    this.updateSelectOptions(this.adultCountTarget, currentAdults, 1, maxPartySize - currentChildren);
+    this.updateSelectOptions(this.childCountTarget, currentChildren, 0, maxPartySize - currentAdults);
+    this.validateCurrentSelection();
+  }
+  updateSelectOptions(selectElement, currentValue, minValue, maxValue) {
+    selectElement.innerHTML = "";
+    for (let i = minValue; i <= maxValue; i++) {
+      const option2 = document.createElement("option");
+      option2.value = i;
+      option2.textContent = i;
+      if (i === currentValue) {
+        option2.selected = true;
+      }
+      selectElement.appendChild(option2);
+    }
+    console.log(`\u{1F525} Updated ${selectElement.name} options: ${minValue}-${maxValue}, current: ${currentValue}`);
+  }
+  validateCurrentSelection() {
+    const adults = parseInt(this.adultCountTarget.value) || 1;
+    const children = parseInt(this.childCountTarget.value) || 0;
+    const totalPartySize = adults + children;
+    const maxPartySize = this.maxPartySizeValue || 6;
+    console.log("\u{1F525} Validating selection:", { adults, children, totalPartySize, maxPartySize });
+    if (totalPartySize > maxPartySize) {
+      const adjustedChildren = Math.max(0, maxPartySize - adults);
+      console.log("\u{1F525} Adjusting children count from", children, "to", adjustedChildren);
+      this.childCountTarget.value = adjustedChildren;
+      setTimeout(() => this.updateGuestCountOptions(), 10);
+    }
+    if (adults < 1) {
+      console.log("\u{1F525} Adjusting adults count to minimum 1");
+      this.adultCountTarget.value = 1;
+      setTimeout(() => this.updateGuestCountOptions(), 10);
+    }
   }
   updateHiddenFields() {
     const adultHiddenField = document.getElementById("adult_count");
@@ -12388,7 +12835,12 @@ var reservation_controller_default = class extends Controller {
       const partySize = this.getCurrentPartySize();
       const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
       console.log("\u{1F525} Fetching from:", apiUrl);
-      const response = await fetch(apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        }
+      });
       console.log("\u{1F525} API response status:", response.status);
       if (response.status === 503) {
         const errorData = await response.json();
@@ -12409,7 +12861,7 @@ var reservation_controller_default = class extends Controller {
       console.log("\u{1F525} Disabled dates:", disabledDates);
       this.datePicker = esm_default(this.calendarTarget, {
         inline: true,
-        locale: import_zh_tw.default.zh_tw,
+        locale: import_zh_tw2.default.zh_tw,
         dateFormat: "Y-m-d",
         minDate: "today",
         maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
@@ -12475,7 +12927,12 @@ var reservation_controller_default = class extends Controller {
       const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0;
       const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`;
       console.log("\u{1F525} Fetching time slots from:", url);
-      const response = await fetch(url);
+      const response = await fetch(url, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        }
+      });
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
@@ -12625,8 +13082,11 @@ var reservation_controller_default = class extends Controller {
       });
     }
     if (special_closures && special_closures.length > 0) {
-      special_closures.forEach((closure) => {
-        disabledDates.push(closure);
+      special_closures.forEach((closureStr) => {
+        const closureDate = new Date(closureStr);
+        disabledDates.push((date) => {
+          return date.getFullYear() === closureDate.getFullYear() && date.getMonth() === closureDate.getMonth() && date.getDate() === closureDate.getDate();
+        });
       });
     }
     return disabledDates;
@@ -12638,6 +13098,63 @@ var reservation_controller_default = class extends Controller {
     url.searchParams.set("date_filter", dateStr);
     window.history.pushState({}, "", url.toString());
     console.log("\u{1F525} URL updated to:", url.toString());
+  }
+  clearSelectedTimeSlot() {
+    this.selectedTime = null;
+    this.selectedPeriodId = null;
+    if (this.hasTimeSlotsTarget) {
+      this.timeSlotsTarget.querySelectorAll("button").forEach((btn) => {
+        btn.classList.remove("bg-blue-600", "border-blue-500");
+        btn.classList.add("bg-gray-800", "border-gray-600");
+      });
+    }
+    const timeField = document.getElementById("reservation_time");
+    const periodField = document.getElementById("operating_period_id");
+    if (timeField) timeField.value = "";
+    if (periodField) periodField.value = "";
+    this.updateFormState();
+  }
+  async refreshAvailableDates() {
+    console.log("\u{1F525} Refreshing available dates due to party size change...");
+    try {
+      const partySize = this.getCurrentPartySize();
+      const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
+      console.log("\u{1F525} Fetching updated available days from:", apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("\u{1F525} Updated available days data:", data);
+      const disabledDates = this.calculateDisabledDates(
+        data.weekly_closures || [],
+        data.special_closures || [],
+        data.has_capacity
+      );
+      if (this.datePicker) {
+        this.datePicker.set("disable", disabledDates);
+        this.datePicker.redraw();
+      }
+      this.updateFullBookingNotice(data);
+      if (this.selectedDate && !data.has_capacity) {
+        console.log("\u{1F525} Current selected date is no longer available, clearing selection");
+        this.selectedDate = null;
+        if (this.hasDateTarget) {
+          this.dateTarget.value = "";
+        }
+        if (this.hasTimeSlotsTarget) {
+          this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u5148\u9078\u64C7\u65E5\u671F</p>';
+        }
+      }
+    } catch (error2) {
+      console.error("\u{1F525} Error refreshing available dates:", error2);
+      this.showError("\u91CD\u65B0\u8F09\u5165\u53EF\u7528\u65E5\u671F\u6642\u767C\u751F\u932F\u8AA4");
+    }
   }
 };
 
@@ -12938,6 +13455,24 @@ var reservation_policy_controller_default = class extends Controller {
     });
     this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${durationText}</span>`;
     this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u684C\u4F4D\u6703\u88AB\u4F54\u7528\u5230 <span class="font-medium text-blue-600">${endTimeString}</span>`;
+  }
+};
+
+// app/javascript/controllers/restaurant_info_controller.js
+var restaurant_info_controller_default = class extends Controller {
+  static targets = ["infoButton", "infoPanel"];
+  connect() {
+    console.log("\u{1F525} Restaurant Info Controller connected");
+  }
+  toggleInfo() {
+    console.log("\u{1F525} Toggle restaurant info");
+    if (this.infoPanelTarget.classList.contains("hidden")) {
+      this.infoPanelTarget.classList.remove("hidden");
+      this.infoPanelTarget.classList.add("animate-slideDown");
+    } else {
+      this.infoPanelTarget.classList.add("hidden");
+      this.infoPanelTarget.classList.remove("animate-slideDown");
+    }
   }
 };
 
@@ -13697,24 +14232,6 @@ var restaurant_management_controller_default = class extends Controller {
       }
     }, 200);
     console.log("\u2705 Controller reinitialization requested");
-  }
-};
-
-// app/javascript/controllers/restaurant_info_controller.js
-var restaurant_info_controller_default = class extends Controller {
-  static targets = ["infoButton", "infoPanel"];
-  connect() {
-    console.log("\u{1F525} Restaurant Info Controller connected");
-  }
-  toggleInfo() {
-    console.log("\u{1F525} Toggle restaurant info");
-    if (this.infoPanelTarget.classList.contains("hidden")) {
-      this.infoPanelTarget.classList.remove("hidden");
-      this.infoPanelTarget.classList.add("animate-slideDown");
-    } else {
-      this.infoPanelTarget.classList.add("hidden");
-      this.infoPanelTarget.classList.remove("animate-slideDown");
-    }
   }
 };
 
@@ -16175,6 +16692,7 @@ var sortable_controller_default = class extends Controller {
 };
 
 // app/javascript/controllers/index.js
+application.register("admin-reservation", admin_reservation_controller_default);
 application.register("calendar", calendar_controller_default);
 application.register("closure-dates", closure_dates_controller_default);
 application.register("confirmation", confirmation_controller_default);
@@ -16187,8 +16705,8 @@ application.register("reservation-calendar", reservation_calendar_controller_def
 application.register("reservation", reservation_controller_default);
 application.register("reservation-form", reservation_form_controller_default);
 application.register("reservation-policy", reservation_policy_controller_default);
-application.register("restaurant-management", restaurant_management_controller_default);
 application.register("restaurant-info", restaurant_info_controller_default);
+application.register("restaurant-management", restaurant_management_controller_default);
 application.register("sortable", sortable_controller_default);
 /*! Bundled license information:
 

@@ -1,7 +1,162 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+/* Import both flatpickr themes and use CSS scoping to apply different themes */
+@import 'flatpickr/dist/flatpickr.css';
+
+/* Frontend dark theme - default for all flatpickr calendars */
 @import 'flatpickr/dist/themes/dark.css';
+
+/* Admin backend light theme - comprehensive override for all flatpickr elements */
+.admin-page .flatpickr-calendar,
+[data-controller*="admin-reservation"] .flatpickr-calendar {
+    background-color: #fff !important;
+    color: #393939 !important;
+    border: 1px solid #e6e6e6 !important;
+    border-radius: 5px !important;
+    box-shadow: 0 3px 13px rgba(0,0,0,0.08) !important;
+}
+
+/* Month header */
+.admin-page .flatpickr-calendar .flatpickr-month,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-month {
+    background-color: #fff !important;
+    color: #393939 !important;
+}
+
+/* Month dropdown */
+.admin-page .flatpickr-calendar .flatpickr-monthDropdown-months,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-monthDropdown-months {
+    background-color: #fff !important;
+    color: #393939 !important;
+}
+
+/* Current month display */
+.admin-page .flatpickr-calendar .flatpickr-current-month,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-current-month {
+    color: #393939 !important;
+}
+
+/* Current month input */
+.admin-page .flatpickr-calendar .flatpickr-current-month input,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-current-month input {
+    background-color: #fff !important;
+    color: #393939 !important;
+}
+
+/* Navigation arrows */
+.admin-page .flatpickr-calendar .flatpickr-prev-month,
+.admin-page .flatpickr-calendar .flatpickr-next-month,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-prev-month,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-next-month {
+    color: #393939 !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-prev-month:hover,
+.admin-page .flatpickr-calendar .flatpickr-next-month:hover,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-prev-month:hover,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-next-month:hover {
+    color: #569ff7 !important;
+}
+
+/* Weekdays header */
+.admin-page .flatpickr-calendar .flatpickr-weekdays,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-weekdays {
+    background-color: #fff !important;
+    color: #393939 !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-weekday,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-weekday {
+    background-color: #fff !important;
+    color: #393939 !important;
+}
+
+/* Days container */
+.admin-page .flatpickr-calendar .dayContainer,
+[data-controller*="admin-reservation"] .flatpickr-calendar .dayContainer {
+    background-color: #fff !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-days,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-days {
+    background-color: #fff !important;
+}
+
+/* Individual day cells */
+.admin-page .flatpickr-calendar .flatpickr-day,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day {
+    background-color: #fff !important;
+    color: #393939 !important;
+    border: 1px solid transparent !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-day:hover,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day:hover {
+    background-color: #e6e6e6 !important;
+    color: #393939 !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-day.selected,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.selected {
+    background-color: #569ff7 !important;
+    color: #fff !important;
+    border-color: #569ff7 !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-day.today,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.today {
+    border-color: #959ea9 !important;
+    color: #393939 !important;
+    background-color: #fff !important;
+}
+
+.admin-page .flatpickr-calendar .flatpickr-day.today.selected,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.today.selected {
+    background-color: #569ff7 !important;
+    color: #fff !important;
+    border-color: #569ff7 !important;
+}
+
+/* Disabled days */
+.admin-page .flatpickr-calendar .flatpickr-day.flatpickr-disabled,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.flatpickr-disabled {
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+}
+
+/* Outside month days */
+.admin-page .flatpickr-calendar .flatpickr-day.prevMonthDay,
+.admin-page .flatpickr-calendar .flatpickr-day.nextMonthDay,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.prevMonthDay,
+[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.nextMonthDay {
+    color: #d1d5db !important;
+}
+
+/* Year dropdown */
+.admin-page .flatpickr-calendar .numInputWrapper,
+[data-controller*="admin-reservation"] .flatpickr-calendar .numInputWrapper {
+    background-color: #fff !important;
+}
+
+.admin-page .flatpickr-calendar .numInput,
+[data-controller*="admin-reservation"] .flatpickr-calendar .numInput {
+    background-color: #fff !important;
+    color: #393939 !important;
+}
+
+/* Arrow up/down for year input */
+.admin-page .flatpickr-calendar .arrowUp,
+.admin-page .flatpickr-calendar .arrowDown,
+[data-controller*="admin-reservation"] .flatpickr-calendar .arrowUp,
+[data-controller*="admin-reservation"] .flatpickr-calendar .arrowDown {
+    border-bottom-color: #393939 !important;
+}
+
+.admin-page .flatpickr-calendar .arrowDown,
+[data-controller*="admin-reservation"] .flatpickr-calendar .arrowDown {
+    border-top-color: #393939 !important;
+}
 
 @import './sortable.css';
 

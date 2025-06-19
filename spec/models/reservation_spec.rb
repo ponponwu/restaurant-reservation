@@ -216,4 +216,114 @@ RSpec.describe Reservation, type: :model do
       end
     end
   end
+
+  describe '#skip_blacklist_validation' do
+    let(:restaurant) { create(:restaurant) }
+    let(:blacklisted_phone) { '0987654321' }
+    
+    before do
+      # 創建黑名單記錄
+      create(:blacklist, 
+             restaurant: restaurant, 
+             customer_phone: blacklisted_phone,
+             reason: 'Test reason')
+    end
+
+    context 'when skip_blacklist_validation is false (default)' do
+      it 'validates blacklist and prevents creation' do
+        reservation = build(:reservation, 
+                           restaurant: restaurant,
+                           customer_phone: blacklisted_phone)
+        
+        expect(reservation.valid?).to be false
+        expect(reservation.errors[:base]).to include('訂位失敗，請聯繫餐廳')
+      end
+    end
+
+    context 'when skip_blacklist_validation is true' do
+      it 'skips blacklist validation and allows creation' do
+        reservation = build(:reservation, 
+                           restaurant: restaurant,
+                           customer_phone: blacklisted_phone)
+        reservation.skip_blacklist_validation = true
+        
+        # 移除其他可能的驗證錯誤，只測試黑名單驗證
+        reservation.reservation_datetime = 2.days.from_now
+        reservation.adults_count = reservation.party_size
+        reservation.children_count = 0
+        
+        expect(reservation.valid?).to be true
+      end
+    end
+
+    context 'with normal phone number' do
+      let(:normal_phone) { '0912345678' }
+      
+      it 'allows creation regardless of skip_blacklist_validation setting' do
+        reservation1 = build(:reservation, 
+                            restaurant: restaurant,
+                            customer_phone: normal_phone)
+        reservation1.skip_blacklist_validation = false
+        
+        reservation2 = build(:reservation, 
+                            restaurant: restaurant,
+                            customer_phone: normal_phone)
+        reservation2.skip_blacklist_validation = true
+        
+        # 修正其他驗證問題
+        [reservation1, reservation2].each do |res|
+          res.reservation_datetime = 2.days.from_now
+          res.adults_count = res.party_size
+          res.children_count = 0
+        end
+        
+        expect(reservation1.valid?).to be true
+        expect(reservation2.valid?).to be true
+      end
+    end
+  end
+
+  describe 'blacklist validation error message' do
+    let(:restaurant) { create(:restaurant) }
+    let(:blacklisted_phone) { '0987654321' }
+    
+    before do
+      create(:blacklist, 
+             restaurant: restaurant, 
+             customer_phone: blacklisted_phone,
+             reason: 'Specific blacklist reason')
+    end
+
+    it 'shows generic error message instead of specific blacklist details' do
+      reservation = build(:reservation, 
+                         restaurant: restaurant,
+                         customer_phone: blacklisted_phone)
+      
+      reservation.valid?
+      
+      expect(reservation.errors[:base]).to include('訂位失敗，請聯繫餐廳')
+      expect(reservation.errors.full_messages.join).not_to include('黑名單')
+      expect(reservation.errors.full_messages.join).not_to include('Specific blacklist reason')
+    end
+  end
+
+  describe '#skip_blacklist_validation attribute' do
+    it 'has skip_blacklist_validation accessor' do
+      reservation = Reservation.new
+      
+      expect(reservation).to respond_to(:skip_blacklist_validation)
+      expect(reservation).to respond_to(:skip_blacklist_validation=)
+    end
+    
+    it 'defaults to nil/false' do
+      reservation = Reservation.new
+      expect(reservation.skip_blacklist_validation).to be_nil
+    end
+    
+    it 'can be set to true' do
+      reservation = Reservation.new
+      reservation.skip_blacklist_validation = true
+      expect(reservation.skip_blacklist_validation).to be true
+    end
+  end
 end 

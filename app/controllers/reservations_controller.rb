@@ -272,7 +272,10 @@ class ReservationsController < ApplicationController
 
   # 建立訂位物件
   def build_reservation
-    @restaurant.reservations.build(reservation_params)
+    reservation = @restaurant.reservations.build(reservation_params)
+    # 前台由控制器統一處理黑名單檢查，避免重複錯誤訊息
+    reservation.skip_blacklist_validation = true
+    reservation
   end
 
   # 設定建立訂位的參數
@@ -301,17 +304,31 @@ class ReservationsController < ApplicationController
     true
   end
 
-  # 驗證手機號碼訂位限制
+  # 驗證手機號碼訂位限制和黑名單狀態
   def validate_phone_booking_limit
     customer_phone = @reservation.customer_phone
     reservation_policy = @restaurant.reservation_policy
     
-    if customer_phone.present? && reservation_policy.phone_booking_limit_exceeded?(customer_phone)
-      @reservation.errors.add(:customer_phone, "訂位次數已達上限。")
+    # 檢查黑名單狀態
+    if customer_phone.present? && Blacklist.blacklisted_phone?(@restaurant, customer_phone)
+      # 清空現有錯誤，確保不會有重複訊息
+      @reservation.errors.clear
+      @reservation.errors.add(:base, "訂位失敗，請聯繫餐廳")
       @selected_date = Date.parse(params[:date]) rescue Date.current
       render :new, status: :unprocessable_entity
       return false
     end
+    
+    # 檢查手機號碼訂位限制
+    if customer_phone.present? && reservation_policy.phone_booking_limit_exceeded?(customer_phone)
+      # 清空現有錯誤，確保不會有重複訊息
+      @reservation.errors.clear
+      @reservation.errors.add(:base, "訂位失敗，請聯繫餐廳")
+      @selected_date = Date.parse(params[:date]) rescue Date.current
+      render :new, status: :unprocessable_entity
+      return false
+    end
+    
     true
   end
 
@@ -420,7 +437,18 @@ class ReservationsController < ApplicationController
     all_errors.concat(@reservation.errors.full_messages) if @reservation.errors.any?
     all_errors.concat(combination.errors.full_messages) if defined?(combination) && combination&.errors&.any?
     
-    { success: false, errors: all_errors.presence || ['併桌訂位建立失敗'] }
+    # 檢查是否有敏感錯誤
+    has_sensitive_error = all_errors.any? { |error| 
+      error.include?('黑名單') || 
+      error.include?('無法進行訂位') || 
+      error.include?('訂位失敗，請聯繫餐廳')
+    }
+    
+    if has_sensitive_error
+      { success: false, errors: ['訂位失敗，請聯繫餐廳'] }
+    else
+      { success: false, errors: all_errors.presence || ['併桌訂位建立失敗'] }
+    end
   end
 
   # 保存單桌訂位
@@ -431,13 +459,43 @@ class ReservationsController < ApplicationController
       { success: true }
     else
       Rails.logger.error "前台創建單桌訂位失敗: #{@reservation.errors.full_messages.join(', ')}"
-      { success: false, errors: @reservation.errors.full_messages }
+      
+      # 檢查是否有敏感錯誤並處理
+      error_messages = @reservation.errors.full_messages
+      has_sensitive_error = error_messages.any? { |error| 
+        error.include?('黑名單') || 
+        error.include?('無法進行訂位') || 
+        error.include?('訂位失敗，請聯繫餐廳')
+      }
+      
+      if has_sensitive_error
+        { success: false, errors: ['訂位失敗，請聯繫餐廳'] }
+      else
+        { success: false, errors: error_messages }
+      end
     end
   end
 
   # 處理訂位建立失敗
   def handle_reservation_creation_failure(errors)
-    errors.each { |error| @reservation.errors.add(:base, error) }
+    # 檢查是否有敏感錯誤（黑名單、限制等）
+    has_sensitive_error = errors.any? { |error| 
+      error.include?('黑名單') || 
+      error.include?('無法進行訂位') || 
+      error.include?('訂位失敗，請聯繫餐廳')
+    }
+    
+    # 清空現有錯誤
+    @reservation.errors.clear
+    
+    if has_sensitive_error
+      # 如果有敏感錯誤，只顯示一個通用錯誤訊息
+      @reservation.errors.add(:base, '訂位失敗，請聯繫餐廳')
+    else
+      # 如果沒有敏感錯誤，顯示原始錯誤訊息並去重
+      errors.uniq.each { |error| @reservation.errors.add(:base, error) }
+    end
+    
     @selected_date = Date.parse(params[:date]) rescue Date.current
     render :new, status: :unprocessable_entity
   end

@@ -57,3 +57,6 @@
     border-color: #ef4444;
     color: #ef4444;
 }
+
+/* Flatpickr theme overrides are no longer needed as themes are imported conditionally */
+

@@ -215,4 +215,145 @@ RSpec.describe '訂位流程', type: :system, js: true do
       expect(child_select.value).to eq('1')
     end
   end
+
+  describe 'error message display' do
+    let(:blacklisted_phone) { '0987654321' }
+    
+    before do
+      # 創建黑名單記錄
+      create(:blacklist, 
+             restaurant: restaurant, 
+             customer_phone: blacklisted_phone,
+             reason: 'Test blacklist reason')
+      
+      # 設定基本的營業時段和桌位
+      create(:business_period, 
+             restaurant: restaurant,
+             start_time: '17:00',
+             end_time: '22:00')
+      create(:restaurant_table, restaurant: restaurant, capacity: 4)
+    end
+
+    context 'when user is blacklisted', js: true do
+      it 'shows simplified error message without revealing blacklist status' do
+        visit restaurant_public_path(restaurant.slug)
+        
+        # 選擇日期和人數
+        select_date_and_party_size(Date.tomorrow, 2, 0)
+        
+        # 選擇時間
+        click_button '18:00' if page.has_button?('18:00')
+        
+        # 填寫訂位表單
+        fill_in '聯絡人姓名', with: '黑名單客戶'
+        fill_in '聯絡電話', with: blacklisted_phone
+        fill_in '電子郵件', with: 'blacklisted@example.com'
+        
+        # 提交表單
+        click_button '送出預約申請'
+        
+        # 驗證錯誤訊息格式
+        expect(page).to have_content('訂位失敗，請聯繫餐廳')
+        
+        # 確保不顯示敏感資訊
+        expect(page).not_to have_content('黑名單')
+        expect(page).not_to have_content('blacklist')
+        expect(page).not_to have_content('Test blacklist reason')
+        
+        # 確保不顯示錯誤標題和列表樣式
+        expect(page).not_to have_content('預約時發生錯誤')
+        expect(page).not_to have_content('發生錯誤')
+        
+        # 確保錯誤訊息只出現一次（無重複）
+        error_elements = page.all(:xpath, "//*[contains(text(), '訂位失敗，請聯繫餐廳')]")
+        expect(error_elements.count).to eq(1)
+        
+        # 確保錯誤訊息有適當的樣式但沒有列表格式
+        within('.bg-red-50') do
+          expect(page).to have_content('訂位失敗，請聯繫餐廳')
+          expect(page).not_to have_selector('ul')
+          expect(page).not_to have_selector('li')
+        end
+      end
+    end
+
+    context 'when phone booking limit is exceeded', js: true do
+      let(:limited_phone) { '0966666666' }
+      
+      before do
+        restaurant.reservation_policy.update!(
+          max_bookings_per_phone: 1,
+          phone_limit_period_days: 30
+        )
+        
+        # 創建現有訂位達到限制
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: limited_phone,
+               reservation_datetime: 5.days.from_now,
+               status: :confirmed)
+      end
+      
+      it 'shows generic error message without revealing specific limit details' do
+        visit restaurant_public_path(restaurant.slug)
+        
+        # 選擇日期和人數
+        select_date_and_party_size(Date.tomorrow, 2, 0)
+        
+        # 選擇時間
+        click_button '18:00' if page.has_button?('18:00')
+        
+        # 填寫訂位表單
+        fill_in '聯絡人姓名', with: '限制客戶'
+        fill_in '聯絡電話', with: limited_phone
+        fill_in '電子郵件', with: 'limited@example.com'
+        
+        # 提交表單
+        click_button '送出預約申請'
+        
+        # 驗證錯誤訊息
+        expect(page).to have_content('訂位失敗，請聯繫餐廳')
+        
+        # 確保不顯示具體限制資訊
+        expect(page).not_to have_content('訂位次數已達上限')
+        expect(page).not_to have_content('limit')
+        expect(page).not_to have_content('超過')
+      end
+    end
+
+    context 'with successful reservation', js: true do
+      it 'does not show error messages' do
+        visit restaurant_public_path(restaurant.slug)
+        
+        # 選擇日期和人數
+        select_date_and_party_size(Date.tomorrow, 2, 0)
+        
+        # 選擇時間
+        click_button '18:00' if page.has_button?('18:00')
+        
+        # 填寫正常的訂位表單
+        fill_in '聯絡人姓名', with: '正常客戶'
+        fill_in '聯絡電話', with: '0912345678'
+        fill_in '電子郵件', with: 'normal@example.com'
+        
+        # 提交表單
+        click_button '送出預約申請'
+        
+        # 應該重定向到成功頁面，不應該有錯誤訊息
+        expect(page).to have_current_path(restaurant_public_path(restaurant.slug))
+        expect(page).to have_content('訂位建立成功')
+        expect(page).not_to have_content('訂位失敗')
+        expect(page).not_to have_selector('.bg-red-50')
+      end
+    end
+  end
+
+  private
+  
+  def select_date_and_party_size(date, adults, children)
+    # 實作選擇日期和人數的輔助方法
+    # 這裡的具體實作會依據實際的前端介面而定
+    fill_in 'adults', with: adults if page.has_field?('adults')
+    fill_in 'children', with: children if page.has_field?('children')
+  end
 end 

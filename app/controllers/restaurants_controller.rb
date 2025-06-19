@@ -164,7 +164,7 @@ class RestaurantsController < ApplicationController
       remaining_bookings = reservation_policy.remaining_bookings_for_phone(phone_number)
       
       if phone_limit_exceeded
-        phone_limit_message = "訂位次數已達上限。"
+        phone_limit_message = "訂位失敗，請聯繫餐廳"
         Rails.logger.info "Phone booking limit exceeded for #{phone_number}"
       end
     end

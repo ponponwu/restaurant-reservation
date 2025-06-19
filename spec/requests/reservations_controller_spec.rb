@@ -312,4 +312,179 @@ RSpec.describe ReservationsController, type: :request do
       end
     end
   end
+
+  describe 'blacklist protection and sensitive error handling' do
+    let(:blacklisted_phone) { '0987654321' }
+    let(:normal_phone) { '0912345678' }
+
+    before do
+      reservation_policy.update!(reservation_enabled: true)
+      # 創建黑名單記錄
+      create(:blacklist, 
+             restaurant: restaurant, 
+             customer_phone: blacklisted_phone,
+             reason: 'Test blacklist reason')
+    end
+
+    describe 'POST #create with blacklisted phone' do
+      let(:blacklisted_params) do
+        {
+          reservation: {
+            customer_name: '黑名單客戶',
+            customer_phone: blacklisted_phone,
+            customer_email: 'blacklisted@example.com',
+            party_size: 4
+          },
+          date: 2.days.from_now.to_date.to_s,
+          time_slot: '18:00',
+          adults: 3,
+          children: 1,
+          business_period_id: restaurant.business_periods.first&.id
+        }
+      end
+
+      it 'prevents reservation creation' do
+        expect {
+          post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
+        }.not_to change(Reservation, :count)
+      end
+
+      it 'returns unprocessable entity status' do
+        post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
+        expect(response).to have_http_status(:unprocessable_entity)
+      end
+
+      it 'shows generic error message instead of revealing blacklist status' do
+        post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
+        expect(response.body).to include('訂位失敗，請聯繫餐廳')
+        expect(response.body).not_to include('黑名單')
+        expect(response.body).not_to include('blacklist')
+      end
+
+      it 'does not show detailed blacklist reason' do
+        post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
+        expect(response.body).not_to include('Test blacklist reason')
+      end
+    end
+
+    describe 'POST #create with phone booking limit exceeded' do
+      let(:limited_phone) { '0966666666' }
+
+      before do
+        reservation_policy.update!(
+          max_bookings_per_phone: 1,
+          phone_limit_period_days: 30
+        )
+
+        # 創建一個現有訂位達到限制
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: limited_phone,
+               reservation_datetime: 5.days.from_now,
+               status: :confirmed)
+      end
+
+      let(:limited_params) do
+        {
+          reservation: {
+            customer_name: '限制客戶',
+            customer_phone: limited_phone,
+            customer_email: 'limited@example.com',
+            party_size: 2
+          },
+          date: 3.days.from_now.to_date.to_s,
+          time_slot: '19:00',
+          adults: 2,
+          children: 0,
+          business_period_id: restaurant.business_periods.first&.id
+        }
+      end
+
+      it 'prevents reservation creation' do
+        expect {
+          post restaurant_reservations_path(restaurant.slug), params: limited_params
+        }.not_to change(Reservation, :count)
+      end
+
+      it 'shows generic error message instead of revealing specific limit' do
+        post restaurant_reservations_path(restaurant.slug), params: limited_params
+        expect(response.body).to include('訂位失敗，請聯繫餐廳')
+        expect(response.body).not_to include('訂位次數已達上限')
+        expect(response.body).not_to include('limit')
+      end
+    end
+
+    describe 'POST #create with normal phone (no restrictions)' do
+      let(:normal_params) do
+        {
+          reservation: {
+            customer_name: '正常客戶',
+            customer_phone: normal_phone,
+            customer_email: 'normal@example.com',
+            party_size: 2
+          },
+          date: 2.days.from_now.to_date.to_s,
+          time_slot: '18:30',
+          adults: 2,
+          children: 0,
+          business_period_id: restaurant.business_periods.first&.id
+        }
+      end
+
+      before do
+        # 確保餐廳有營業時段和桌位
+        unless restaurant.business_periods.any?
+          create(:business_period, restaurant: restaurant)
+        end
+        unless restaurant.restaurant_tables.any?
+          create(:restaurant_table, restaurant: restaurant)
+        end
+      end
+
+      it 'allows reservation creation' do
+        expect {
+          post restaurant_reservations_path(restaurant.slug), params: normal_params
+        }.to change(Reservation, :count).by(1)
+      end
+
+      it 'redirects to restaurant page on success' do
+        post restaurant_reservations_path(restaurant.slug), params: normal_params
+        expect(response).to have_http_status(:redirect)
+        expect(response).to redirect_to(restaurant_public_path(restaurant.slug))
+      end
+    end
+
+    describe 'error message display format' do
+      let(:blacklisted_params) do
+        {
+          reservation: {
+            customer_name: '測試客戶',
+            customer_phone: blacklisted_phone,
+            customer_email: 'test@example.com',
+            party_size: 4
+          },
+          date: 2.days.from_now.to_date.to_s,
+          time_slot: '18:00',
+          adults: 3,
+          children: 1,
+          business_period_id: restaurant.business_periods.first&.id
+        }
+      end
+
+      it 'shows simplified error message without title or list styling' do
+        post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
+        
+        # 應該包含錯誤訊息
+        expect(response.body).to include('訂位失敗，請聯繫餐廳')
+        
+        # 不應該包含錯誤標題
+        expect(response.body).not_to include('預約時發生錯誤')
+        expect(response.body).not_to include('發生錯誤')
+        
+        # 不應該有重複的錯誤訊息
+        error_count = response.body.scan(/訂位失敗，請聯繫餐廳/).length
+        expect(error_count).to eq(1)
+      end
+    end
+  end
 end 

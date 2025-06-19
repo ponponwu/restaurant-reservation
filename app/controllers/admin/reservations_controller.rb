@@ -94,11 +94,22 @@ class Admin::ReservationsController < Admin::BaseController
     # 設定預設狀態為已確認
     @reservation.status = :confirmed
     
+    # 檢查是否為管理員強制模式
+    admin_override = params[:admin_override] == 'true'
+    
     if @reservation.save
       # 嘗試自動分配桌位（如果沒有手動指定）
       unless @reservation.table_id.present?
-        allocate_table_for_reservation(@reservation)
-        @reservation.save  # 儲存桌位分配結果
+        allocation_success = allocate_table_for_reservation(@reservation, admin_override)
+        if allocation_success
+          @reservation.save  # 儲存桌位分配結果
+        else
+          if admin_override
+            Rails.logger.warn "管理後台 - 強制模式下訂位 #{@reservation.id} 建立成功但桌位分配失敗"
+          else
+            Rails.logger.warn "管理後台 - 訂位 #{@reservation.id} 建立成功但桌位分配失敗"
+          end
+        end
       end
       respond_to do |format|
         format.html do
@@ -334,15 +345,33 @@ class Admin::ReservationsController < Admin::BaseController
     params.require(:reservation).permit(
       :customer_name, :customer_phone, :customer_email,
       :party_size, :adults_count, :children_count,
-      :reservation_datetime, :status, :notes,
-      :special_requests, :table_id,
-      :business_period_id
+      :reservation_datetime, :status, :notes, :special_requests, 
+      :table_id, :business_period_id
     )
   end
 
   # 為訂位分配桌位
-  def allocate_table_for_reservation(reservation)
-    allocator = ReservationAllocatorService.new(reservation)
+  def allocate_table_for_reservation(reservation, admin_override = false)
+    allocator = ReservationAllocatorService.new({
+      restaurant: @restaurant,
+      party_size: reservation.party_size,
+      adults: reservation.adults_count || reservation.party_size,
+      children: reservation.children_count || 0,
+      reservation_datetime: reservation.reservation_datetime,
+      business_period_id: reservation.business_period_id
+    })
+    
+    # 檢查可用性（管理員強制模式下可以跳過）
+    unless admin_override
+      availability_check = allocator.check_availability
+      unless availability_check[:has_availability]
+        Rails.logger.warn "管理後台 - 無法為訂位 #{reservation.id} 分配桌位：無可用性"
+        return false
+      end
+    else
+      Rails.logger.info "管理後台 - 強制模式：跳過可用性檢查，為訂位 #{reservation.id} 分配桌位"
+    end
+    
     allocated_table = allocator.allocate_table
     
     if allocated_table
@@ -359,19 +388,29 @@ class Admin::ReservationsController < Admin::BaseController
         end
         
         if combination.save
-          Rails.logger.info "分配併桌給訂位 #{reservation.id}: #{allocated_table.map(&:table_number).join(', ')}"
+          Rails.logger.info "管理後台 - 分配併桌給訂位 #{reservation.id}: #{allocated_table.map(&:table_number).join(', ')}"
           # 設定主桌位（用於相容性）
           reservation.table = allocated_table.first
+          return true
         else
-          Rails.logger.error "創建併桌組合失敗: #{combination.errors.full_messages.join(', ')}"
+          Rails.logger.error "管理後台 - 創建併桌組合失敗: #{combination.errors.full_messages.join(', ')}"
+          return false
         end
       else
         # 單桌情況
         reservation.table = allocated_table
-        Rails.logger.info "分配桌位 #{allocated_table.table_number} 給訂位 #{reservation.id}"
+        Rails.logger.info "管理後台 - 分配桌位 #{allocated_table.table_number} 給訂位 #{reservation.id}"
+        return true
       end
     else
-      Rails.logger.warn "無法為訂位 #{reservation.id} 找到合適的桌位"
+      if admin_override
+        # 強制模式下，即使沒有找到桌位，也允許建立訂位
+        Rails.logger.info "管理後台 - 強制模式：無法找到合適桌位，但允許建立訂位 #{reservation.id}（無桌位分配）"
+        return true
+      else
+        Rails.logger.warn "管理後台 - 無法為訂位 #{reservation.id} 找到合適的桌位"
+        return false
+      end
     end
   end
 

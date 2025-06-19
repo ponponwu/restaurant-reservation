@@ -1,4 +1,7 @@
 class Reservation < ApplicationRecord
+  # 控制是否跳過黑名單驗證（用於前台統一處理錯誤訊息）
+  attr_accessor :skip_blacklist_validation
+
   # 1. 關聯定義（放在最前面）
   belongs_to :restaurant
   belongs_to :table, optional: true, foreign_key: 'table_id', class_name: 'RestaurantTable'
@@ -21,7 +24,7 @@ class Reservation < ApplicationRecord
   validate :reservation_datetime_in_future, on: :create
   validate :party_size_within_restaurant_limits
   validate :party_size_matches_adults_and_children
-  validate :customer_not_blacklisted, on: :create
+  validate :customer_not_blacklisted, on: :create, unless: :skip_blacklist_validation
   
   # 3. Scope 定義
   scope :active, -> { where.not(status: %w[cancelled no_show]) }
@@ -330,7 +333,8 @@ class Reservation < ApplicationRecord
     return unless restaurant && customer_phone
     
     if Blacklist.blacklisted_phone?(restaurant, customer_phone)
-      errors.add(:customer_phone, '此電話號碼已列入黑名單，無法進行訂位')
+      # 為了避免暴露黑名單狀態，使用通用錯誤訊息
+      errors.add(:base, '訂位失敗，請聯繫餐廳')
     end
   end
 
