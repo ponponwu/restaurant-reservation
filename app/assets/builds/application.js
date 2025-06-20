@@ -11021,13 +11021,14 @@ var admin_reservation_controller_default = class extends Controller {
     }
     this.initBasicDatePicker();
   }
-  initBasicDatePicker() {
-    console.log("\u{1F527} Creating basic flatpickr instance");
+  async initBasicDatePicker() {
+    console.log("\u{1F527} Creating basic flatpickr instance with closure dates");
     if (!this.hasCalendarTarget) {
       console.error("\u{1F527} No calendar target found for basic picker!");
       return;
     }
     try {
+      const disabledDates = await this.fetchDisabledDates();
       const config2 = {
         inline: true,
         locale: import_zh_tw.default.zh_tw,
@@ -11037,6 +11038,8 @@ var admin_reservation_controller_default = class extends Controller {
         // 管理員可以選擇更遠的日期
         static: true,
         // 防止日曆被其他元素覆蓋
+        disable: disabledDates,
+        // 排除休息日
         onChange: (selectedDates, dateStr) => {
           console.log("\u{1F527} Basic picker date selected:", dateStr);
           this.handleDateChange(dateStr);
@@ -11060,6 +11063,7 @@ var admin_reservation_controller_default = class extends Controller {
       }
     } catch (error2) {
       console.error("\u{1F527} Error creating basic picker:", error2);
+      this.createFallbackDatePicker();
     }
   }
   styleFlatpickr() {
@@ -11099,9 +11103,9 @@ var admin_reservation_controller_default = class extends Controller {
     console.log("\u{1F527} Time changed:", timeValue);
     this.updateDateTimeField();
   }
-  handlePartySizeChange() {
-    console.log("\u{1F527} Party size changed, refreshing date picker...");
-    this.initDatePicker();
+  async handlePartySizeChange() {
+    console.log("\u{1F527} Party size changed, refreshing date picker with new closure data...");
+    await this.initDatePicker();
   }
   updateDateTimeField() {
     console.log("\u{1F527} Updating datetime field:", {
@@ -11161,6 +11165,84 @@ var admin_reservation_controller_default = class extends Controller {
       console.log("\u{1F527} Set default time for period:", defaultTime);
       this.updateDateTimeField();
     }
+  }
+  async fetchDisabledDates() {
+    console.log("\u{1F527} Fetching disabled dates for restaurant:", this.restaurantSlugValue);
+    try {
+      const partySize = this.getCurrentPartySize();
+      const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
+      console.log("\u{1F527} Fetching from:", apiUrl);
+      const response = await fetch(apiUrl, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      const data = await response.json();
+      console.log("\u{1F527} Available days data:", data);
+      const disabledDates = this.calculateDisabledDates(
+        data.weekly_closures || [],
+        data.special_closures || [],
+        data.has_capacity
+      );
+      console.log("\u{1F527} Disabled dates calculated:", disabledDates);
+      return disabledDates;
+    } catch (error2) {
+      console.error("\u{1F527} Error fetching disabled dates:", error2);
+      return [];
+    }
+  }
+  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+    const disabledDates = [];
+    if (!hasCapacity) {
+      const today = /* @__PURE__ */ new Date();
+      for (let i = 0; i <= 90; i++) {
+        const date = new Date(today);
+        date.setDate(today.getDate() + i);
+        disabledDates.push(date);
+      }
+      return disabledDates;
+    }
+    if (weekly_closures && weekly_closures.length > 0) {
+      disabledDates.push((date) => {
+        const dayOfWeek = date.getDay();
+        return weekly_closures.includes(dayOfWeek);
+      });
+    }
+    if (special_closures && special_closures.length > 0) {
+      special_closures.forEach((closureStr) => {
+        const closureDate = new Date(closureStr);
+        disabledDates.push((date) => {
+          return date.getFullYear() === closureDate.getFullYear() && date.getMonth() === closureDate.getMonth() && date.getDate() === closureDate.getDate();
+        });
+      });
+    }
+    return disabledDates;
+  }
+  createFallbackDatePicker() {
+    console.log("\u{1F527} Creating fallback date picker without closure restrictions");
+    const config2 = {
+      inline: true,
+      locale: import_zh_tw.default.zh_tw,
+      dateFormat: "Y-m-d",
+      minDate: "today",
+      maxDate: (/* @__PURE__ */ new Date()).fp_incr(90),
+      static: true,
+      onChange: (selectedDates, dateStr) => {
+        console.log("\u{1F527} Fallback picker date selected:", dateStr);
+        this.handleDateChange(dateStr);
+      },
+      onReady: () => {
+        console.log("\u{1F527} Fallback picker ready");
+        setTimeout(() => {
+          this.styleFlatpickr();
+        }, 50);
+      }
+    };
+    this.datePicker = esm_default(this.calendarTarget, config2);
   }
 };
 

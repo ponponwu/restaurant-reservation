@@ -71,8 +71,8 @@ export default class extends Controller {
         this.initBasicDatePicker()
     }
 
-    initBasicDatePicker() {
-        console.log('🔧 Creating basic flatpickr instance')
+    async initBasicDatePicker() {
+        console.log('🔧 Creating basic flatpickr instance with closure dates')
 
         if (!this.hasCalendarTarget) {
             console.error('🔧 No calendar target found for basic picker!')
@@ -80,6 +80,9 @@ export default class extends Controller {
         }
 
         try {
+            // 獲取餐廳休息日資訊
+            const disabledDates = await this.fetchDisabledDates()
+            
             const config = {
                 inline: true,
                 locale: zhTw.zh_tw,
@@ -87,6 +90,7 @@ export default class extends Controller {
                 minDate: 'today',
                 maxDate: new Date().fp_incr(90), // 管理員可以選擇更遠的日期
                 static: true, // 防止日曆被其他元素覆蓋
+                disable: disabledDates, // 排除休息日
                 onChange: (selectedDates, dateStr) => {
                     console.log('🔧 Basic picker date selected:', dateStr)
                     this.handleDateChange(dateStr)
@@ -112,6 +116,8 @@ export default class extends Controller {
             }
         } catch (error) {
             console.error('🔧 Error creating basic picker:', error)
+            // 如果無法獲取休息日資訊，建立基本的日期選擇器
+            this.createFallbackDatePicker()
         }
     }
 
@@ -167,11 +173,11 @@ export default class extends Controller {
         this.updateDateTimeField()
     }
 
-    handlePartySizeChange() {
-        console.log('🔧 Party size changed, refreshing date picker...')
+    async handlePartySizeChange() {
+        console.log('🔧 Party size changed, refreshing date picker with new closure data...')
 
         // 重新初始化日期選擇器（考慮新的人數）
-        this.initDatePicker()
+        await this.initDatePicker()
     }
 
     updateDateTimeField() {
@@ -254,5 +260,107 @@ export default class extends Controller {
             console.log('🔧 Set default time for period:', defaultTime)
             this.updateDateTimeField()
         }
+    }
+
+    async fetchDisabledDates() {
+        console.log('🔧 Fetching disabled dates for restaurant:', this.restaurantSlugValue)
+        
+        try {
+            const partySize = this.getCurrentPartySize()
+            const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`
+            console.log('🔧 Fetching from:', apiUrl)
+
+            const response = await fetch(apiUrl, {
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                },
+            })
+
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`)
+            }
+
+            const data = await response.json()
+            console.log('🔧 Available days data:', data)
+
+            // 計算不可用日期 - 重用前台邏輯
+            const disabledDates = this.calculateDisabledDates(
+                data.weekly_closures || [],
+                data.special_closures || [],
+                data.has_capacity
+            )
+
+            console.log('🔧 Disabled dates calculated:', disabledDates)
+            return disabledDates
+        } catch (error) {
+            console.error('🔧 Error fetching disabled dates:', error)
+            return [] // 返回空陣列，不禁用任何日期
+        }
+    }
+
+    calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+        const disabledDates = []
+
+        // 如果沒有容量，禁用所有日期
+        if (!hasCapacity) {
+            const today = new Date()
+            for (let i = 0; i <= 90; i++) {
+                const date = new Date(today)
+                date.setDate(today.getDate() + i)
+                disabledDates.push(date)
+            }
+            return disabledDates
+        }
+
+        // 處理每週固定休息日
+        if (weekly_closures && weekly_closures.length > 0) {
+            disabledDates.push((date) => {
+                const dayOfWeek = date.getDay()
+                return weekly_closures.includes(dayOfWeek)
+            })
+        }
+
+        // 處理特殊休息日 - 將字串轉換為 Date 物件比較
+        if (special_closures && special_closures.length > 0) {
+            special_closures.forEach((closureStr) => {
+                const closureDate = new Date(closureStr)
+                // 比較年、月、日
+                disabledDates.push((date) => {
+                    return (
+                        date.getFullYear() === closureDate.getFullYear() &&
+                        date.getMonth() === closureDate.getMonth() &&
+                        date.getDate() === closureDate.getDate()
+                    )
+                })
+            })
+        }
+
+        return disabledDates
+    }
+
+    createFallbackDatePicker() {
+        console.log('🔧 Creating fallback date picker without closure restrictions')
+        
+        const config = {
+            inline: true,
+            locale: zhTw.zh_tw,
+            dateFormat: 'Y-m-d',
+            minDate: 'today',
+            maxDate: new Date().fp_incr(90),
+            static: true,
+            onChange: (selectedDates, dateStr) => {
+                console.log('🔧 Fallback picker date selected:', dateStr)
+                this.handleDateChange(dateStr)
+            },
+            onReady: () => {
+                console.log('🔧 Fallback picker ready')
+                setTimeout(() => {
+                    this.styleFlatpickr()
+                }, 50)
+            },
+        }
+
+        this.datePicker = flatpickr(this.calendarTarget, config)
     }
 }
