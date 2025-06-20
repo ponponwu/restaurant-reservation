@@ -24,12 +24,19 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
       active: true
     )
 
-    # 設定一些桌位
+    # 設定桌位群組和桌位
+    table_group = restaurant.table_groups.create!(
+      name: '主要區域',
+      description: '主要用餐區域',
+      active: true
+    )
+    
     restaurant.restaurant_tables.create!(
       table_number: 'A1',
       capacity: 4,
       min_capacity: 1,
       max_capacity: 4,
+      table_group: table_group,
       active: true
     )
 

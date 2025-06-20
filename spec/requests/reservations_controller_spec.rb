@@ -4,6 +4,31 @@ RSpec.describe ReservationsController, type: :request do
   let(:restaurant) { create(:restaurant) }
   let(:reservation_policy) { restaurant.reservation_policy || restaurant.create_reservation_policy! }
 
+  before do
+    # 確保餐廳有基本的營業設定
+    unless restaurant.business_periods.any?
+      create(:business_period, restaurant: restaurant)
+    end
+    
+    # 確保餐廳有桌位群組和桌位
+    unless restaurant.table_groups.any?
+      table_group = restaurant.table_groups.create!(
+        name: '主要區域',
+        description: '主要用餐區域',
+        active: true
+      )
+      
+      restaurant.restaurant_tables.create!(
+        table_number: 'A1',
+        capacity: 4,
+        min_capacity: 1,
+        max_capacity: 4,
+        table_group: table_group,
+        active: true
+      )
+    end
+  end
+
   describe 'reservation enabled/disabled protection' do
     context 'when reservation is enabled' do
       before do
@@ -24,9 +49,13 @@ RSpec.describe ReservationsController, type: :request do
               customer_name: '測試客戶',
               customer_phone: '0912345678',
               customer_email: 'test@example.com',
-              party_size: 4,
-              reservation_datetime: 2.days.from_now.strftime('%Y-%m-%d %H:%M')
-            }
+              party_size: 4
+            },
+            date: 2.days.from_now.strftime('%Y-%m-%d'),
+            time_slot: '18:00',
+            adults: 3,
+            children: 1,
+            business_period_id: restaurant.business_periods.first&.id
           }
         end
 
@@ -58,9 +87,13 @@ RSpec.describe ReservationsController, type: :request do
               customer_name: '測試客戶',
               customer_phone: '0912345678',
               customer_email: 'test@example.com',
-              party_size: 4,
-              reservation_datetime: 2.days.from_now.strftime('%Y-%m-%d %H:%M')
-            }
+              party_size: 4
+            },
+            date: 2.days.from_now.strftime('%Y-%m-%d'),
+            time_slot: '18:00',
+            adults: 3,
+            children: 1,
+            business_period_id: restaurant.business_periods.first&.id
           }
         end
 
@@ -116,9 +149,13 @@ RSpec.describe ReservationsController, type: :request do
             customer_name: '測試客戶',
             customer_phone: phone_number,
             customer_email: 'test@example.com',
-            party_size: 4,
-            reservation_datetime: 7.days.from_now.strftime('%Y-%m-%d %H:%M')
-          }
+            party_size: 4
+          },
+          date: 7.days.from_now.strftime('%Y-%m-%d'),
+          time_slot: '18:00',
+          adults: 4,
+          children: 0,
+          business_period_id: restaurant.business_periods.first&.id
         }
 
         expect {
@@ -143,9 +180,13 @@ RSpec.describe ReservationsController, type: :request do
             customer_name: '測試客戶',
             customer_phone: phone_number,
             customer_email: 'test@example.com',
-            party_size: 4,
-            reservation_datetime: 7.days.from_now.strftime('%Y-%m-%d %H:%M')
-          }
+            party_size: 4
+          },
+          date: 7.days.from_now.strftime('%Y-%m-%d'),
+          time_slot: '18:00',
+          adults: 4,
+          children: 0,
+          business_period_id: restaurant.business_periods.first&.id
         }
 
         expect {
@@ -437,7 +478,12 @@ RSpec.describe ReservationsController, type: :request do
           create(:business_period, restaurant: restaurant)
         end
         unless restaurant.restaurant_tables.any?
-          create(:restaurant_table, restaurant: restaurant)
+          table_group = restaurant.table_groups.first || restaurant.table_groups.create!(
+            name: '主要區域',
+            description: '主要用餐區域',
+            active: true
+          )
+          create(:table, restaurant: restaurant, table_group: table_group)
         end
       end
 

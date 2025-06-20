@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_19_083631) do
+ActiveRecord::Schema[7.1].define(version: 2025_06_20_000001) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -130,12 +130,18 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_19_083631) do
     t.text "cancellation_reason"
     t.string "cancellation_method"
     t.boolean "admin_override", default: false, null: false, comment: "是否為管理員強制建立（無視容量限制）"
+    t.integer "lock_version", default: 0, null: false
+    t.string "allocation_token", limit: 36
     t.index ["admin_override"], name: "index_reservations_on_admin_override"
+    t.index ["allocation_token"], name: "index_reservations_on_allocation_token", unique: true, where: "(allocation_token IS NOT NULL)"
     t.index ["business_period_id"], name: "index_reservations_on_business_period_id"
     t.index ["cancellation_token"], name: "index_reservations_on_cancellation_token", unique: true
     t.index ["cancelled_at"], name: "index_reservations_on_cancelled_at"
     t.index ["cancelled_by"], name: "index_reservations_on_cancelled_by"
+    t.index ["restaurant_id", "customer_phone", "status", "reservation_datetime"], name: "index_reservations_on_restaurant_phone_status_datetime"
+    t.index ["restaurant_id", "reservation_datetime", "status"], name: "index_reservations_on_restaurant_datetime_status"
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"
+    t.index ["table_id", "reservation_datetime", "restaurant_id"], name: "index_reservations_on_table_datetime_restaurant_active", unique: true, where: "((status)::text <> ALL ((ARRAY['cancelled'::character varying, 'no_show'::character varying])::text[]))"
     t.index ["table_id"], name: "index_reservations_on_table_id"
   end
 

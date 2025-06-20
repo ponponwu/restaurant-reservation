@@ -336,7 +336,7 @@ class ReservationsController < ApplicationController
   def create_reservation_with_concurrency_control
     begin
       result = nil
-      ReservationLockService.with_lock(@restaurant.id, @reservation.reservation_datetime, @reservation.party_size) do
+      EnhancedReservationLockService.with_lock(@restaurant.id, @reservation.reservation_datetime, @reservation.party_size) do
         ActiveRecord::Base.transaction do
           result = allocate_table_and_save_reservation
           # 如果分配失敗，觸發 rollback
@@ -356,7 +356,8 @@ class ReservationsController < ApplicationController
 
   # 分配桌位並保存訂位
   def allocate_table_and_save_reservation
-    allocator = ReservationAllocatorService.new({
+    # 使用增強的併發控制分配器
+    allocator = EnhancedReservationAllocatorService.new({
       restaurant: @restaurant,
       party_size: @reservation.party_size,
       adults: @adults,
@@ -365,17 +366,17 @@ class ReservationsController < ApplicationController
       business_period_id: @business_period_id
     })
     
-    # 再次檢查可用性（防止 race condition）
-    availability_check = allocator.check_availability
+    # 使用增強的可用性檢查（帶鎖定）
+    availability_check = allocator.check_availability_with_lock
     unless availability_check[:has_availability]
-      Rails.logger.warn "Availability check failed for reservation: #{@reservation.inspect}"
+      Rails.logger.warn "Enhanced availability check failed for reservation: #{@reservation.inspect}"
       return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間。'] }
     end
     
-    # 分配桌位
-    allocated_table = allocator.allocate_table
+    # 使用增強的分配方法（帶鎖定）
+    allocated_table = allocator.allocate_table_with_lock
     if allocated_table.nil?
-      Rails.logger.warn "Table allocation failed for reservation: #{@reservation.inspect}"
+      Rails.logger.warn "Enhanced table allocation failed for reservation: #{@reservation.inspect}"
       return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間。'] }
     end
     

@@ -1,6 +1,9 @@
 class Reservation < ApplicationRecord
   # 控制是否跳過黑名單驗證（用於前台統一處理錯誤訊息）
   attr_accessor :skip_blacklist_validation
+  
+  # 啟用樂觀鎖定
+  self.locking_column = :lock_version
 
   # 1. 關聯定義（放在最前面）
   belongs_to :restaurant

@@ -1,0 +1,66 @@
+ja:
+  activerecord:
+    errors:
+      messages:
+        blank: "を入力してください"
+        invalid: "は無効です"
+        too_short: "は短すぎます"
+        too_long: "は長すぎます"
+      models:
+        reservation:
+          attributes:
+            customer_name:
+              blank: "お客様名を入力してください"
+            customer_phone:
+              blank: "電話番号を入力してください"
+              invalid: "電話番号の形式が正しくありません"
+            customer_email:
+              invalid: "メールアドレスの形式が正しくありません"
+            party_size:
+              blank: "人数を入力してください"
+              invalid: "人数は数字で入力してください"
+  
+  reservation:
+    title: "予約する"
+    customer_name: "お客様名"
+    customer_phone: "電話番号"
+    customer_email: "メールアドレス"
+    party_size: "人数"
+    special_requests: "特別なご要望"
+    submit: "予約を送信"
+    success: "予約が正常に作成されました"
+    failure: "予約に失敗しました。レストランにお問い合わせください"
+    
+  time:
+    formats:
+      default: "%Y年%m月%d日"
+      short: "%m/%d"
+      long: "%Y年%m月%d日"
+      
+  date:
+    formats:
+      default: "%Y年%m月%d日"
+      short: "%m/%d"
+      long: "%Y年%m月%d日"
+    day_names:
+      - 日曜日
+      - 月曜日
+      - 火曜日
+      - 水曜日
+      - 木曜日
+      - 金曜日
+      - 土曜日
+    month_names:
+      - ~
+      - 1月
+      - 2月
+      - 3月
+      - 4月
+      - 5月
+      - 6月
+      - 7月
+      - 8月
+      - 9月
+      - 10月
+      - 11月
+      - 12月
