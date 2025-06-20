@@ -58,11 +58,11 @@ gem 'chartkick', '~> 5.0'
 gem 'groupdate', '~> 5.2'
 
 # 背景任務
-gem 'sidekiq', '~> 7.0'    # 使用支援 rack 3 的版本
-gem 'sidekiq-cron', '~> 1.12'
+# gem 'sidekiq', '~> 7.0'    # 使用支援 rack 3 的版本
+# gem 'sidekiq-cron', '~> 1.12'
 
 # 通知系統
-gem 'twilio-ruby', '~> 7.6' # SMS 通知
+# gem 'twilio-ruby', '~> 7.6' # SMS 通知
 
 # 檔案處理與匯出
 gem 'caxlsx', '~> 4.1'      # Excel 匯出
