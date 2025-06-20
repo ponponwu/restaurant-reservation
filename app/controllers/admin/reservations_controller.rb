@@ -162,7 +162,15 @@ class Admin::ReservationsController < Admin::BaseController
       
       respond_to do |format|
         format.html do
-          redirect_to admin_restaurant_reservations_path(@restaurant),
+          # 取得訂位日期，用於跳轉回該日期的訂位列表
+          reservation_date = @reservation.reservation_datetime.to_date
+          redirect_to admin_restaurant_reservations_path(@restaurant, date_filter: reservation_date.strftime('%Y-%m-%d')),
+                      notice: success_message
+        end
+        format.turbo_stream do
+          # 取得訂位日期，用於跳轉回該日期的訂位列表
+          reservation_date = @reservation.reservation_datetime.to_date
+          redirect_to admin_restaurant_reservations_path(@restaurant, date_filter: reservation_date.strftime('%Y-%m-%d')),
                       notice: success_message
         end
       end

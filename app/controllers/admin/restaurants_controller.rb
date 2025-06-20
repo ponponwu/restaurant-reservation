@@ -83,7 +83,7 @@ class Admin::RestaurantsController < AdminController
             turbo_stream.update('flash_messages', partial: 'shared/flash', locals: { message: '餐廳資料已更新', type: 'success' })
           ]
         end
-        format.html { redirect_to admin_restaurants_path, notice: '餐廳資料已更新' }
+        format.html { redirect_to admin_restaurant_path(@restaurant), notice: '餐廳資料已更新' }
       end
     else
       respond_to do |format|
