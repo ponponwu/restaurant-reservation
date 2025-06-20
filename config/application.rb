@@ -23,6 +23,9 @@ module RestaurantReservation
     #
     config.time_zone = "Asia/Taipei"
     config.i18n.default_locale = :"zh-TW"
+    
+    # 使用 Rails.cache 作為快取層
+    
     # config.eager_load_paths << Rails.root.join("extras")
   end
 end
