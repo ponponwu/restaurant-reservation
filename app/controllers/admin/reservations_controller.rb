@@ -306,35 +306,6 @@ class Admin::ReservationsController < Admin::BaseController
     end
   end
 
-  def calendar
-    @reservations = @restaurant.reservations
-                              .where(reservation_datetime: 1.month.ago..1.month.from_now)
-                              .includes(:table, :business_period)
-
-    respond_to do |format|
-      format.html
-      format.json do
-        events = @reservations.map do |reservation|
-          {
-            id: reservation.id,
-            title: "#{reservation.customer_name} - #{reservation.party_size}人",
-            start: reservation.reservation_datetime.iso8601,
-            end: (reservation.reservation_datetime + 2.hours).iso8601,
-            className: "status-#{reservation.status}",
-            extendedProps: {
-              customer_name: reservation.customer_name,
-              customer_phone: reservation.customer_phone,
-              party_size: reservation.party_size,
-              status: reservation.status,
-              table_number: reservation.table&.table_number
-            }
-          }
-        end
-        render json: events
-      end
-    end
-  end
-
   def search
     @q = @restaurant.reservations.ransack(params[:q])
     @reservations = @q.result

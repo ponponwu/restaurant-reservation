@@ -94,7 +94,6 @@ Rails.application.routes.draw do
           patch :no_show
         end
         collection do
-          get :calendar
           get :search
         end
       end

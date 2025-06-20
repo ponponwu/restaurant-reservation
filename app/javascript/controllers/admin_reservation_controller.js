@@ -173,11 +173,11 @@ export default class extends Controller {
         this.updateDateTimeField()
     }
 
-    async handlePartySizeChange() {
+    handlePartySizeChange() {
         console.log('🔧 Party size changed, refreshing date picker with new closure data...')
 
-        // 重新初始化日期選擇器（考慮新的人數）
-        await this.initDatePicker()
+        // 重新初始化日期選擇器（人數變更不影響後台的公休日邏輯）
+        this.initDatePicker()
     }
 
     updateDateTimeField() {
@@ -263,7 +263,7 @@ export default class extends Controller {
     }
 
     async fetchDisabledDates() {
-        console.log('🔧 Fetching disabled dates for restaurant:', this.restaurantSlugValue)
+        console.log('🔧 Fetching closure dates for admin (ignoring capacity restrictions)')
         
         try {
             const partySize = this.getCurrentPartySize()
@@ -284,34 +284,22 @@ export default class extends Controller {
             const data = await response.json()
             console.log('🔧 Available days data:', data)
 
-            // 計算不可用日期 - 重用前台邏輯
-            const disabledDates = this.calculateDisabledDates(
+            // 後台只排除公休日，不考慮容量限制
+            const disabledDates = this.calculateAdminDisabledDates(
                 data.weekly_closures || [],
-                data.special_closures || [],
-                data.has_capacity
+                data.special_closures || []
             )
 
-            console.log('🔧 Disabled dates calculated:', disabledDates)
+            console.log('🔧 Admin disabled dates calculated:', disabledDates)
             return disabledDates
         } catch (error) {
-            console.error('🔧 Error fetching disabled dates:', error)
+            console.error('🔧 Error fetching closure dates:', error)
             return [] // 返回空陣列，不禁用任何日期
         }
     }
 
-    calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+    calculateAdminDisabledDates(weekly_closures, special_closures) {
         const disabledDates = []
-
-        // 如果沒有容量，禁用所有日期
-        if (!hasCapacity) {
-            const today = new Date()
-            for (let i = 0; i <= 90; i++) {
-                const date = new Date(today)
-                date.setDate(today.getDate() + i)
-                disabledDates.push(date)
-            }
-            return disabledDates
-        }
 
         // 處理每週固定休息日
         if (weekly_closures && weekly_closures.length > 0) {

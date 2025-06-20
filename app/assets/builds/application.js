@@ -11103,9 +11103,9 @@ var admin_reservation_controller_default = class extends Controller {
     console.log("\u{1F527} Time changed:", timeValue);
     this.updateDateTimeField();
   }
-  async handlePartySizeChange() {
+  handlePartySizeChange() {
     console.log("\u{1F527} Party size changed, refreshing date picker with new closure data...");
-    await this.initDatePicker();
+    this.initDatePicker();
   }
   updateDateTimeField() {
     console.log("\u{1F527} Updating datetime field:", {
@@ -11167,7 +11167,7 @@ var admin_reservation_controller_default = class extends Controller {
     }
   }
   async fetchDisabledDates() {
-    console.log("\u{1F527} Fetching disabled dates for restaurant:", this.restaurantSlugValue);
+    console.log("\u{1F527} Fetching closure dates for admin (ignoring capacity restrictions)");
     try {
       const partySize = this.getCurrentPartySize();
       const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
@@ -11183,29 +11183,19 @@ var admin_reservation_controller_default = class extends Controller {
       }
       const data = await response.json();
       console.log("\u{1F527} Available days data:", data);
-      const disabledDates = this.calculateDisabledDates(
+      const disabledDates = this.calculateAdminDisabledDates(
         data.weekly_closures || [],
-        data.special_closures || [],
-        data.has_capacity
+        data.special_closures || []
       );
-      console.log("\u{1F527} Disabled dates calculated:", disabledDates);
+      console.log("\u{1F527} Admin disabled dates calculated:", disabledDates);
       return disabledDates;
     } catch (error2) {
-      console.error("\u{1F527} Error fetching disabled dates:", error2);
+      console.error("\u{1F527} Error fetching closure dates:", error2);
       return [];
     }
   }
-  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+  calculateAdminDisabledDates(weekly_closures, special_closures) {
     const disabledDates = [];
-    if (!hasCapacity) {
-      const today = /* @__PURE__ */ new Date();
-      for (let i = 0; i <= 90; i++) {
-        const date = new Date(today);
-        date.setDate(today.getDate() + i);
-        disabledDates.push(date);
-      }
-      return disabledDates;
-    }
     if (weekly_closures && weekly_closures.length > 0) {
       disabledDates.push((date) => {
         const dayOfWeek = date.getDay();
