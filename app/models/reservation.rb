@@ -28,6 +28,7 @@ class Reservation < ApplicationRecord
   validate :party_size_within_restaurant_limits
   validate :party_size_matches_adults_and_children
   validate :customer_not_blacklisted, on: :create, unless: :skip_blacklist_validation
+  validate :table_required_for_admin_creation
   
   # 3. Scope 定義
   scope :active, -> { where.not(status: %w[cancelled no_show]) }
@@ -357,6 +358,15 @@ class Reservation < ApplicationRecord
     if Blacklist.blacklisted_phone?(restaurant, customer_phone)
       # 為了避免暴露黑名單狀態，使用通用錯誤訊息
       errors.add(:base, '訂位失敗，請聯繫餐廳')
+    end
+  end
+
+  def table_required_for_admin_creation
+    # 只有在後台建立且不是編輯時才檢查桌位必填
+    return unless new_record? && admin_override?
+    
+    if table_id.blank?
+      errors.add(:table_id, '後台建立訂位時必須指定桌位')
     end
   end
 

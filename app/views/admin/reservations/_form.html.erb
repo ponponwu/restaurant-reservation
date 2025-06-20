@@ -171,20 +171,23 @@
         } %>
   </div>
 
-  <!-- 桌位選擇（管理員專用） -->
+  <!-- 桌位選擇（必填） -->
   <% if current_user.super_admin? || current_user.manager? %>
     <div class="bg-blue-50 p-4 rounded-lg">
       <h4 class="text-sm font-medium text-gray-900 mb-4">
-        桌位指定 
-        <span class="text-xs text-gray-500">(可選，留空則自動分配)</span>
+        桌位指定 *
       </h4>
+      <p class="text-sm text-gray-600 mb-3">請選擇訂位的指定桌位，系統將不再自動分配桌位。</p>
       
       <div>
-        <%= f.label :table_id, "指定桌位", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.label :table_id, "選擇桌位 *", class: "block text-sm font-medium text-gray-700" %>
         <%= f.select :table_id, 
             options_from_collection_for_select(@available_tables, :id, :display_name, reservation.table_id),
-            { prompt: "自動分配桌位" },
-            { class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" } %>
+            { prompt: "請選擇桌位" },
+            { 
+              required: true,
+              class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" 
+            } %>
       </div>
 
       <!-- 管理員強制設定選項 -->

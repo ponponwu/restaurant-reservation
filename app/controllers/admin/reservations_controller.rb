@@ -139,25 +139,14 @@ class Admin::ReservationsController < Admin::BaseController
     @reservation.status = :confirmed
 
     if @reservation.save
-      # 如果手動選擇了桌位，直接分配
+      # 後台手動創建訂位必須指定桌位，不再使用自動分配
       if @reservation.table_id.present?
         Rails.logger.info "管理後台 - 手動指定桌位 #{@reservation.table.table_number} 給訂位 #{@reservation.id}"
-        success_message = '訂位建立成功'
+        success_message = '訂位建立成功，已指定桌位'
       else
-        # 自動分配桌位
-        allocation_success = allocate_table_for_reservation(@reservation, admin_override)
-        
-        if allocation_success
-          success_message = '訂位建立成功，已自動分配桌位'
-        else
-          if admin_override
-            Rails.logger.warn "管理後台 - 強制模式下訂位 #{@reservation.id} 建立成功但桌位分配失敗"
-            success_message = '訂位建立成功（強制模式，未分配桌位）'
-          else
-            Rails.logger.warn "管理後台 - 訂位 #{@reservation.id} 建立成功但桌位分配失敗"
-            success_message = '訂位建立成功，但無法自動分配桌位，請手動分配'
-          end
-        end
+        # 理論上不應該到這裡，因為桌位已設為必填
+        Rails.logger.error "管理後台 - 訂位 #{@reservation.id} 建立時未指定桌位"
+        success_message = '訂位建立成功，但未指定桌位'
       end
       
       respond_to do |format|
