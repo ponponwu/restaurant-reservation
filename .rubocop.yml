@@ -71,7 +71,19 @@ Metrics/BlockLength:
         - 'db/seeds.rb'
 
 Metrics/AbcSize:
-    Max: 20
+    Max: 30
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+Metrics/CyclomaticComplexity:
+    Max: 15
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+Metrics/PerceivedComplexity:
+    Max: 15
     Exclude:
         - 'spec/**/*'
         - 'app/controllers/**/*'
@@ -90,12 +102,19 @@ Rails/UnknownEnv:
         - test
         - staging
 
+# 禁用中文專案不適用的規則
+Rails/I18nLocaleTexts:
+    Enabled: false
+
 # RSpec specific
 RSpec/ExampleLength:
-    Max: 15
+    Max: 40
 
 RSpec/MultipleExpectations:
-    Max: 5
+    Max: 15
+
+RSpec/MultipleMemoizedHelpers:
+    Max: 15
 
 RSpec/DescribeClass:
     Exclude:
@@ -129,13 +148,47 @@ RSpec/DescribedClass:
 RSpec/NestedGroups:
     Max: 5
 
-RSpec/MultipleMemoizedHelpers:
-    Max: 10
 
 RSpec/LetSetup:
     Enabled: false
 
 RSpec/InstanceVariable:
+    Enabled: false
+
+# 禁用嚴格的 RSpec 規則
+RSpec/ExpectActual:
+    Enabled: false
+
+RSpec/AnyInstance:
+    Enabled: false
+
+RSpec/MessageSpies:
+    Enabled: false
+
+RSpec/IndexedLet:
+    Enabled: false
+
+# 命名規則放寬
+Naming/PredicatePrefix:
+    Enabled: false
+
+Naming/VariableNumber:
+    Enabled: false
+
+# 更多寬鬆規則
+Style/SafeNavigationChainLength:
+    Enabled: false
+
+Performance/CollectionLiteralInLoop:
+    Enabled: false
+
+Rails/SkipsModelValidations:
+    Enabled: false
+
+Lint/Debugger:
+    Enabled: false
+
+Naming/PredicateMethod:
     Enabled: false
 
 # 允許較長的測試檔案

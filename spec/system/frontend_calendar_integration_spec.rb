@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Frontend Calendar Integration', :js,  do
+RSpec.describe 'Frontend Calendar Integration', :js do
   let(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let(:business_period) { create(:business_period, restaurant: restaurant, name: '晚餐時段') }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -229,10 +229,10 @@ RSpec.describe 'Frontend Calendar Integration', :js,  do
       # 跳過選擇，直接訪問訂位表單
       visit new_restaurant_reservation_path(restaurant.slug, {
                                               date: Date.current.strftime('%Y-%m-%d'),
-        adults: 2,
-        children: 0,
-        time: '18:00',
-        period_id: business_period.id
+                                              adults: 2,
+                                              children: 0,
+                                              time: '18:00',
+                                              period_id: business_period.id
                                             })
 
       # 不填寫任何欄位，直接提交
@@ -279,6 +279,7 @@ RSpec.describe 'Frontend Calendar Integration', :js,  do
       # 恢復桌面視窗大小
       page.driver.browser.manage.window.resize_to(1024, 768)
     end
+
     it 'calendar works on mobile devices' do
       visit restaurant_public_path(restaurant.slug)
 
@@ -299,7 +300,6 @@ RSpec.describe 'Frontend Calendar Integration', :js,  do
       # 時間選項應該正常顯示
       expect(page).to have_button('18:00', wait: 5)
     end
-
   end
 
   describe 'Accessibility features' do

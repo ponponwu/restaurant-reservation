@@ -1,6 +1,6 @@
 FactoryBot.define do
   factory :business_period do
-    association :restaurant
+    restaurant
     name { '午餐時段' }
     start_time { '12:00' }
     end_time { '14:00' }

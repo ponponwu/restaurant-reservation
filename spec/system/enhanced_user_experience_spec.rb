@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Enhanced User Experience Tests', :js,  do
+RSpec.describe 'Enhanced User Experience Tests', :js do
   let(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
 
@@ -12,6 +12,7 @@ RSpec.describe 'Enhanced User Experience Tests', :js,  do
     # 清理：重設瀏覽器視窗大小
     page.driver.browser.manage.window.resize_to(1024, 768)
   end
+
   describe 'User-friendly error messages' do
     it 'displays helpful messages for validation errors' do
       visit restaurant_public_path(restaurant.slug)
@@ -19,10 +20,10 @@ RSpec.describe 'Enhanced User Experience Tests', :js,  do
       # 直接訪問新增訂位頁面，不填寫任何資料
       visit new_restaurant_reservation_path(restaurant.slug, {
                                               date: Date.tomorrow.strftime('%Y-%m-%d'),
-        adults: 2,
-        children: 0,
-        time: '18:00',
-        period_id: restaurant.business_periods.first.id
+                                              adults: 2,
+                                              children: 0,
+                                              time: '18:00',
+                                              period_id: restaurant.business_periods.first.id
                                             })
 
       # 嘗試提交空白表單
@@ -222,5 +223,4 @@ RSpec.describe 'Enhanced User Experience Tests', :js,  do
       expect(page).to have_http_status(:success)
     end
   end
-
 end

@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Admin Reservation Flow with Closure Dates', :js,  do
+RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
   let(:restaurant) { create(:restaurant, slug: 'test-restaurant') }
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
 
@@ -266,7 +266,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js,  do
 
   private
 
-# 預設排除週一
+  # 預設排除週一
   def find_next_business_day(exclude_weekdays = [1])
     date = Date.current + 1.day
     30.times do # 最多檢查30天

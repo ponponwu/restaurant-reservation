@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :table, class: 'RestaurantTable' do
-    association :restaurant
-    association :table_group
+    restaurant
+    table_group
 
     sequence(:table_number) { |n| "Table-#{n}" }
     capacity { 4 }

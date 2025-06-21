@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Admin Reservation Calendar', :js,  do
+RSpec.describe 'Admin Reservation Calendar', :js do
   let(:restaurant) { create(:restaurant, slug: 'test-restaurant') }
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
 
