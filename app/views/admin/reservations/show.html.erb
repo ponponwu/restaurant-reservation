@@ -139,7 +139,6 @@
                   <div class="border-t border-gray-100"></div>
                   <%= button_to admin_restaurant_blacklists_path(@restaurant), 
                       method: :post,
-                      local: true,
                       params: { 
                         blacklist: { 
                           customer_phone: @reservation.customer_phone, 
@@ -148,7 +147,10 @@
                         } 
                       },
                       class: "flex items-center px-4 py-2 text-sm text-red-700 hover:bg-red-50",
-                      data: { confirm: "確定要將 #{@reservation.customer_name} 加入黑名單嗎？" },
+                      data: { 
+                        confirm: "確定要將 #{@reservation.customer_name} 加入黑名單嗎？",
+                        turbo: false
+                      },
                       form_class: "w-full" do %>
                     <svg class="mr-3 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
@@ -348,7 +350,6 @@
             <!-- 加入黑名單按鈕 -->
             <%= button_to admin_restaurant_blacklists_path(@restaurant), 
                 method: :post,
-                local: true,
                 params: { 
                   blacklist: { 
                     customer_phone: @reservation.customer_phone, 
@@ -357,7 +358,10 @@
                   } 
                 },
                 class: "w-full inline-flex justify-center items-center px-4 py-2 border border-red-300 text-sm font-medium rounded-md text-red-700 bg-red-50 hover:bg-red-100 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-red-500",
-                data: { confirm: "確定要將 #{@reservation.customer_name} 加入黑名單嗎？" },
+                data: { 
+                  confirm: "確定要將 #{@reservation.customer_name} 加入黑名單嗎？",
+                  turbo: false
+                },
                 form_class: "w-full" do %>
               <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
