@@ -1,12 +1,12 @@
 require 'rails_helper'
 
-RSpec.describe Admin::ReservationsController, type: :controller do
+RSpec.describe Admin::ReservationsController do
   let(:restaurant) { create(:restaurant) }
   let(:user) { create(:user, :admin, restaurant: restaurant) }
-  
+
   before do
     sign_in user
-    
+
     # 創建正確的營業時段
     @lunch_period = restaurant.business_periods.create!(
       name: 'lunch',
@@ -16,7 +16,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
       days_of_week_mask: 127,
       active: true
     )
-    
+
     @dinner_period = restaurant.business_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
@@ -29,7 +29,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
 
   describe '#determine_business_period' do
     let(:controller_instance) { described_class.new }
-    
+
     before do
       controller_instance.instance_variable_set(:@restaurant, restaurant)
     end
@@ -113,7 +113,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
         active: true
       )
     end
-    
+
     let!(:table) do
       restaurant.restaurant_tables.create!(
         table_number: 'A1',
@@ -143,18 +143,18 @@ RSpec.describe Admin::ReservationsController, type: :controller do
       puts "Before reservation count: #{Reservation.count}"
       puts "Reservation params: #{reservation_params}"
       puts "Restaurant ID: #{restaurant.id}, slug: #{restaurant.slug}"
-      
+
       post :create, params: { restaurant_id: restaurant.slug, reservation: reservation_params }
-      
+
       puts "After reservation count: #{Reservation.count}"
       puts "Response status: #{response.status}"
       puts "Response location: #{response.location}"
-      
+
       if assigns(:reservation)
         puts "Reservation object: #{assigns(:reservation).inspect}"
         puts "Reservation errors: #{assigns(:reservation).errors.full_messages}" if assigns(:reservation).errors.any?
       else
-        puts "No reservation object assigned"
+        puts 'No reservation object assigned'
       end
 
       expect(Reservation.count).to eq(1)
@@ -166,10 +166,10 @@ RSpec.describe Admin::ReservationsController, type: :controller do
 
     it 'correctly assigns lunch period for 12:00 reservation' do
       lunch_params = reservation_params.merge(reservation_datetime: '2025-06-19T12:00')
-      
-      expect {
+
+      expect do
         post :create, params: { restaurant_id: restaurant.slug, reservation: lunch_params }
-      }.to change(Reservation, :count).by(1)
+      end.to change(Reservation, :count).by(1)
 
       reservation = Reservation.last
       expect(reservation.business_period_id).to eq(@lunch_period.id)
@@ -185,7 +185,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
         active: true
       )
     end
-    
+
     let!(:table) do
       restaurant.restaurant_tables.create!(
         table_number: 'A1',
@@ -213,7 +213,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
     context 'when time slot is fully booked' do
       before do
         # 創建一個訂位佔滿這個時段的桌位
-        existing_reservation = restaurant.reservations.create!(
+        restaurant.reservations.create!(
           customer_name: 'Existing Customer',
           customer_phone: '0911111111',
           customer_email: 'existing@example.com',
@@ -227,7 +227,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
         )
       end
 
-      it 'should create reservation with admin override when force mode is enabled' do
+      it 'creates reservation with admin override when force mode is enabled' do
         # 創建一個不同的桌位來避免衝突
         another_table = restaurant.restaurant_tables.create!(
           table_number: 'A2',
@@ -237,32 +237,32 @@ RSpec.describe Admin::ReservationsController, type: :controller do
           table_group: table_group,
           active: true
         )
-        
+
         params_with_override = force_mode_params.merge(
           admin_override: true,
           table_id: another_table.id
         )
-        
-        expect {
-          post :create, params: { 
-            restaurant_id: restaurant.slug, 
+
+        expect do
+          post :create, params: {
+            restaurant_id: restaurant.slug,
             reservation: params_with_override,
             admin_override: 'true'
           }
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
 
         new_reservation = Reservation.last
         expect(new_reservation.customer_name).to eq('Force Mode Customer')
         expect(new_reservation.admin_override).to be true
         expect(new_reservation.status).to eq('confirmed')
         expect(new_reservation.table).to eq(another_table)
-        
+
         # 驗證成功訊息
         expect(response).to redirect_to(admin_restaurant_reservations_path(restaurant, date_filter: '2025-06-25'))
         expect(flash[:notice]).to include('訂位建立成功')
       end
 
-      it 'should create reservation even when no tables are available if admin_override is true' do
+      it 'creates reservation even when no tables are available if admin_override is true' do
         # 創建另一個更大的桌位並佔滿所有桌位
         big_table = restaurant.restaurant_tables.create!(
           table_number: 'B1',
@@ -272,7 +272,7 @@ RSpec.describe Admin::ReservationsController, type: :controller do
           table_group: table_group,
           active: true
         )
-        
+
         # 佔滿大桌位
         restaurant.reservations.create!(
           customer_name: 'Big Party',
@@ -296,14 +296,14 @@ RSpec.describe Admin::ReservationsController, type: :controller do
           children_count: 0,
           table_id: big_table.id # 指定已被佔用的桌位
         )
-        
-        expect {
-          post :create, params: { 
-            restaurant_id: restaurant.slug, 
+
+        expect do
+          post :create, params: {
+            restaurant_id: restaurant.slug,
             reservation: params_with_override,
             admin_override: 'true'
           }
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
 
         new_reservation = Reservation.last
         expect(new_reservation.customer_name).to eq('Force Mode Customer')
@@ -312,15 +312,15 @@ RSpec.describe Admin::ReservationsController, type: :controller do
         expect(new_reservation.table).to eq(big_table)
       end
 
-      it 'should require table_id when creating reservation in admin panel' do
+      it 'requires table_id when creating reservation in admin panel' do
         params_without_table = force_mode_params.except(:table_id).merge(admin_override: true)
-        
-        expect {
-          post :create, params: { 
-            restaurant_id: restaurant.slug, 
+
+        expect do
+          post :create, params: {
+            restaurant_id: restaurant.slug,
             reservation: params_without_table
           }
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
         expect(assigns(:reservation).errors[:table_id]).to include('後台建立訂位時必須指定桌位')
@@ -328,25 +328,25 @@ RSpec.describe Admin::ReservationsController, type: :controller do
     end
 
     context 'when creating reservation with specified table' do
-      it 'should assign the specified table directly without auto-allocation' do
+      it 'assigns the specified table directly without auto-allocation' do
         normal_params = force_mode_params.merge(admin_override: true)
-        
-        expect {
-          post :create, params: { 
-            restaurant_id: restaurant.slug, 
+
+        expect do
+          post :create, params: {
+            restaurant_id: restaurant.slug,
             reservation: normal_params
           }
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
 
         new_reservation = Reservation.last
         expect(new_reservation.table).to eq(table)
         expect(new_reservation.admin_override).to be true
         expect(new_reservation.status).to eq('confirmed')
-        
+
         expect(flash[:notice]).to include('訂位建立成功，已指定桌位')
       end
 
-      it 'should create reservation even if specified table is over capacity' do
+      it 'creates reservation even if specified table is over capacity' do
         # 嘗試在容量2的桌位安排6個人
         over_capacity_params = force_mode_params.merge(
           party_size: 6,
@@ -354,14 +354,14 @@ RSpec.describe Admin::ReservationsController, type: :controller do
           children_count: 0,
           admin_override: true
         )
-        
-        expect {
-          post :create, params: { 
-            restaurant_id: restaurant.slug, 
+
+        expect do
+          post :create, params: {
+            restaurant_id: restaurant.slug,
             reservation: over_capacity_params,
             admin_override: 'true'
           }
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
 
         new_reservation = Reservation.last
         expect(new_reservation.table).to eq(table)

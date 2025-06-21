@@ -1,14 +1,12 @@
 class Admin::UsersController < AdminController
-  before_action :set_user, only: [:show, :edit, :update, :destroy, :toggle_status]
+  before_action :set_user, only: %i[show edit update destroy toggle_status]
 
   def index
     @users = User.active.includes(:restaurant)
-    
+
     # 簡單搜尋功能
-    if params[:search].present?
-      @users = @users.search_by_name_or_email(params[:search])
-    end
-    
+    @users = @users.search_by_name_or_email(params[:search]) if params[:search].present?
+
     @users = @users.page(params[:page]).per(10)
 
     respond_to do |format|
@@ -17,12 +15,13 @@ class Admin::UsersController < AdminController
     end
   end
 
-  def show
-  end
+  def show; end
 
   def new
     @user = User.new
   end
+
+  def edit; end
 
   def create
     @user = User.new(user_params)
@@ -34,8 +33,10 @@ class Admin::UsersController < AdminController
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.prepend('users_list', partial: 'user_row', locals: { user: @user }),
-            turbo_stream.update('user_form', partial: 'password_generated', locals: { user: @user, password: @generated_password }),
-            turbo_stream.update('flash_messages', partial: 'shared/flash', locals: { message: '管理員建立成功', type: 'success' })
+            turbo_stream.update('user_form', partial: 'password_generated',
+                                             locals: { user: @user, password: @generated_password }),
+            turbo_stream.update('flash_messages', partial: 'shared/flash',
+                                                  locals: { message: '管理員建立成功', type: 'success' })
           ]
         end
         format.html { redirect_to admin_users_path, notice: '管理員建立成功' }
@@ -50,16 +51,14 @@ class Admin::UsersController < AdminController
     end
   end
 
-  def edit
-  end
-
   def update
     if @user.update(user_params)
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.replace("user_#{@user.id}", partial: 'user_row', locals: { user: @user }),
-            turbo_stream.update('flash_messages', partial: 'shared/flash', locals: { message: '管理員資料已更新', type: 'success' })
+            turbo_stream.update('flash_messages', partial: 'shared/flash',
+                                                  locals: { message: '管理員資料已更新', type: 'success' })
           ]
         end
         format.html { redirect_to admin_users_path, notice: '管理員資料已更新' }
@@ -107,4 +106,4 @@ class Admin::UsersController < AdminController
   def user_params
     params.require(:user).permit(:first_name, :last_name, :email, :role, :restaurant_id)
   end
-end 
+end

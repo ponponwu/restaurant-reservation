@@ -1,9 +1,9 @@
 require 'rails_helper'
 
-RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: true do
+RSpec.describe 'Admin Reservation Flow with Closure Dates', :js,  do
   let(:restaurant) { create(:restaurant, slug: 'test-restaurant') }
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
-  
+
   before do
     # 設定餐廳的營業時段
     @lunch_period = restaurant.business_periods.create!(
@@ -14,7 +14,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
       days_of_week_mask: 127,
       active: true
     )
-    
+
     @dinner_period = restaurant.business_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
@@ -30,7 +30,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
       description: '主要用餐區域',
       active: true
     )
-    
+
     @table = restaurant.restaurant_tables.create!(
       table_number: 'A1',
       capacity: 4,
@@ -49,7 +49,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
         # 設定週一休息
         @lunch_period.update!(days_of_week_mask: 126) # 排除週一
         @dinner_period.update!(days_of_week_mask: 126)
-        
+
         # 設定特殊休息日
         @special_closure = Date.current + 7.days
         restaurant.closure_dates.create!(
@@ -84,7 +84,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
           # 確認目標日期不是禁用的
           date_element = find(".flatpickr-day[aria-label*='#{target_date.strftime('%B %-d, %Y')}']", wait: 5)
           expect(date_element).not_to have_css('.flatpickr-disabled')
-          
+
           # 點擊日期
           date_element.click
         end
@@ -100,8 +100,8 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
         # 驗證成功訊息和跳轉
         expect(page).to have_content('訂位建立成功')
-        expect(current_path).to eq(admin_restaurant_reservations_path(restaurant))
-        
+        expect(page).to have_current_path(admin_restaurant_reservations_path(restaurant), ignore_query: true)
+
         # 驗證 URL 包含日期參數
         expect(current_url).to include("date_filter=#{target_date.strftime('%Y-%m-%d')}")
 
@@ -120,14 +120,14 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
         # 檢查下個週一應該被禁用
         next_monday = Date.current.next_occurring(:monday)
-        
+
         within '.flatpickr-calendar' do
           monday_element = find(".flatpickr-day[aria-label*='#{next_monday.strftime('%B %-d, %Y')}']", wait: 5)
           expect(monday_element).to have_css('.flatpickr-disabled')
-          
+
           # 嘗試點擊應該無效
           monday_element.click
-          
+
           # 隱藏欄位應該還是空的
           expect(page).to have_field('reservation[reservation_datetime]', with: '', type: :hidden)
         end
@@ -150,7 +150,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
       before do
         # 刪除所有桌位，模擬沒有容量
         restaurant.restaurant_tables.destroy_all
-        
+
         # 設定週三休息
         @lunch_period.update!(days_of_week_mask: 119) # 排除週三(4)
         @dinner_period.update!(days_of_week_mask: 119)
@@ -188,7 +188,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
         # 應該成功建立（即使沒有容量）
         expect(page).to have_content('訂位建立成功')
-        
+
         # 驗證訂位已建立且標記為強制模式
         reservation = restaurant.reservations.last
         expect(reservation.customer_name).to eq('強制訂位客戶')
@@ -207,7 +207,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
         # 檢查週三仍然被禁用
         next_wednesday = Date.current.next_occurring(:wednesday)
-        
+
         within '.flatpickr-calendar' do
           wednesday_element = find(".flatpickr-day[aria-label*='#{next_wednesday.strftime('%B %-d, %Y')}']", wait: 5)
           expect(wednesday_element).to have_css('.flatpickr-disabled')
@@ -219,12 +219,12 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
       it '當 API 無法載入時應該有備用日曆' do
         # 模擬 API 失敗
         page.driver.browser.network_conditions = { offline: true }
-        
+
         visit new_admin_restaurant_reservation_path(restaurant)
 
         # 應該仍然有日曆可用（即使沒有休息日資訊）
         expect(page).to have_css('.flatpickr-calendar', wait: 10)
-        
+
         # 恢復網路
         page.driver.browser.network_conditions = { offline: false }
       end
@@ -234,7 +234,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
   describe '日期篩選功能整合' do
     it '建立訂位後應該跳轉到該日期的訂位列表' do
       target_date = Date.current + 2.days
-      
+
       visit new_admin_restaurant_reservation_path(restaurant)
 
       # 建立訂位
@@ -244,7 +244,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
       # 等待並選擇日期
       expect(page).to have_css('.flatpickr-calendar', wait: 10)
-      
+
       within '.flatpickr-calendar' do
         date_element = find(".flatpickr-day[aria-label*='#{target_date.strftime('%B %-d, %Y')}']", wait: 5)
         date_element.click
@@ -252,12 +252,12 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
       select '晚餐 (17:30 - 21:30)', from: '餐期選擇'
       fill_in '訂位時間', with: '19:00'
-      
+
       click_button '建立訂位'
 
       # 驗證跳轉到正確的日期篩選頁面
       expect(current_url).to include("date_filter=#{target_date.strftime('%Y-%m-%d')}")
-      
+
       # 驗證頁面顯示該日期的訂位
       expect(page).to have_content(target_date.strftime('%Y年%m月%d日'))
       expect(page).to have_content('測試客戶')
@@ -266,20 +266,19 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', type: :system, js: t
 
   private
 
-  def find_next_business_day(exclude_weekdays = [1]) # 預設排除週一
+# 預設排除週一
+  def find_next_business_day(exclude_weekdays = [1])
     date = Date.current + 1.day
     30.times do # 最多檢查30天
       weekday = date.wday
-      is_special_closure = restaurant.closure_dates.where(date: date).exists?
-      
-      unless exclude_weekdays.include?(weekday) || is_special_closure
-        return date
-      end
-      
+      is_special_closure = restaurant.closure_dates.exists?(date: date)
+
+      return date unless exclude_weekdays.include?(weekday) || is_special_closure
+
       date += 1.day
     end
-    
-    raise "找不到合適的營業日"
+
+    raise '找不到合適的營業日'
   end
 
   def find_next_business_day_excluding(exclude_weekdays)

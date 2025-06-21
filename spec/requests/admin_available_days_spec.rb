@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Admin Available Days API', type: :request do
+RSpec.describe 'Admin Available Days API' do
   let(:restaurant) { create(:restaurant, slug: 'test-restaurant') }
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
 
@@ -14,7 +14,7 @@ RSpec.describe 'Admin Available Days API', type: :request do
       days_of_week_mask: 127, # 預設全週營業
       active: true
     )
-    
+
     @dinner_period = restaurant.business_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
@@ -30,7 +30,7 @@ RSpec.describe 'Admin Available Days API', type: :request do
       description: '主要用餐區域',
       active: true
     )
-    
+
     restaurant.restaurant_tables.create!(
       table_number: 'A1',
       capacity: 4,
@@ -58,9 +58,9 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # 應該包含週一(1)和週二(2)在 weekly_closures 中
         expect(json_response['weekly_closures']).to include(1, 2)
         expect(json_response['weekly_closures']).not_to include(3, 4, 5, 6, 0) # 週三到週日應該營業
@@ -69,7 +69,7 @@ RSpec.describe 'Admin Available Days API', type: :request do
 
     context '當餐廳有特殊休息日設定' do
       let(:special_closure_date) { Date.current + 7.days }
-      
+
       before do
         restaurant.closure_dates.create!(
           date: special_closure_date,
@@ -83,9 +83,9 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # 應該包含特殊休息日
         expect(json_response['special_closures']).to include(special_closure_date.to_s)
       end
@@ -101,9 +101,9 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # 應該指示沒有容量
         expect(json_response['has_capacity']).to be false
       end
@@ -112,16 +112,16 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # API 仍然會回傳 has_capacity: false
         expect(json_response['has_capacity']).to be false
-        
+
         # 但週休息日和特殊休息日資訊仍然正確
         expect(json_response).to have_key('weekly_closures')
         expect(json_response).to have_key('special_closures')
-        
+
         # 這裡我們驗證前台和後台的行為差異：
         # 前台會因為 has_capacity: false 而禁用所有日期
         # 後台會忽略 has_capacity，只使用 weekly_closures 和 special_closures
@@ -130,12 +130,12 @@ RSpec.describe 'Admin Available Days API', type: :request do
 
     context '複合情況：週休息日 + 特殊休息日 + 無容量' do
       let(:special_closure_date) { Date.current + 10.days }
-      
+
       before do
         # 設定週一休息
         @lunch_period.update!(days_of_week_mask: 126) # 排除週一(1)
         @dinner_period.update!(days_of_week_mask: 126)
-        
+
         # 設定特殊休息日
         restaurant.closure_dates.create!(
           date: special_closure_date,
@@ -143,7 +143,7 @@ RSpec.describe 'Admin Available Days API', type: :request do
           recurring: false,
           all_day: true
         )
-        
+
         # 刪除所有桌位
         restaurant.restaurant_tables.destroy_all
       end
@@ -152,9 +152,9 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 4 }
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # 驗證所有資訊都正確回傳
         expect(json_response['weekly_closures']).to include(1) # 週一
         expect(json_response['special_closures']).to include(special_closure_date.to_s)
@@ -178,12 +178,12 @@ RSpec.describe 'Admin Available Days API', type: :request do
 
         # 請求2人桌位
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
-        json_2_people = JSON.parse(response.body)
+        json_2_people = response.parsed_body
         expect(json_2_people['has_capacity']).to be true
 
         # 請求8人桌位
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 8 }
-        json_8_people = JSON.parse(response.body)
+        json_8_people = response.parsed_body
         expect(json_8_people['has_capacity']).to be false
 
         # 但休息日資訊應該相同
@@ -197,9 +197,9 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 0 }
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # 應該使用預設值並正常回傳
         expect(json_response).to have_key('weekly_closures')
         expect(json_response).to have_key('special_closures')
@@ -210,9 +210,9 @@ RSpec.describe 'Admin Available Days API', type: :request do
         get "/restaurants/#{restaurant.slug}/available_days"
 
         expect(response).to have_http_status(:success)
-        
-        json_response = JSON.parse(response.body)
-        
+
+        json_response = response.parsed_body
+
         # 應該使用預設值並正常回傳
         expect(json_response).to have_key('weekly_closures')
         expect(json_response).to have_key('special_closures')
@@ -235,16 +235,16 @@ RSpec.describe 'Admin Available Days API', type: :request do
 
       it '應該在合理時間內回傳結果' do
         start_time = Time.current
-        
+
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
-        
+
         end_time = Time.current
         response_time = end_time - start_time
 
         expect(response).to have_http_status(:success)
         expect(response_time).to be < 1.second # 應該在1秒內完成
-        
-        json_response = JSON.parse(response.body)
+
+        json_response = response.parsed_body
         expect(json_response['special_closures'].length).to eq(30)
       end
     end
@@ -255,25 +255,25 @@ RSpec.describe 'Admin Available Days API', type: :request do
       # 設定一個複雜的情況：有週休息日、特殊休息日，且沒有容量
       @lunch_period.update!(days_of_week_mask: 124) # 週一週二休息
       @dinner_period.update!(days_of_week_mask: 124)
-      
+
       restaurant.closure_dates.create!(
         date: Date.current + 5.days,
         reason: '特殊公休',
         recurring: false,
         all_day: true
       )
-      
+
       restaurant.restaurant_tables.destroy_all # 沒有容量
     end
 
     it '前台邏輯會禁用所有日期（容量不足）' do
       get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 4 }
-      
-      json_response = JSON.parse(response.body)
-      
+
+      json_response = response.parsed_body
+
       # 前台會因為 has_capacity: false 而在 calculateDisabledDates 中禁用所有日期
       expect(json_response['has_capacity']).to be false
-      
+
       # 但 API 仍然提供完整的休息日資訊
       expect(json_response['weekly_closures']).to include(1, 2)
       expect(json_response['special_closures']).not_to be_empty
@@ -281,20 +281,20 @@ RSpec.describe 'Admin Available Days API', type: :request do
 
     it '後台邏輯只會禁用休息日（忽略容量）' do
       get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 4 }
-      
-      json_response = JSON.parse(response.body)
-      
+
+      json_response = response.parsed_body
+
       # 後台會使用 calculateAdminDisabledDates，只處理休息日
       # 驗證後台會獲得的禁用日期邏輯：
       weekly_closures = json_response['weekly_closures']
       special_closures = json_response['special_closures']
-      
+
       # 週一週二應該被禁用
       expect(weekly_closures).to include(1, 2)
-      
+
       # 特殊休息日應該被禁用
       expect(special_closures).to include((Date.current + 5.days).to_s)
-      
+
       # 但 has_capacity: false 會被後台忽略
       expect(json_response['has_capacity']).to be false # API 仍然回傳 false
       # 後台 JavaScript 會忽略這個值，不會因此禁用所有日期

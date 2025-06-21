@@ -1,7 +1,7 @@
 class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
   before_action :set_restaurant
-  before_action :set_closure_dates, only: [:closure_dates, :create_closure_date]
-  before_action :set_reservation_policy, only: [:index, :reservation_policies, :update_reservation_policy]
+  before_action :set_closure_dates, only: %i[closure_dates create_closure_date]
+  before_action :set_reservation_policy, only: %i[index reservation_policies update_reservation_policy]
 
   def index
     @stats = calculate_stats
@@ -16,9 +16,7 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
     respond_to do |format|
       format.html do
         # 如果是 AJAX 請求，不使用 layout
-        if request.xhr?
-          render layout: false
-        end
+        render layout: false if request.xhr?
       end
       format.turbo_stream
     end
@@ -26,35 +24,37 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
 
   def create_closure_date
     @closure_date = @restaurant.closure_dates.build(closure_date_params)
-    
+
     if @closure_date.save
       respond_to do |format|
         format.turbo_stream do
           @closure_dates = @restaurant.closure_dates.order(:date, :created_at)
-          
+
           if @closure_date.recurring?
             # 重複公休：更新左側每週公休區域，而不是整個頁面
             render turbo_stream: [
-              turbo_stream.replace('weekly-closure-section', 
-                                 partial: 'weekly_closure_section',
-                                 locals: { restaurant: @restaurant, closure_dates: @closure_dates }),
-              turbo_stream.update('modal_flash_messages', 
-                                partial: 'shared/flash_message', 
-                                locals: { message: '每週公休設定成功', type: 'success' })
+              turbo_stream.replace('weekly-closure-section',
+                                   partial: 'weekly_closure_section',
+                                   locals: { restaurant: @restaurant, closure_dates: @closure_dates }),
+              turbo_stream.update('modal_flash_messages',
+                                  partial: 'shared/flash_message',
+                                  locals: { message: '每週公休設定成功', type: 'success' })
             ]
           else
             # 特別日公休：只新增項目
             render turbo_stream: [
-              turbo_stream.prepend('closure_dates_list', 
-                                 partial: 'closure_date_item', 
-                                 locals: { closure_date: @closure_date, restaurant: @restaurant }),
-              turbo_stream.update('modal_flash_messages', 
-                                partial: 'shared/flash_message', 
-                                locals: { message: '特別日公休設定成功', type: 'success' })
+              turbo_stream.prepend('closure_dates_list',
+                                   partial: 'closure_date_item',
+                                   locals: { closure_date: @closure_date, restaurant: @restaurant }),
+              turbo_stream.update('modal_flash_messages',
+                                  partial: 'shared/flash_message',
+                                  locals: { message: '特別日公休設定成功', type: 'success' })
             ]
           end
         end
-        format.html { redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant), notice: '公休日建立成功' }
+        format.html do
+          redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant), notice: '公休日建立成功'
+        end
       end
     else
       respond_to do |format|
@@ -62,8 +62,8 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
           # 顯示錯誤訊息，先簡單地記錄到 console
           error_messages = @closure_date.errors.full_messages.join(', ')
           Rails.logger.error "Closure date creation failed: #{error_messages}"
-          render turbo_stream: turbo_stream.update('closure-dates-content', 
-                                                  plain: "建立失敗：#{error_messages}")
+          render turbo_stream: turbo_stream.update('closure-dates-content',
+                                                   plain: "建立失敗：#{error_messages}")
         end
         format.html { render :closure_dates, status: :unprocessable_entity }
       end
@@ -73,7 +73,7 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
   def create_weekly_closure
     weekday = params[:weekday].to_i
     reason = params[:reason] || '每週定休'
-    
+
     # 建立重複性公休日記錄
     @closure_date = @restaurant.closure_dates.build(
       date: Date.current.beginning_of_week + weekday.days,
@@ -83,27 +83,29 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
       recurring: true,
       weekday: weekday
     )
-    
+
     if @closure_date.save
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: [
-            turbo_stream.prepend('closure_dates_list', 
-                               partial: 'closure_date_item', 
-                               locals: { closure_date: @closure_date }),
-            turbo_stream.update('flash', 
-                               partial: 'shared/flash', 
-                               locals: { message: '每週定休日設定成功', type: 'success' })
+            turbo_stream.prepend('closure_dates_list',
+                                 partial: 'closure_date_item',
+                                 locals: { closure_date: @closure_date }),
+            turbo_stream.update('flash',
+                                partial: 'shared/flash',
+                                locals: { message: '每週定休日設定成功', type: 'success' })
           ]
         end
-        format.html { redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant), notice: '每週定休日設定成功' }
+        format.html do
+          redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant), notice: '每週定休日設定成功'
+        end
       end
     else
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('flash', 
-                                                  partial: 'shared/flash', 
-                                                  locals: { message: '設定失敗', type: 'error' })
+          render turbo_stream: turbo_stream.update('flash',
+                                                   partial: 'shared/flash',
+                                                   locals: { message: '設定失敗', type: 'error' })
         end
         format.html { redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant), alert: '設定失敗' }
       end
@@ -114,28 +116,28 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
     @closure_date = @restaurant.closure_dates.find(params[:closure_date_id])
     is_recurring = @closure_date.recurring?
     @closure_date.destroy
-    
+
     respond_to do |format|
       format.turbo_stream do
         @closure_dates = @restaurant.closure_dates.order(:date, :created_at)
-        
+
         if is_recurring
           # 重複公休：更新左側每週公休區域
           render turbo_stream: [
-            turbo_stream.replace('weekly-closure-section', 
-                               partial: 'weekly_closure_section',
-                               locals: { restaurant: @restaurant, closure_dates: @closure_dates }),
-            turbo_stream.update('modal_flash_messages', 
-                              partial: 'shared/flash_message', 
-                              locals: { message: '每週公休已取消', type: 'success' })
+            turbo_stream.replace('weekly-closure-section',
+                                 partial: 'weekly_closure_section',
+                                 locals: { restaurant: @restaurant, closure_dates: @closure_dates }),
+            turbo_stream.update('modal_flash_messages',
+                                partial: 'shared/flash_message',
+                                locals: { message: '每週公休已取消', type: 'success' })
           ]
         else
           # 特別日公休：只移除項目
           render turbo_stream: [
             turbo_stream.remove("closure_date_#{@closure_date.id}"),
-            turbo_stream.update('modal_flash_messages', 
-                              partial: 'shared/flash_message', 
-                              locals: { message: '特別日公休已刪除', type: 'success' })
+            turbo_stream.update('modal_flash_messages',
+                                partial: 'shared/flash_message',
+                                locals: { message: '特別日公休已刪除', type: 'success' })
           ]
         end
       end
@@ -152,17 +154,21 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: turbo_stream.update('flash',
-                                                  partial: 'shared/flash',
-                                                  locals: { message: '預約規則更新成功', type: 'success' })
+                                                   partial: 'shared/flash',
+                                                   locals: { message: '預約規則更新成功', type: 'success' })
         end
-        format.html { redirect_to admin_restaurant_settings_restaurant_reservation_policies_path(@restaurant), notice: '預約規則更新成功' }
+        format.html do
+          redirect_to admin_restaurant_settings_restaurant_reservation_policies_path(@restaurant), notice: '預約規則更新成功'
+        end
       end
     else
       respond_to do |format|
         format.turbo_stream do
           render turbo_stream: turbo_stream.update('flash',
-                                                  partial: 'shared/flash',
-                                                  locals: { message: @reservation_policy.errors.full_messages.join(', '), type: 'error' })
+                                                   partial: 'shared/flash',
+                                                   locals: {
+                                                     message: @reservation_policy.errors.full_messages.join(', '), type: 'error'
+                                                   })
         end
         format.html { render :reservation_policies, status: :unprocessable_entity }
       end
@@ -173,16 +179,16 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
 
   def set_restaurant
     @restaurant = Restaurant.find_by!(slug: params[:restaurant_slug])
-    
+
     # super_admin 和 manager 可以管理所有餐廳
-    unless current_user.super_admin? || current_user.manager?
-      redirect_to admin_restaurants_path, alert: '您沒有權限管理此餐廳'
-    end
+    return if current_user.super_admin? || current_user.manager?
+
+    redirect_to admin_restaurants_path, alert: '您沒有權限管理此餐廳'
   end
 
   def set_closure_dates
     @closure_dates = @restaurant.closure_dates
-                                .order(:date, :created_at)
+      .order(:date, :created_at)
   end
 
   def set_reservation_policy
@@ -195,8 +201,8 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
       active_periods: @restaurant.business_periods.active.count,
       total_slots: @restaurant.business_periods.joins(:reservation_slots).count,
       closure_days: @restaurant.closure_dates
-                               .where(date: Date.current.beginning_of_month..Date.current.end_of_month)
-                               .count
+        .where(date: Date.current.all_month)
+        .count
     }
   end
 

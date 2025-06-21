@@ -1,20 +1,20 @@
 require 'rails_helper'
 
-RSpec.describe Restaurant, type: :model do
+RSpec.describe Restaurant do
   describe 'validations' do
     subject { build(:restaurant) }
 
-    it { should validate_presence_of(:name) }
-    it { should validate_length_of(:name).is_at_most(100) }
-    it { should validate_presence_of(:phone) }
-    it { should validate_length_of(:phone).is_at_most(20) }
-    it { should validate_presence_of(:address) }
-    it { should validate_length_of(:address).is_at_most(255) }
-    it { should validate_length_of(:description).is_at_most(1000) }
-    it { should validate_presence_of(:reservation_interval_minutes) }
-    it { should validate_inclusion_of(:reservation_interval_minutes).in_array([15, 30, 60]) }
-    it { should validate_presence_of(:slug) }
-    it { should validate_uniqueness_of(:slug) }
+    it { is_expected.to validate_presence_of(:name) }
+    it { is_expected.to validate_length_of(:name).is_at_most(100) }
+    it { is_expected.to validate_presence_of(:phone) }
+    it { is_expected.to validate_length_of(:phone).is_at_most(20) }
+    it { is_expected.to validate_presence_of(:address) }
+    it { is_expected.to validate_length_of(:address).is_at_most(255) }
+    it { is_expected.to validate_length_of(:description).is_at_most(1000) }
+    it { is_expected.to validate_presence_of(:reservation_interval_minutes) }
+    it { is_expected.to validate_inclusion_of(:reservation_interval_minutes).in_array([15, 30, 60]) }
+    it { is_expected.to validate_presence_of(:slug) }
+    it { is_expected.to validate_uniqueness_of(:slug) }
 
     context 'when reservation_interval_minutes is invalid' do
       it 'adds custom error message' do
@@ -26,14 +26,14 @@ RSpec.describe Restaurant, type: :model do
   end
 
   describe 'associations' do
-    it { should have_many(:users).dependent(:nullify) }
-    it { should have_many(:restaurant_tables).dependent(:destroy) }
-    it { should have_many(:table_groups).dependent(:destroy) }
-    it { should have_many(:business_periods).dependent(:destroy) }
-    it { should have_many(:reservations).dependent(:destroy) }
-    it { should have_many(:reservation_slots).through(:business_periods) }
-    it { should have_many(:closure_dates).dependent(:destroy) }
-    it { should have_one(:reservation_policy).dependent(:destroy) }
+    it { is_expected.to have_many(:users).dependent(:nullify) }
+    it { is_expected.to have_many(:restaurant_tables).dependent(:destroy) }
+    it { is_expected.to have_many(:table_groups).dependent(:destroy) }
+    it { is_expected.to have_many(:business_periods).dependent(:destroy) }
+    it { is_expected.to have_many(:reservations).dependent(:destroy) }
+    it { is_expected.to have_many(:reservation_slots).through(:business_periods) }
+    it { is_expected.to have_many(:closure_dates).dependent(:destroy) }
+    it { is_expected.to have_one(:reservation_policy).dependent(:destroy) }
   end
 
   describe 'scopes' do
@@ -43,9 +43,9 @@ RSpec.describe Restaurant, type: :model do
 
     describe '.active' do
       it 'returns only active and non-deleted restaurants' do
-        expect(Restaurant.active).to include(active_restaurant)
-        expect(Restaurant.active).not_to include(inactive_restaurant)
-        expect(Restaurant.active).not_to include(deleted_restaurant)
+        expect(described_class.active).to include(active_restaurant)
+        expect(described_class.active).not_to include(inactive_restaurant)
+        expect(described_class.active).not_to include(deleted_restaurant)
       end
     end
 
@@ -54,13 +54,13 @@ RSpec.describe Restaurant, type: :model do
       let!(:burger_restaurant) { create(:restaurant, name: 'Burger King') }
 
       it 'returns restaurants matching the search term' do
-        results = Restaurant.search_by_name('Pizza')
+        results = described_class.search_by_name('Pizza')
         expect(results).to include(pizza_restaurant)
         expect(results).not_to include(burger_restaurant)
       end
 
       it 'is case insensitive' do
-        results = Restaurant.search_by_name('pizza')
+        results = described_class.search_by_name('pizza')
         expect(results).to include(pizza_restaurant)
       end
     end
@@ -195,9 +195,9 @@ RSpec.describe Restaurant, type: :model do
 
     describe '#formatted_business_hours' do
       let!(:business_period) do
-        create(:business_period, 
+        create(:business_period,
                restaurant: restaurant,
-               days_of_week: ['monday', 'tuesday'],
+               days_of_week: %w[monday tuesday],
                start_time: '09:00',
                end_time: '17:00',
                status: :active)
@@ -207,12 +207,12 @@ RSpec.describe Restaurant, type: :model do
         hours = restaurant.formatted_business_hours
         expect(hours).to be_an(Array)
         expect(hours.size).to eq(7)
-        
+
         # Monday should be open
         monday_hours = hours.find { |h| h[:day_of_week] == 1 }
         expect(monday_hours[:is_closed]).to be false
         expect(monday_hours[:periods]).not_to be_empty
-        
+
         # Wednesday should be closed
         wednesday_hours = hours.find { |h| h[:day_of_week] == 3 }
         expect(wednesday_hours[:is_closed]).to be true
@@ -235,46 +235,46 @@ RSpec.describe Restaurant, type: :model do
 
     describe '#generate_time_slots_for_period' do
       include ActiveSupport::Testing::TimeHelpers
-      
+
       let(:business_period) do
-        create(:business_period, 
+        create(:business_period,
                restaurant: restaurant,
                start_time: '10:00',
                end_time: '16:00')
       end
-      
+
       context 'with minimum_advance_hours setting' do
         before do
           # 設定餐廳政策
           policy = restaurant.reservation_policy || restaurant.create_reservation_policy
           policy.update!(minimum_advance_hours: 2)
         end
-        
+
         it 'filters out time slots that are too close to current time' do
           # 使用今天的日期進行測試
           today = Date.current
-          
+
           # 模擬當前時間為 11:00
           travel_to Time.zone.parse("#{today} 11:00") do
             slots = restaurant.generate_time_slots_for_period(business_period, today)
-            
+
             # 應該過濾掉 11:XX 和 12:XX 的時間槽（2小時內）
             # 只保留 13:00 之後的時間槽
             slot_times = slots.map { |slot| slot[:time] }
-            
+
             expect(slot_times).not_to include('11:00', '11:30', '12:00', '12:30')
             expect(slot_times).to include('13:00', '13:30', '14:00')
           end
         end
-        
+
         it 'includes all slots when minimum_advance_hours is 0' do
           # 設定為無最小提前時間限制
           restaurant.reservation_policy.update!(minimum_advance_hours: 0)
-          
+
           today = Date.current
           travel_to Time.zone.parse("#{today} 11:00") do
             slots = restaurant.generate_time_slots_for_period(business_period, today)
-            
+
             # 應該包含所有未來的時間槽
             slot_times = slots.map { |slot| slot[:time] }
             expect(slot_times).to include('11:00', '11:30', '12:00', '12:30', '13:00')

@@ -10,7 +10,8 @@ class ReservationPolicy < ApplicationRecord
   validates :deposit_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :max_bookings_per_phone, presence: true, numericality: { greater_than: 0 }
   validates :phone_limit_period_days, presence: true, numericality: { greater_than: 0 }
-  validates :default_dining_duration_minutes, presence: true, numericality: { greater_than: 0 }, unless: :unlimited_dining_time?
+  validates :default_dining_duration_minutes, presence: true, numericality: { greater_than: 0 },
+                                              unless: :unlimited_dining_time?
   validates :buffer_time_minutes, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :max_combination_tables, presence: true, numericality: { greater_than: 1 }
   validate :min_party_size_not_greater_than_max
@@ -35,6 +36,7 @@ class ReservationPolicy < ApplicationRecord
   def can_book_on_date?(target_date)
     # 不能超過預定範圍
     return false if target_date > earliest_booking_date
+
     true
   end
 
@@ -49,7 +51,7 @@ class ReservationPolicy < ApplicationRecord
 
   def calculate_deposit(party_size)
     return 0 unless deposit_required?
-    
+
     if deposit_per_person?
       deposit_amount * party_size
     else
@@ -59,9 +61,9 @@ class ReservationPolicy < ApplicationRecord
 
   def formatted_deposit_policy
     return '無需押金' unless deposit_required?
-    
+
     formatted_amount = deposit_amount.to_i == deposit_amount ? deposit_amount.to_i : deposit_amount
-    
+
     if deposit_per_person?
       "每人 $#{formatted_amount}"
     else
@@ -82,7 +84,7 @@ class ReservationPolicy < ApplicationRecord
   # 檢查手機號碼是否超過訂位限制
   def phone_booking_limit_exceeded?(phone_number)
     return false if phone_number.blank?
-    
+
     current_bookings = count_phone_bookings_in_period(phone_number)
     current_bookings >= max_bookings_per_phone
   end
@@ -90,21 +92,21 @@ class ReservationPolicy < ApplicationRecord
   # 計算手機號碼在指定期間內的訂位次數
   def count_phone_bookings_in_period(phone_number)
     return 0 if phone_number.blank?
-    
+
     start_date = Date.current
     end_date = start_date + phone_limit_period_days.days
-    
+
     restaurant.reservations
-              .where(customer_phone: phone_number)
-              .where(reservation_datetime: start_date.beginning_of_day..end_date.end_of_day)
-              .where.not(status: [:cancelled, :no_show])
-              .count
+      .where(customer_phone: phone_number)
+      .where(reservation_datetime: start_date.beginning_of_day..end_date.end_of_day)
+      .where.not(status: %i[cancelled no_show])
+      .count
   end
 
   # 獲取手機號碼剩餘可訂位次數
   def remaining_bookings_for_phone(phone_number)
     return max_bookings_per_phone if phone_number.blank?
-    
+
     current_bookings = count_phone_bookings_in_period(phone_number)
     [max_bookings_per_phone - current_bookings, 0].max
   end
@@ -121,19 +123,19 @@ class ReservationPolicy < ApplicationRecord
 
   # 獲取訂位功能關閉的原因說明
   def reservation_disabled_message
-    unless reservation_enabled?
-      "線上訂位功能暫停服務，如需訂位請直接致電餐廳"
-    end
+    return if reservation_enabled?
+
+    '線上訂位功能暫停服務，如需訂位請直接致電餐廳'
   end
 
   # 檢查是否可以在指定日期時間預定
   def can_reserve_at?(target_datetime)
     # 檢查是否在允許的預定範圍內
     return false unless can_book_on_date?(target_datetime.to_date)
-    
+
     # 檢查是否符合提前預定時間要求
     return false unless can_book_at_time?(target_datetime)
-    
+
     true
   end
 
@@ -143,34 +145,33 @@ class ReservationPolicy < ApplicationRecord
       "超出最大預定範圍（最多提前 #{advance_booking_days} 天）"
     elsif target_datetime < latest_booking_datetime
       "預定時間過近（至少提前 #{minimum_advance_hours} 小時）"
-    else
-      nil
     end
   end
 
   # 用餐時間相關方法
   def total_dining_duration_minutes
     return nil if unlimited_dining_time?
+
     default_dining_duration_minutes + buffer_time_minutes
   end
-  
+
   def has_time_limit?
     !unlimited_dining_time?
   end
-  
+
   def dining_settings_summary
     if unlimited_dining_time?
-      "無限用餐時間"
+      '無限用餐時間'
     else
       "用餐時間：#{default_dining_duration_minutes}分鐘 + 緩衝#{buffer_time_minutes}分鐘 = #{total_dining_duration_minutes}分鐘"
     end
   end
-  
+
   def table_combination_settings_summary
     if allow_table_combinations?
       "允許併桌（最多#{max_combination_tables}桌）"
     else
-      "不允許併桌"
+      '不允許併桌'
     end
   end
 
@@ -195,7 +196,7 @@ class ReservationPolicy < ApplicationRecord
     self.phone_limit_period_days ||= 30
     self.reservation_enabled = true if reservation_enabled.nil?
     self.special_rules ||= {}
-    
+
     # 用餐時間設定預設值
     self.unlimited_dining_time = false if unlimited_dining_time.nil?
     self.default_dining_duration_minutes ||= 120
@@ -211,9 +212,9 @@ class ReservationPolicy < ApplicationRecord
 
   def min_party_size_not_greater_than_max
     return unless min_party_size && max_party_size
-    
-    if min_party_size > max_party_size
-      errors.add(:min_party_size, '最小人數不能大於最大人數')
-    end
+
+    return unless min_party_size > max_party_size
+
+    errors.add(:min_party_size, '最小人數不能大於最大人數')
   end
-end 
+end

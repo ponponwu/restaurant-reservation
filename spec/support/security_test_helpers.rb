@@ -49,10 +49,10 @@ module SecurityTestHelpers
 
   # 超長字串攻擊
   OVERSIZED_STRINGS = [
-    'A' * 1000,    # 1KB
-    'A' * 10000,   # 10KB  
-    'A' * 100000,  # 100KB
-    '中文字符' * 2500  # Unicode 長字串
+    'A' * 1000, # 1KB
+    'A' * 10_000,   # 10KB
+    'A' * 100_000,  # 100KB
+    '中文字符' * 2500 # Unicode 長字串
   ].freeze
 
   # HTTP Header 注入攻擊
@@ -102,14 +102,14 @@ module SecurityTestHelpers
   # 檢查安全 Headers
   def assert_security_headers(response_headers)
     # X-Frame-Options 防止 Clickjacking
-    expect(['DENY', 'SAMEORIGIN']).to include(response_headers['X-Frame-Options']) if response_headers['X-Frame-Options']
-    
+    expect(%w[DENY SAMEORIGIN]).to include(response_headers['X-Frame-Options']) if response_headers['X-Frame-Options']
+
     # X-Content-Type-Options 防止 MIME 類型混淆
     expect(response_headers['X-Content-Type-Options']).to eq('nosniff') if response_headers['X-Content-Type-Options']
-    
+
     # X-XSS-Protection 啟用瀏覽器 XSS 過濾
     expect(response_headers['X-XSS-Protection']).to be_present if response_headers['X-XSS-Protection']
-    
+
     # 不應該洩露服務器版本信息
     expect(response_headers['Server']).not_to include('version') if response_headers['Server']
     expect(response_headers['X-Powered-By']).to be_nil
@@ -136,20 +136,18 @@ module SecurityTestHelpers
   def test_concurrent_requests(url, params_generator, count = 10)
     threads = []
     results = []
-    
+
     count.times do |i|
       threads << Thread.new do
-        begin
-          params = params_generator.call(i)
-          # 這里需要根據實際的測試框架調整
-          response = make_request(url, params)
-          results << response
-        rescue => e
-          results << { error: e.message }
-        end
+        params = params_generator.call(i)
+        # 這里需要根據實際的測試框架調整
+        response = make_request(url, params)
+        results << response
+      rescue StandardError => e
+        results << { error: e.message }
       end
     end
-    
+
     threads.each(&:join)
     results
   end
@@ -157,10 +155,10 @@ module SecurityTestHelpers
   # 檢查速率限制
   def assert_rate_limiting(responses)
     status_codes = responses.map { |r| r.is_a?(Hash) && r[:error] ? 500 : r.status }
-    
+
     # 至少應該有一些請求被限制或正常處理
     expect(status_codes.count { |code| [200, 302, 422, 429].include?(code) }).to be > 0
-    
+
     # 不應該全部都是錯誤
     expect(status_codes.count { |code| code >= 500 }).to be < responses.length
   end
@@ -169,28 +167,28 @@ module SecurityTestHelpers
   def unicode_security_test_strings
     [
       '测试用户名',           # 簡體中文
-      '測試用戶名',           # 繁體中文  
-      'テストユーザー',        # 日文
-      '테스트사용자',          # 韓文
+      '測試用戶名',           # 繁體中文
+      'テストユーザー', # 日文
+      '테스트사용자', # 韓文
       'тестовое имя',        # 俄文
       'اسم المستخدم',        # 阿拉伯文
       'שם משתמש',            # 希伯來文
-      'ü̈n̈ï̈c̈ö̈d̈ë̈',          # 組合字符
-      '💀💻🔒',              # Emoji
-      "\u0000\u0001\u0002",  # 控制字符
-      "A\u034F\u034F\u034FB", # 零寬字符
+      'ü̈n̈ï̈c̈ö̈d̈ë̈', # 組合字符
+      '💀💻🔒', # Emoji
+      "\u0000\u0001\u0002", # 控制字符
+      "A\u034F\u034F\u034FB" # 零寬字符
     ]
   end
 
   # 邊界值測試
   def boundary_test_values
     {
-      integers: [-2147483648, -1, 0, 1, 2147483647, 2147483648],
+      integers: [-2_147_483_648, -1, 0, 1, 2_147_483_647, 2_147_483_648],
       strings: ['', 'a', 'A' * 255, 'A' * 256, 'A' * 1000],
-      floats: [-999999.99, -0.01, 0.0, 0.01, 999999.99],
-      dates: ['1900-01-01', '2000-02-29', '2038-01-19', '9999-12-31'],
-      emails: ['a@b.c', 'test@' + 'a' * 250 + '.com'],
-      phones: ['1', '12345678901234567890']
+      floats: [-999_999.99, -0.01, 0.0, 0.01, 999_999.99],
+      dates: %w[1900-01-01 2000-02-29 2038-01-19 9999-12-31],
+      emails: ['a@b.c', "test@#{'a' * 250}.com"],
+      phones: %w[1 12345678901234567890]
     }
   end
 
@@ -200,7 +198,7 @@ module SecurityTestHelpers
   def make_request(url, params)
     # 這裡需要實現實際的 HTTP 請求邏輯
     # 在 RSpec 中可能是 post, get 等方法
-    raise NotImplementedError, "Implement make_request for your testing framework"
+    raise NotImplementedError, 'Implement make_request for your testing framework'
   end
 end
 

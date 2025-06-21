@@ -7,8 +7,8 @@ class AdminController < ApplicationController
   private
 
   def ensure_admin_access
-    unless current_user&.active? && current_user&.can_access_admin?
-      redirect_to root_path, alert: '您沒有權限存取管理後台'
-    end
+    return if current_user&.active? && current_user.can_access_admin?
+
+    redirect_to root_path, alert: '您沒有權限存取管理後台'
   end
-end 
+end

@@ -7,44 +7,42 @@ RSpec.describe 'ReservationLockService 升級測試', type: :service do
 
   before do
     # 清除所有測試鎖定
-    begin
-      Redis.current.flushdb if Redis.current
-    rescue
-      # 忽略 Redis 連接錯誤（測試環境可能沒有 Redis）
-    end
+
+    Redis.current&.flushdb
+  rescue StandardError
+    # 忽略 Redis 連接錯誤（測試環境可能沒有 Redis）
   end
 
   after do
     # 清理測試數據
-    begin
-      Redis.current.flushdb if Redis.current
-    rescue
-      # 忽略 Redis 連接錯誤
-    end
+
+    Redis.current&.flushdb
+  rescue StandardError
+    # 忽略 Redis 連接錯誤
   end
 
   describe '向後相容性測試' do
     it '舊的 API 調用仍然有效' do
       result = nil
-      expect {
+      expect do
         ReservationLockService.with_lock(restaurant_id, datetime, party_size) do
           result = 'success'
         end
-      }.not_to raise_error
+      end.not_to raise_error
 
       expect(result).to eq('success')
     end
 
     it '提供升級資訊' do
       info = ReservationLockService.migration_info
-      
+
       expect(info[:version]).to include('Enhanced Redis')
       expect(info[:backend]).to eq('Redis')
       expect(info[:new_service]).to eq('EnhancedReservationLockService')
     end
 
     it '確認已升級狀態' do
-      expect(ReservationLockService.upgraded?).to be_truthy
+      expect(ReservationLockService).to be_upgraded
     end
   end
 
@@ -121,7 +119,7 @@ RSpec.describe 'ReservationLockService 升級測試', type: :service do
   describe '日誌記錄' do
     it '可以記錄升級資訊' do
       expect(Rails.logger).to receive(:info).at_least(4).times
-      
+
       ReservationLockService.log_upgrade_info
     end
   end
@@ -140,7 +138,7 @@ RSpec.describe 'ReservationLockService 升級測試', type: :service do
 
   def redis_available?
     Redis.current.ping == 'PONG'
-  rescue
+  rescue StandardError
     false
   end
 end

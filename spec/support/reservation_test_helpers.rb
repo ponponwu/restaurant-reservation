@@ -3,30 +3,29 @@ module ReservationTestHelpers
   def setup_restaurant_with_capacity(restaurant, options = {})
     table_count = options[:table_count] || 3
     table_capacity = options[:table_capacity] || 4
-    
+
     # 確保有營業時段
     unless restaurant.business_periods.any?
-      create(:business_period, 
-        restaurant: restaurant,
-        name: 'dinner',
-        display_name: '晚餐',
-        start_time: '17:30',
-        end_time: '21:30'
-      )
+      create(:business_period,
+             restaurant: restaurant,
+             name: 'dinner',
+             display_name: '晚餐',
+             start_time: '17:30',
+             end_time: '21:30')
     end
-    
+
     # 確保有桌位群組
-    table_group = restaurant.table_groups.first || 
+    table_group = restaurant.table_groups.first ||
                   restaurant.table_groups.create!(
                     name: '主要區域',
                     description: '主要用餐區域',
                     active: true
                   )
-    
+
     # 建立桌位
     table_count.times do |i|
       restaurant.restaurant_tables.create!(
-        table_number: "T#{i+1}",
+        table_number: "T#{i + 1}",
         capacity: table_capacity,
         min_capacity: 1,
         max_capacity: table_capacity,
@@ -34,10 +33,10 @@ module ReservationTestHelpers
         active: true
       )
     end
-    
+
     # 確保訂位政策啟用
     restaurant.reservation_policy.update!(reservation_enabled: true)
-    
+
     restaurant.reload
   end
 
@@ -54,25 +53,25 @@ module ReservationTestHelpers
       adults: 2,
       children: 0
     }
-    
+
     params = defaults.deep_merge(overrides)
-    
+
     # 自動添加 business_period_id 如果沒有提供
     if params[:business_period_id].nil? && defined?(@restaurant)
       params[:business_period_id] = @restaurant.business_periods.first&.id
     elsif params[:business_period_id].nil? && defined?(restaurant)
       params[:business_period_id] = restaurant.business_periods.first&.id
     end
-    
+
     params
   end
 
   # 建立訂位並返回結果
   def create_reservation_via_api(restaurant, params = {})
     reservation_params = build_reservation_params(params)
-    
+
     post restaurant_reservations_path(restaurant.slug), params: reservation_params
-    
+
     {
       response: response,
       reservation: Reservation.last,
@@ -86,21 +85,21 @@ module ReservationTestHelpers
     if dates[:weekly_closures]
       days_mask = 127 # 全週營業
       dates[:weekly_closures].each do |day|
-        days_mask &= ~(2 ** day) # 移除指定的天
+        days_mask &= ~(2**day) # 移除指定的天
       end
-      
+
       restaurant.business_periods.update_all(days_of_week_mask: days_mask)
     end
-    
+
     # 特殊休息日
-    if dates[:special_closures]
-      dates[:special_closures].each do |date|
-        restaurant.closure_dates.create!(
-          date: date,
-          reason: '測試公休',
-          all_day: true
-        )
-      end
+    return unless dates[:special_closures]
+
+    dates[:special_closures].each do |date|
+      restaurant.closure_dates.create!(
+        date: date,
+        reason: '測試公休',
+        all_day: true
+      )
     end
   end
 
@@ -108,10 +107,9 @@ module ReservationTestHelpers
   def setup_blacklist(restaurant, phone_numbers)
     Array(phone_numbers).each do |phone|
       create(:blacklist,
-        restaurant: restaurant,
-        customer_phone: phone,
-        reason: '測試黑名單'
-      )
+             restaurant: restaurant,
+             customer_phone: phone,
+             reason: '測試黑名單')
     end
   end
 
@@ -131,11 +129,10 @@ module ReservationTestHelpers
   def create_existing_reservations(restaurant, phone, count = 1)
     count.times do |i|
       create(:reservation,
-        restaurant: restaurant,
-        customer_phone: phone,
-        reservation_datetime: (i + 3).days.from_now,
-        status: :confirmed
-      )
+             restaurant: restaurant,
+             customer_phone: phone,
+             reservation_datetime: (i + 3).days.from_now,
+             status: :confirmed)
     end
   end
 
@@ -143,17 +140,17 @@ module ReservationTestHelpers
   def simulate_concurrent_reservations(restaurant, count = 2, params = {})
     threads = []
     results = []
-    
+
     count.times do |i|
       threads << Thread.new do
         reservation_params = build_reservation_params(params.merge(
-          reservation: params.dig(:reservation) || {}
-        ))
-        
+                                                        reservation: params[:reservation] || {}
+                                                      ))
+
         # 為每個請求使用不同的手機號碼
         phone = reservation_params.dig(:reservation, :customer_phone) || '0912345678'
         reservation_params[:reservation][:customer_phone] = "#{phone[0..-2]}#{i}"
-        
+
         begin
           post restaurant_reservations_path(restaurant.slug), params: reservation_params
           results << {
@@ -161,7 +158,7 @@ module ReservationTestHelpers
             status: response.status,
             thread_id: Thread.current.object_id
           }
-        rescue => e
+        rescue StandardError => e
           results << {
             success: false,
             error: e.message,
@@ -170,7 +167,7 @@ module ReservationTestHelpers
         end
       end
     end
-    
+
     threads.each(&:join)
     results
   end
@@ -187,9 +184,9 @@ module ReservationTestHelpers
   # 模擬系統測試中的日期選擇
   def select_date_in_calendar(date, wait_time = 5)
     find('input[data-reservation-target="date"]').click
-    
+
     expect(page).to have_css('.flatpickr-calendar', wait: wait_time)
-    
+
     within('.flatpickr-calendar') do
       date_element = find(".flatpickr-day[aria-label*='#{date.strftime('%B %-d, %Y')}']", wait: 3)
       date_element.click
@@ -201,17 +198,17 @@ module ReservationTestHelpers
     fill_in '聯絡人姓名', with: options[:name] || '測試客戶'
     fill_in '聯絡電話', with: options[:phone] || '0912345678'
     fill_in '電子郵件', with: options[:email] || 'test@example.com'
-    
-    if options[:special_requests]
-      fill_in '特殊需求', with: options[:special_requests]
-    end
+
+    return unless options[:special_requests]
+
+    fill_in '特殊需求', with: options[:special_requests]
   end
 
   # 驗證訂位建立成功
   def expect_reservation_success(restaurant)
     expect(page).to have_current_path(restaurant_public_path(restaurant.slug))
     expect(page).to have_content('訂位建立成功')
-    
+
     reservation = Reservation.last
     expect(reservation).to be_present
     expect(reservation.cancellation_token).to be_present
@@ -220,7 +217,7 @@ module ReservationTestHelpers
   # 驗證訂位建立失敗
   def expect_reservation_failure(error_message = nil)
     expect(page).to have_current_path(/reservation/)
-    
+
     if error_message
       expect(page).to have_content(error_message)
     else
@@ -238,7 +235,7 @@ module ReservationTestHelpers
         business_period_id: @restaurant&.business_periods&.first&.id || 1
       }
     ]
-    
+
     allow_any_instance_of(AvailabilityService)
       .to receive(:get_available_slots_by_period)
       .and_return(slots.any? ? slots : default_slots)
@@ -251,7 +248,7 @@ module ReservationTestHelpers
       allow_any_instance_of(ReservationAllocatorService)
         .to receive(:allocate_table)
         .and_return(table)
-      
+
       allow_any_instance_of(ReservationAllocatorService)
         .to receive(:check_availability)
         .and_return({ has_availability: true })
@@ -259,7 +256,7 @@ module ReservationTestHelpers
       allow_any_instance_of(ReservationAllocatorService)
         .to receive(:allocate_table)
         .and_return(result)
-      
+
       availability = result ? { has_availability: true } : { has_availability: false }
       allow_any_instance_of(ReservationAllocatorService)
         .to receive(:check_availability)
@@ -268,7 +265,7 @@ module ReservationTestHelpers
   end
 
   # 效能測試輔助方法
-  def measure_response_time(&block)
+  def measure_response_time
     start_time = Time.current
     yield
     end_time = Time.current

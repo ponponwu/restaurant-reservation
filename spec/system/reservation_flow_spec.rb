@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe '訂位流程', type: :system, js: true do
+RSpec.describe '訂位流程', :js,  do
   let(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let(:business_period) { create(:business_period, restaurant: restaurant, name: '晚餐時段') }
   let(:table) { create(:table, restaurant: restaurant, table_number: 'A1') }
@@ -15,7 +15,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
     allow_any_instance_of(ReservationAllocatorService).to receive(:check_availability).and_return({ has_availability: true })
   end
 
-  scenario '用戶完成完整的訂位流程' do
+  it '用戶完成完整的訂位流程' do
     # 1. 訪問餐廳頁面
     visit restaurant_public_path(restaurant)
     
@@ -61,7 +61,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
 
     # 9. 確認成功訊息
     expect(page).to have_content('訂位申請已送出')
-    expect(current_path).to eq(restaurant_public_path(restaurant))
+    expect(page).to have_current_path(restaurant_public_path(restaurant), ignore_query: true)
 
     # 10. 確認資料庫中的訂位記錄
     reservation = Reservation.last
@@ -74,7 +74,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
     expect(reservation.status).to eq('pending')
   end
 
-  scenario '當沒有可用時間時顯示適當訊息' do
+  it '當沒有可用時間時顯示適當訊息' do
     # Mock 沒有可用時間槽
     allow_any_instance_of(Restaurant).to receive(:available_time_options_for_date).and_return([])
     
@@ -95,15 +95,15 @@ RSpec.describe '訂位流程', type: :system, js: true do
     expect(page).to have_content('該日無可用時間', wait: 5)
   end
 
-  scenario '驗證表單錯誤處理' do
+  it '驗證表單錯誤處理' do
     # 跳過前面步驟，直接到訂位表單
     visit new_restaurant_reservation_path(restaurant, {
-      date: Date.current.strftime('%Y-%m-%d'),
+                                            date: Date.current.strftime('%Y-%m-%d'),
       adults: 2,
       children: 0,
       time: '18:00',
       period_id: business_period.id
-    })
+                                          })
 
     # 提交空白表單
     click_button '送出預約申請'
@@ -112,7 +112,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
     expect(page).to have_content('can\'t be blank')
   end
 
-  scenario '處理餐廳公休日' do
+  it '處理餐廳公休日' do
     # Mock 餐廳公休
     allow_any_instance_of(Restaurant).to receive(:closed_on_date?).and_return(true)
     
@@ -133,18 +133,18 @@ RSpec.describe '訂位流程', type: :system, js: true do
     expect(page).to have_content('餐廳當天公休', wait: 5)
   end
 
-  scenario '處理桌位已滿的情況' do
+  it '處理桌位已滿的情況' do
     # Mock 沒有可用桌位
     allow_any_instance_of(ReservationAllocatorService).to receive(:allocate_table).and_return(nil)
     
     # 跳到訂位表單
     visit new_restaurant_reservation_path(restaurant, {
-      date: Date.current.strftime('%Y-%m-%d'),
+                                            date: Date.current.strftime('%Y-%m-%d'),
       adults: 2,
       children: 0,
       time_slot: '18:00',
       business_period_id: business_period.id
-    })
+                                          })
 
     fill_in '聯絡人姓名', with: '王小明'
     fill_in '聯絡電話', with: '0912345678'
@@ -155,12 +155,12 @@ RSpec.describe '訂位流程', type: :system, js: true do
     expect(page).to have_content('該時段已無可用桌位')
   end
 
-  describe 'Dynamic party size adjustment', js: true do
+  describe 'Dynamic party size adjustment', :js do
     it 'dynamically adjusts child options when adult count changes' do
       visit restaurant_public_path(restaurant.slug)
       
       # 等待頁面載入完成
-      expect(page).to have_selector('[data-reservation-target="adultCount"]')
+      expect(page).to have_css('[data-reservation-target="adultCount"]')
       
       # 檢查初始狀態：大人選2，小孩可選0-4
       adult_select = find('[data-reservation-target="adultCount"]')
@@ -168,7 +168,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
       
       expect(adult_select.value).to eq('2')
       child_options = child_select.all('option').map(&:value)
-      expect(child_options).to eq(['0', '1', '2', '3', '4'])
+      expect(child_options).to eq(%w[0 1 2 3 4])
       
       # 將大人數改為4，小孩選項應該變為0-2
       adult_select.select('4')
@@ -177,7 +177,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
       sleep 1
       
       child_options = child_select.all('option').map(&:value)
-      expect(child_options).to eq(['0', '1', '2'])
+      expect(child_options).to eq(%w[0 1 2])
       
       # 將大人數改為6（最大值），小孩選項應該只有0
       adult_select.select('6')
@@ -193,7 +193,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
       visit restaurant_public_path(restaurant.slug)
       
       # 等待頁面載入完成
-      expect(page).to have_selector('[data-reservation-target="adultCount"]')
+      expect(page).to have_css('[data-reservation-target="adultCount"]')
       
       adult_select = find('[data-reservation-target="adultCount"]')
       child_select = find('[data-reservation-target="childCount"]')
@@ -234,7 +234,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
       create(:restaurant_table, restaurant: restaurant, capacity: 4)
     end
 
-    context 'when user is blacklisted', js: true do
+    context 'when user is blacklisted', :js do
       it 'shows simplified error message without revealing blacklist status' do
         visit restaurant_public_path(restaurant.slug)
         
@@ -271,13 +271,13 @@ RSpec.describe '訂位流程', type: :system, js: true do
         # 確保錯誤訊息有適當的樣式但沒有列表格式
         within('.bg-red-50') do
           expect(page).to have_content('訂位失敗，請聯繫餐廳')
-          expect(page).not_to have_selector('ul')
-          expect(page).not_to have_selector('li')
+          expect(page).not_to have_css('ul')
+          expect(page).not_to have_css('li')
         end
       end
     end
 
-    context 'when phone booking limit is exceeded', js: true do
+    context 'when phone booking limit is exceeded', :js do
       let(:limited_phone) { '0966666666' }
       
       before do
@@ -321,7 +321,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
       end
     end
 
-    context 'with successful reservation', js: true do
+    context 'with successful reservation', :js do
       it 'does not show error messages' do
         visit restaurant_public_path(restaurant.slug)
         
@@ -343,17 +343,17 @@ RSpec.describe '訂位流程', type: :system, js: true do
         expect(page).to have_current_path(restaurant_public_path(restaurant.slug))
         expect(page).to have_content('訂位建立成功')
         expect(page).not_to have_content('訂位失敗')
-        expect(page).not_to have_selector('.bg-red-50')
+        expect(page).not_to have_css('.bg-red-50')
       end
     end
   end
 
   private
   
-  def select_date_and_party_size(date, adults, children)
+  def select_date_and_party_size(_date, adults, children)
     # 實作選擇日期和人數的輔助方法
     # 這裡的具體實作會依據實際的前端介面而定
     fill_in 'adults', with: adults if page.has_field?('adults')
     fill_in 'children', with: children if page.has_field?('children')
   end
-end 
+end

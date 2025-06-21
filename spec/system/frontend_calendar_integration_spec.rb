@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
+RSpec.describe 'Frontend Calendar Integration', :js,  do
   let(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let(:business_period) { create(:business_period, restaurant: restaurant, name: '晚餐時段') }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -10,16 +10,16 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
     business_period
     table
     restaurant.reservation_policy.update!(reservation_enabled: true)
-    
+
     # Mock availability services
     allow_any_instance_of(AvailabilityService).to receive(:get_available_slots_by_period).and_return([
-      {
-        period_name: '晚餐時段',
-        time: '18:00',
-        available: true,
-        business_period_id: business_period.id
-      }
-    ])
+                                                                                                       {
+                                                                                                         period_name: '晚餐時段',
+                                                                                                         time: '18:00',
+                                                                                                         available: true,
+                                                                                                         business_period_id: business_period.id
+                                                                                                       }
+                                                                                                     ])
   end
 
   describe 'Calendar date selection with closure dates' do
@@ -29,7 +29,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
         business_period.update!(days_of_week_mask: 126) # 排除週一(1)
       end
 
-      scenario 'disables weekly closure days in calendar' do
+      it 'disables weekly closure days in calendar' do
         visit restaurant_public_path(restaurant.slug)
 
         # 選擇人數
@@ -68,7 +68,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
         )
       end
 
-      scenario 'disables special closure dates in calendar' do
+      it 'disables special closure dates in calendar' do
         visit restaurant_public_path(restaurant.slug)
 
         select '2 人', from: 'reservation[adult_count]'
@@ -89,7 +89,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
         restaurant.restaurant_tables.destroy_all
       end
 
-      scenario 'disables all dates when no capacity available' do
+      it 'disables all dates when no capacity available' do
         visit restaurant_public_path(restaurant.slug)
 
         select '8 人', from: 'reservation[adult_count]' # 超過容量的人數
@@ -108,7 +108,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
   end
 
   describe 'Real-time time slot updates' do
-    scenario 'updates available time slots when date changes' do
+    it 'updates available time slots when date changes' do
       visit restaurant_public_path(restaurant.slug)
 
       select '2 人', from: 'reservation[adult_count]'
@@ -126,7 +126,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       expect(page).to have_button('18:00', wait: 5)
     end
 
-    scenario 'shows no available times message when restaurant is closed' do
+    it 'shows no available times message when restaurant is closed' do
       # Mock 餐廳當天公休
       allow_any_instance_of(Restaurant).to receive(:closed_on_date?).and_return(true)
 
@@ -144,7 +144,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       expect(page).to have_content('餐廳當天公休', wait: 5)
     end
 
-    scenario 'shows no available times when all slots are full' do
+    it 'shows no available times when all slots are full' do
       # Mock 沒有可用時間槽
       allow_any_instance_of(AvailabilityService).to receive(:get_available_slots_by_period).and_return([])
 
@@ -164,7 +164,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
   end
 
   describe 'Dynamic party size adjustment' do
-    scenario 'adjusts child options based on adult count' do
+    it 'adjusts child options based on adult count' do
       visit restaurant_public_path(restaurant.slug)
 
       adult_select = find('[data-reservation-target="adultCount"]')
@@ -173,17 +173,17 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       # 初始狀態：2大人，小孩可選0-4
       expect(adult_select.value).to eq('2')
       child_options = child_select.all('option').map(&:value)
-      expect(child_options).to eq(['0', '1', '2', '3', '4'])
+      expect(child_options).to eq(%w[0 1 2 3 4])
 
       # 改為4大人，小孩選項應該變為0-2
       adult_select.select('4')
       sleep 1
 
       child_options = child_select.all('option').map(&:value)
-      expect(child_options).to eq(['0', '1', '2'])
+      expect(child_options).to eq(%w[0 1 2])
     end
 
-    scenario 'prevents total party size from exceeding maximum' do
+    it 'prevents total party size from exceeding maximum' do
       visit restaurant_public_path(restaurant.slug)
 
       adult_select = find('[data-reservation-target="adultCount"]')
@@ -204,7 +204,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
   end
 
   describe 'Error handling and edge cases' do
-    scenario 'handles API failures gracefully' do
+    it 'handles API failures gracefully' do
       # Mock API 失敗
       allow_any_instance_of(RestaurantsController).to receive(:available_slots).and_raise(StandardError.new('API Error'))
 
@@ -223,17 +223,17 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       expect(page).to have_content('載入時間時發生錯誤', wait: 5)
     end
 
-    scenario 'validates required fields before submission' do
+    it 'validates required fields before submission' do
       visit restaurant_public_path(restaurant.slug)
 
       # 跳過選擇，直接訪問訂位表單
       visit new_restaurant_reservation_path(restaurant.slug, {
-        date: Date.current.strftime('%Y-%m-%d'),
+                                              date: Date.current.strftime('%Y-%m-%d'),
         adults: 2,
         children: 0,
         time: '18:00',
         period_id: business_period.id
-      })
+                                            })
 
       # 不填寫任何欄位，直接提交
       click_button '送出預約申請'
@@ -242,7 +242,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       expect(page).to have_content("can't be blank")
     end
 
-    scenario 'handles table allocation failure' do
+    it 'handles table allocation failure' do
       # Mock 桌位分配失敗
       allow_any_instance_of(ReservationAllocatorService).to receive(:allocate_table).and_return(nil)
 
@@ -275,7 +275,11 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       page.driver.browser.manage.window.resize_to(375, 667)
     end
 
-    scenario 'calendar works on mobile devices' do
+    after do
+      # 恢復桌面視窗大小
+      page.driver.browser.manage.window.resize_to(1024, 768)
+    end
+    it 'calendar works on mobile devices' do
       visit restaurant_public_path(restaurant.slug)
 
       # 在手機上選擇人數
@@ -296,14 +300,10 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       expect(page).to have_button('18:00', wait: 5)
     end
 
-    after do
-      # 恢復桌面視窗大小
-      page.driver.browser.manage.window.resize_to(1024, 768)
-    end
   end
 
   describe 'Accessibility features' do
-    scenario 'calendar is keyboard navigable' do
+    it 'calendar is keyboard navigable' do
       visit restaurant_public_path(restaurant.slug)
 
       select '2 人', from: 'reservation[adult_count]'
@@ -322,7 +322,7 @@ RSpec.describe 'Frontend Calendar Integration', type: :system, js: true do
       expect(page).to have_button('18:00', wait: 5)
     end
 
-    scenario 'has proper ARIA labels' do
+    it 'has proper ARIA labels' do
       visit restaurant_public_path(restaurant.slug)
 
       # 檢查必要的ARIA標籤

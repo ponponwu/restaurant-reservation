@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'API Security Tests', type: :request do
+RSpec.describe 'API Security Tests' do
   let(:restaurant) { create(:restaurant, name: 'Security Test Restaurant') }
   let(:business_period) { create(:business_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -47,13 +47,13 @@ RSpec.describe 'API Security Tests', type: :request do
           expect(response.body).not_to include('javascript:')
           expect(response.body).not_to include('onerror=')
           expect(response.body).not_to include('onload=')
-          
+
           # 如果創建成功，檢查資料庫中的值是否被適當清理
-          if response.status == 302
-            reservation = Reservation.last
-            expect(reservation.customer_name).not_to include('<script>')
-            expect(reservation.customer_name).not_to include('javascript:')
-          end
+          next unless response.status == 302
+
+          reservation = Reservation.last
+          expect(reservation.customer_name).not_to include('<script>')
+          expect(reservation.customer_name).not_to include('javascript:')
         end
       end
 
@@ -75,7 +75,7 @@ RSpec.describe 'API Security Tests', type: :request do
 
           expect(response.body).not_to include('<script>')
           expect(response.body).not_to include('javascript:')
-          
+
           if response.status == 302
             reservation = Reservation.last
             expect(reservation.special_requests).not_to include('<script>') if reservation.special_requests
@@ -104,7 +104,7 @@ RSpec.describe 'API Security Tests', type: :request do
 
       it 'prevents SQL injection in customer name' do
         sql_injection_payloads.each do |payload|
-          expect {
+          expect do
             post restaurant_reservations_path(restaurant.slug), params: {
               reservation: {
                 customer_name: payload,
@@ -117,8 +117,8 @@ RSpec.describe 'API Security Tests', type: :request do
               children: 0,
               business_period_id: business_period.id
             }
-          }.not_to change { Reservation.count > 10 ? 0 : Reservation.count }
-          
+          end.not_to(change { Reservation.count > 10 ? 0 : Reservation.count })
+
           # 確保沒有 SQL 錯誤被返回
           expect(response.body).not_to include('SQL')
           expect(response.body).not_to include('syntax error')
@@ -134,7 +134,7 @@ RSpec.describe 'API Security Tests', type: :request do
             adults: 2,
             children: 0
           }
-          
+
           expect(response.body).not_to include('SQL')
           expect(response.body).not_to include('syntax error')
         end
@@ -147,7 +147,7 @@ RSpec.describe 'API Security Tests', type: :request do
       it 'requires CSRF token for POST requests' do
         # 模擬沒有 CSRF token 的請求
         allow_any_instance_of(ActionController::Base).to receive(:verified_request?).and_return(false)
-        
+
         post restaurant_reservations_path(restaurant.slug), params: {
           reservation: {
             customer_name: '測試客戶',
@@ -170,7 +170,7 @@ RSpec.describe 'API Security Tests', type: :request do
   describe 'Input Validation and Sanitization' do
     context 'Malformed data injection' do
       it 'handles extremely long input strings' do
-        long_string = 'A' * 10000
+        long_string = 'A' * 10_000
 
         post restaurant_reservations_path(restaurant.slug), params: {
           reservation: {
@@ -211,7 +211,7 @@ RSpec.describe 'API Security Tests', type: :request do
             business_period_id: business_period.id
           }
 
-          expect(response.status).to eq(422)
+          expect(response).to have_http_status(:unprocessable_content)
           expect(response.body).not_to include('<script>')
         end
       end
@@ -267,7 +267,7 @@ RSpec.describe 'API Security Tests', type: :request do
               business_period_id: business_period.id
             }
             responses << response.status
-          rescue => e
+          rescue StandardError => e
             # 紀錄但不讓測試失敗
             puts "Request #{i} failed: #{e.message}" if ENV['VERBOSE_TESTS']
           end
@@ -288,7 +288,7 @@ RSpec.describe 'API Security Tests', type: :request do
     context 'Session manipulation' do
       it 'prevents session hijacking attempts' do
         # 嘗試使用無效的 session ID
-        get restaurant_reservations_path(restaurant.slug), 
+        get restaurant_reservations_path(restaurant.slug),
             headers: { 'Cookie' => '_session_id=invalid_session_12345' }
 
         # 應該正常處理，不會出現錯誤
@@ -299,11 +299,11 @@ RSpec.describe 'API Security Tests', type: :request do
         malformed_cookies = [
           '_session_id=<script>alert("XSS")</script>',
           '_session_id=\'; DROP TABLE sessions; --',
-          '_session_id=' + 'A' * 10000
+          "_session_id=#{'A' * 10_000}"
         ]
 
         malformed_cookies.each do |cookie|
-          get restaurant_reservations_path(restaurant.slug), 
+          get restaurant_reservations_path(restaurant.slug),
               headers: { 'Cookie' => cookie }
 
           expect([200, 302, 400]).to include(response.status)
@@ -317,7 +317,7 @@ RSpec.describe 'API Security Tests', type: :request do
     context 'Malicious file upload attempts' do
       it 'rejects executable file uploads' do
         skip 'File upload not implemented in reservations' unless respond_to?(:file_upload_path)
-        
+
         # 這裡會測試文件上傳功能（如果存在）
         # 例如：上傳惡意腳本文件、超大文件等
       end
@@ -332,7 +332,7 @@ RSpec.describe 'API Security Tests', type: :request do
         # 檢查重要的安全 headers
         expect(response.headers['X-Frame-Options']).to be_present
         expect(response.headers['X-Content-Type-Options']).to eq('nosniff')
-        
+
         # 檢查是否沒有洩露敏感信息
         expect(response.headers['Server']).not_to include('version') if response.headers['Server']
         expect(response.headers['X-Powered-By']).to be_nil
@@ -340,9 +340,9 @@ RSpec.describe 'API Security Tests', type: :request do
 
       it 'prevents clickjacking attacks' do
         get restaurant_reservations_path(restaurant.slug)
-        
+
         x_frame_options = response.headers['X-Frame-Options']
-        expect(['DENY', 'SAMEORIGIN']).to include(x_frame_options) if x_frame_options
+        expect(%w[DENY SAMEORIGIN]).to include(x_frame_options) if x_frame_options
       end
     end
   end
@@ -366,11 +366,11 @@ RSpec.describe 'API Security Tests', type: :request do
 
         # 系統應該能正確處理重複參數
         expect([200, 302, 422]).to include(response.status)
-        
+
         if response.status == 302
           reservation = Reservation.last
           # 確保使用了正確的參數值
-          expect(['正常客戶', '惡意客戶']).to include(reservation.customer_name)
+          expect(%w[正常客戶 惡意客戶]).to include(reservation.customer_name)
         end
       end
     end
@@ -386,9 +386,9 @@ RSpec.describe 'API Security Tests', type: :request do
             customer_email: 'test@example.com',
             # 嘗試修改不應該被修改的屬性
             status: 'confirmed',
-            id: 999999,
+            id: 999_999,
             created_at: 1.year.ago,
-            restaurant_id: 999999
+            restaurant_id: 999_999
           },
           date: Date.tomorrow.strftime('%Y-%m-%d'),
           time_slot: '18:00',
@@ -421,7 +421,7 @@ RSpec.describe 'API Security Tests', type: :request do
           time_slot: 'invalid',
           adults: -1,
           children: -1,
-          business_period_id: 999999
+          business_period_id: 999_999
         }
 
         # 檢查錯誤訊息不會洩露敏感信息
@@ -478,11 +478,11 @@ RSpec.describe 'API Security Tests', type: :request do
           business_period_id: business_period.id
         }
 
-        expect(response.status).to eq(422)
+        expect(response).to have_http_status(:unprocessable_content)
       end
 
       it 'validates party size limits strictly' do
-        extreme_party_sizes = [-1, 0, 999999, 'invalid']
+        extreme_party_sizes = [-1, 0, 999_999, 'invalid']
 
         extreme_party_sizes.each do |size|
           post restaurant_reservations_path(restaurant.slug), params: {

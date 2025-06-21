@@ -1,15 +1,13 @@
 require 'rails_helper'
 
-RSpec.describe ReservationsController, type: :request do
+RSpec.describe ReservationsController do
   let(:restaurant) { create(:restaurant) }
   let(:reservation_policy) { restaurant.reservation_policy || restaurant.create_reservation_policy! }
 
   before do
     # 確保餐廳有基本的營業設定
-    unless restaurant.business_periods.any?
-      create(:business_period, restaurant: restaurant)
-    end
-    
+    create(:business_period, restaurant: restaurant) unless restaurant.business_periods.any?
+
     # 確保餐廳有桌位群組和桌位
     unless restaurant.table_groups.any?
       table_group = restaurant.table_groups.create!(
@@ -17,7 +15,7 @@ RSpec.describe ReservationsController, type: :request do
         description: '主要用餐區域',
         active: true
       )
-      
+
       restaurant.restaurant_tables.create!(
         table_number: 'A1',
         capacity: 4,
@@ -98,10 +96,10 @@ RSpec.describe ReservationsController, type: :request do
         end
 
         it 'redirects and prevents reservation creation' do
-          expect {
+          expect do
             post restaurant_reservations_path(restaurant.slug), params: valid_params
-          }.not_to change(Reservation, :count)
-          
+          end.not_to change(Reservation, :count)
+
           expect(response).to have_http_status(:redirect)
           follow_redirect!
           expect(response.body).to include('線上訂位功能暫停服務')
@@ -109,12 +107,12 @@ RSpec.describe ReservationsController, type: :request do
 
         context 'with AJAX request' do
           it 'returns JSON error response' do
-            post restaurant_reservations_path(restaurant.slug), 
+            post restaurant_reservations_path(restaurant.slug),
                  params: valid_params,
                  headers: { 'Accept' => 'application/json' }
-            
+
             expect(response).to have_http_status(:service_unavailable)
-            json_response = JSON.parse(response.body)
+            json_response = response.parsed_body
             expect(json_response['error']).to include('線上訂位功能暫停服務')
           end
         end
@@ -124,7 +122,7 @@ RSpec.describe ReservationsController, type: :request do
 
   describe 'phone booking limits protection' do
     let(:phone_number) { '0912345678' }
-    
+
     before do
       reservation_policy.update!(
         reservation_enabled: true,
@@ -136,7 +134,7 @@ RSpec.describe ReservationsController, type: :request do
     context 'when under phone booking limit' do
       before do
         # 創建1個現有訂位
-        create(:reservation, 
+        create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
                reservation_datetime: 5.days.from_now,
@@ -158,9 +156,9 @@ RSpec.describe ReservationsController, type: :request do
           business_period_id: restaurant.business_periods.first&.id
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: valid_params
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
       end
     end
 
@@ -168,10 +166,10 @@ RSpec.describe ReservationsController, type: :request do
       before do
         # 創建2個現有訂位（達到限制）
         create_list(:reservation, 2,
-                   restaurant: restaurant,
-                   customer_phone: phone_number,
-                   reservation_datetime: 5.days.from_now,
-                   status: :confirmed)
+                    restaurant: restaurant,
+                    customer_phone: phone_number,
+                    reservation_datetime: 5.days.from_now,
+                    status: :confirmed)
       end
 
       it 'prevents new reservation' do
@@ -189,10 +187,10 @@ RSpec.describe ReservationsController, type: :request do
           business_period_id: restaurant.business_periods.first&.id
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: valid_params
-        }.not_to change(Reservation, :count)
-        
+        end.not_to change(Reservation, :count)
+
         expect(response).to have_http_status(:unprocessable_entity)
       end
 
@@ -216,10 +214,10 @@ RSpec.describe ReservationsController, type: :request do
       before do
         # 創建2個已取消的訂位（不應計入限制）
         create_list(:reservation, 2,
-                   restaurant: restaurant,
-                   customer_phone: phone_number,
-                   reservation_datetime: 5.days.from_now,
-                   status: :cancelled)
+                    restaurant: restaurant,
+                    customer_phone: phone_number,
+                    reservation_datetime: 5.days.from_now,
+                    status: :cancelled)
       end
 
       it 'allows new reservation' do
@@ -233,9 +231,9 @@ RSpec.describe ReservationsController, type: :request do
           }
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: valid_params
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
       end
     end
   end
@@ -261,9 +259,9 @@ RSpec.describe ReservationsController, type: :request do
           }
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: valid_params
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
       end
     end
 
@@ -279,10 +277,10 @@ RSpec.describe ReservationsController, type: :request do
           }
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
-        
+        end.not_to change(Reservation, :count)
+
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
@@ -299,10 +297,10 @@ RSpec.describe ReservationsController, type: :request do
           }
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
-        
+        end.not_to change(Reservation, :count)
+
         expect(response).to have_http_status(:unprocessable_entity)
       end
     end
@@ -329,9 +327,9 @@ RSpec.describe ReservationsController, type: :request do
           }
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
       end
     end
 
@@ -347,9 +345,9 @@ RSpec.describe ReservationsController, type: :request do
           }
         }
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
       end
     end
   end
@@ -361,8 +359,8 @@ RSpec.describe ReservationsController, type: :request do
     before do
       reservation_policy.update!(reservation_enabled: true)
       # 創建黑名單記錄
-      create(:blacklist, 
-             restaurant: restaurant, 
+      create(:blacklist,
+             restaurant: restaurant,
              customer_phone: blacklisted_phone,
              reason: 'Test blacklist reason')
     end
@@ -385,9 +383,9 @@ RSpec.describe ReservationsController, type: :request do
       end
 
       it 'prevents reservation creation' do
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
       end
 
       it 'returns unprocessable entity status' do
@@ -410,21 +408,6 @@ RSpec.describe ReservationsController, type: :request do
 
     describe 'POST #create with phone booking limit exceeded' do
       let(:limited_phone) { '0966666666' }
-
-      before do
-        reservation_policy.update!(
-          max_bookings_per_phone: 1,
-          phone_limit_period_days: 30
-        )
-
-        # 創建一個現有訂位達到限制
-        create(:reservation,
-               restaurant: restaurant,
-               customer_phone: limited_phone,
-               reservation_datetime: 5.days.from_now,
-               status: :confirmed)
-      end
-
       let(:limited_params) do
         {
           reservation: {
@@ -441,10 +424,24 @@ RSpec.describe ReservationsController, type: :request do
         }
       end
 
+      before do
+        reservation_policy.update!(
+          max_bookings_per_phone: 1,
+          phone_limit_period_days: 30
+        )
+
+        # 創建一個現有訂位達到限制
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: limited_phone,
+               reservation_datetime: 5.days.from_now,
+               status: :confirmed)
+      end
+
       it 'prevents reservation creation' do
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: limited_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
       end
 
       it 'shows generic error message instead of revealing specific limit' do
@@ -474,9 +471,7 @@ RSpec.describe ReservationsController, type: :request do
 
       before do
         # 確保餐廳有營業時段和桌位
-        unless restaurant.business_periods.any?
-          create(:business_period, restaurant: restaurant)
-        end
+        create(:business_period, restaurant: restaurant) unless restaurant.business_periods.any?
         unless restaurant.restaurant_tables.any?
           table_group = restaurant.table_groups.first || restaurant.table_groups.create!(
             name: '主要區域',
@@ -488,9 +483,9 @@ RSpec.describe ReservationsController, type: :request do
       end
 
       it 'allows reservation creation' do
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: normal_params
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
       end
 
       it 'redirects to restaurant page on success' do
@@ -519,18 +514,18 @@ RSpec.describe ReservationsController, type: :request do
 
       it 'shows simplified error message without title or list styling' do
         post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
-        
+
         # 應該包含錯誤訊息
         expect(response.body).to include('訂位失敗，請聯繫餐廳')
-        
+
         # 不應該包含錯誤標題
         expect(response.body).not_to include('預約時發生錯誤')
         expect(response.body).not_to include('發生錯誤')
-        
+
         # 不應該有重複的錯誤訊息
         error_count = response.body.scan(/訂位失敗，請聯繫餐廳/).length
         expect(error_count).to eq(1)
       end
     end
   end
-end 
+end

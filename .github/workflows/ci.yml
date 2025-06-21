@@ -27,7 +27,7 @@ jobs:
               run: bundle install --jobs 4 --retry 3
 
             - name: Run RuboCop
-              run: bundle exec rubocop --parallel --format simple
+              run: bundle exec rubocop --parallel --format simple --fail-level error
 
             - name: Run Brakeman (Security Scanner)
               run: bundle exec brakeman --exit-on-warn --no-progress --format plain

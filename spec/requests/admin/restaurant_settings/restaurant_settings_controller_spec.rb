@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :request do
+RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController do
   let(:user) { create(:user, :admin) }
   let(:restaurant) { create(:restaurant) }
   let(:reservation_policy) { restaurant.reservation_policy || restaurant.create_reservation_policy! }
@@ -12,7 +12,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
   describe 'GET #reservation_policies' do
     it 'renders the reservation policies page' do
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant)
-      
+
       expect(response).to have_http_status(:success)
       expect(response.body).to include('訂位政策設定')
       expect(response.body).to include('線上訂位功能')
@@ -21,7 +21,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
     it 'shows reservation enabled status' do
       reservation_policy.update!(reservation_enabled: true)
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant)
-      
+
       expect(response.body).to include('已啟用')
       expect(response.body).to include('bg-blue-600')
     end
@@ -29,7 +29,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
     it 'shows reservation disabled status' do
       reservation_policy.update!(reservation_enabled: false)
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant)
-      
+
       expect(response.body).to include('已停用')
       expect(response.body).to include('bg-gray-200')
       expect(response.body).to include('opacity-50 pointer-events-none')
@@ -41,7 +41,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
         phone_limit_period_days: 14
       )
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant)
-      
+
       expect(response.body).to include('手機號碼訂位次數限制')
       expect(response.body).to include('value="3"')
       expect(response.body).to include('value="14"')
@@ -54,7 +54,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
         deposit_per_person: true
       )
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant)
-      
+
       expect(response.body).to include('押金設定')
       expect(response.body).to include('value="500"')
       expect(response.body).not_to include('hidden')
@@ -63,7 +63,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
     it 'hides deposit fields when disabled' do
       reservation_policy.update!(deposit_required: false)
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant)
-      
+
       expect(response.body).to include('hidden')
     end
   end
@@ -96,7 +96,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
               params: valid_params
 
         expect(response).to have_http_status(:redirect)
-        
+
         reservation_policy.reload
         expect(reservation_policy.reservation_enabled).to be true
         expect(reservation_policy.advance_booking_days).to eq(21)
@@ -119,7 +119,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
 
       it 'enables reservation when toggled on' do
         reservation_policy.update!(reservation_enabled: false)
-        
+
         patch admin_restaurant_settings_restaurant_reservation_policies_path(restaurant),
               params: { reservation_policy: { reservation_enabled: true } }
 
@@ -129,7 +129,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
 
       it 'disables reservation when toggled off' do
         reservation_policy.update!(reservation_enabled: true)
-        
+
         patch admin_restaurant_settings_restaurant_reservation_policies_path(restaurant),
               params: { reservation_policy: { reservation_enabled: false } }
 
@@ -143,16 +143,16 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
         {
           reservation_policy: {
             min_party_size: 10,
-            max_party_size: 5,  # min > max should be invalid
-            advance_booking_days: -1,  # negative should be invalid
-            deposit_amount: -100  # negative should be invalid
+            max_party_size: 5, # min > max should be invalid
+            advance_booking_days: -1, # negative should be invalid
+            deposit_amount: -100 # negative should be invalid
           }
         }
       end
 
       it 'does not update the policy' do
         original_min_size = reservation_policy.min_party_size
-        
+
         patch admin_restaurant_settings_restaurant_reservation_policies_path(restaurant),
               params: invalid_params
 
@@ -183,11 +183,11 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
 
       it 'returns proper turbo stream response for validation errors' do
         patch admin_restaurant_settings_restaurant_reservation_policies_path(restaurant),
-              params: { 
-                reservation_policy: { 
-                  min_party_size: 10, 
-                  max_party_size: 5 
-                } 
+              params: {
+                reservation_policy: {
+                  min_party_size: 10,
+                  max_party_size: 5
+                }
               },
               headers: { 'Accept' => 'text/vnd.turbo-stream.html' }
 
@@ -247,7 +247,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
 
       it 'disables deposit when unchecked' do
         reservation_policy.update!(deposit_required: true)
-        
+
         patch admin_restaurant_settings_restaurant_reservation_policies_path(restaurant),
               params: {
                 reservation_policy: {
@@ -264,7 +264,7 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
   describe 'authorization' do
     context 'when user is not admin' do
       let(:regular_user) { create(:user) }
-      
+
       before do
         sign_out user
         sign_in regular_user
@@ -285,4 +285,4 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController, type: :r
       end
     end
   end
-end 
+end

@@ -1,9 +1,9 @@
 require 'rails_helper'
 
-RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
+RSpec.describe 'Admin Reservation Calendar', :js,  do
   let(:restaurant) { create(:restaurant, slug: 'test-restaurant') }
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
-  
+
   before do
     # 設定餐廳的營業時段
     @lunch_period = restaurant.business_periods.create!(
@@ -14,7 +14,7 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
       days_of_week_mask: 127, # 週一到週日
       active: true
     )
-    
+
     @dinner_period = restaurant.business_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
@@ -30,7 +30,7 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
       description: '主要用餐區域',
       active: true
     )
-    
+
     restaurant.restaurant_tables.create!(
       table_number: 'A1',
       capacity: 4,
@@ -60,11 +60,11 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
         # 檢查週一和週二的日期應該被禁用
         next_monday = Date.current.next_occurring(:monday)
         next_tuesday = Date.current.next_occurring(:tuesday)
-        
+
         within '.flatpickr-calendar' do
           monday_element = find(".flatpickr-day[aria-label*='#{next_monday.strftime('%B %-d, %Y')}']", wait: 3)
           tuesday_element = find(".flatpickr-day[aria-label*='#{next_tuesday.strftime('%B %-d, %Y')}']", wait: 3)
-          
+
           expect(monday_element).to have_css('.flatpickr-disabled')
           expect(tuesday_element).to have_css('.flatpickr-disabled')
         end
@@ -80,7 +80,7 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
 
     context '當餐廳有特殊休息日設定' do
       let(:special_closure_date) { Date.current + 7.days }
-      
+
       before do
         # 建立特殊休息日
         restaurant.closure_dates.create!(
@@ -119,7 +119,7 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
 
         # 管理員應該仍然可以選擇營業日，即使沒有容量
         tomorrow = Date.current + 1.day
-        
+
         # 確保明天是營業日（不是週休息日）
         unless tomorrow.monday? || tomorrow.tuesday?
           within '.flatpickr-calendar' do
@@ -132,12 +132,12 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
 
     context '複合情況：週休息日 + 特殊休息日' do
       let(:special_closure_date) { Date.current.next_occurring(:wednesday) }
-      
+
       before do
         # 設定週一週二休息
         @lunch_period.update!(days_of_week_mask: 124) # 排除週一週二
         @dinner_period.update!(days_of_week_mask: 124)
-        
+
         # 設定週三特殊休息
         restaurant.closure_dates.create!(
           date: special_closure_date,
@@ -181,7 +181,7 @@ RSpec.describe 'Admin Reservation Calendar', type: :system, js: true do
 
       # 選擇明天的日期（假設是營業日）
       tomorrow = Date.current + 1.day
-      
+
       within '.flatpickr-calendar' do
         tomorrow_element = find(".flatpickr-day[aria-label*='#{tomorrow.strftime('%B %-d, %Y')}']", wait: 3)
         tomorrow_element.click unless tomorrow_element[:class].include?('flatpickr-disabled')

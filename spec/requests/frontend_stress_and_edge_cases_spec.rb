@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
+RSpec.describe 'Frontend Stress Tests and Edge Cases' do
   let(:restaurant) { create(:restaurant) }
   let(:business_period) { create(:business_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -28,7 +28,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       }
     end
 
-    scenario 'handles concurrent reservations for same time slot' do
+    it 'handles concurrent reservations for same time slot' do
       # 模擬兩個用戶同時預約同一時段
       threads = []
       reservation_results = []
@@ -42,7 +42,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
           begin
             post restaurant_reservations_path(restaurant.slug), params: params
             reservation_results << { success: response.status == 302, response: response }
-          rescue => e
+          rescue StandardError => e
             reservation_results << { success: false, error: e.message }
           end
         end
@@ -58,34 +58,33 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       expect(Reservation.count).to eq(1)
     end
 
-    scenario 'handles high-frequency API calls' do
+    it 'handles high-frequency API calls' do
       # 模擬短時間內大量API呼叫
       start_time = Time.current
-      
+
       10.times do
-        get "/restaurants/#{restaurant.slug}/reservations/availability_status", 
+        get "/restaurants/#{restaurant.slug}/reservations/availability_status",
             params: { party_size: 2 }
-        
+
         expect(response).to have_http_status(:success)
       end
-      
+
       end_time = Time.current
       total_time = end_time - start_time
-      
+
       # 應該在合理時間內完成（包含快取效果）
       expect(total_time).to be < 5.seconds
     end
   end
 
   describe 'Database constraint violations' do
-    scenario 'handles duplicate reservations gracefully' do
+    it 'handles duplicate reservations gracefully' do
       # 建立第一個訂位
-      reservation1 = create(:reservation,
-        restaurant: restaurant,
-        customer_phone: '0912345678',
-        reservation_datetime: Date.tomorrow + 18.hours,
-        table: table
-      )
+      create(:reservation,
+             restaurant: restaurant,
+             customer_phone: '0912345678',
+             reservation_datetime: Date.tomorrow + 18.hours,
+             table: table)
 
       # 嘗試建立完全相同的訂位
       params = {
@@ -113,16 +112,15 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
     before do
       # 創建多個桌位支持大團體
       5.times do |i|
-        create(:table, 
-          restaurant: restaurant, 
-          table_group: table_group,
-          capacity: 8,
-          table_number: "Large-#{i+1}"
-        )
+        create(:table,
+               restaurant: restaurant,
+               table_group: table_group,
+               capacity: 8,
+               table_number: "Large-#{i + 1}")
       end
     end
 
-    scenario 'handles maximum party size reservations' do
+    it 'handles maximum party size reservations' do
       large_party_params = {
         reservation: {
           customer_name: '大團體客戶',
@@ -149,10 +147,10 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
   end
 
   describe 'Date and time edge cases' do
-    scenario 'handles year boundary dates' do
+    it 'handles year boundary dates' do
       # 測試跨年日期
       new_year_date = Date.new(Date.current.year + 1, 1, 1)
-      
+
       params = {
         reservation: {
           customer_name: '跨年客戶',
@@ -172,11 +170,11 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       expect([200, 302, 422]).to include(response.status)
     end
 
-    scenario 'handles leap year dates' do
+    it 'handles leap year dates' do
       # 如果今年是閏年，測試2月29日
       if Date.current.leap?
         leap_date = Date.new(Date.current.year, 2, 29)
-        
+
         params = {
           reservation: {
             customer_name: '閏年客戶',
@@ -195,7 +193,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       end
     end
 
-    scenario 'handles timezone edge cases' do
+    it 'handles timezone edge cases' do
       # 測試時區邊界時間
       midnight_params = {
         reservation: {
@@ -216,7 +214,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
   end
 
   describe 'Input validation edge cases' do
-    scenario 'handles extremely long input strings' do
+    it 'handles extremely long input strings' do
       long_string = 'a' * 1000
 
       params = {
@@ -238,7 +236,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       expect(response).to have_http_status(:unprocessable_entity)
     end
 
-    scenario 'handles special characters in input' do
+    it 'handles special characters in input' do
       special_chars = "🍕🍷<script>alert('test')</script>特殊字符测试"
 
       params = {
@@ -263,7 +261,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       end
     end
 
-    scenario 'handles malformed phone numbers' do
+    it 'handles malformed phone numbers' do
       malformed_phones = [
         '++886-912-345-678',
         '0912345678' * 10, # 太長
@@ -300,7 +298,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
   end
 
   describe 'Network and performance edge cases' do
-    scenario 'handles slow database responses' do
+    it 'handles slow database responses' do
       # Mock 慢速資料庫回應
       allow_any_instance_of(ActiveRecord::Relation).to receive(:find_by!).and_wrap_original do |method, *args|
         sleep 0.1 # 模擬延遲
@@ -324,10 +322,10 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
       expect(response_time).to be < 10.seconds # 合理的超時限制
     end
 
-    scenario 'handles memory pressure scenarios' do
+    it 'handles memory pressure scenarios' do
       # 模擬記憶體壓力（創建大量物件）
       large_objects = []
-      100.times { large_objects << ('x' * 10000) }
+      100.times { large_objects << ('x' * 10_000) }
 
       params = {
         reservation: {
@@ -342,9 +340,9 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
         business_period_id: business_period.id
       }
 
-      expect {
+      expect do
         post restaurant_reservations_path(restaurant.slug), params: params
-      }.not_to raise_error
+      end.not_to raise_error
 
       # 清理
       large_objects.clear
@@ -353,7 +351,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases', type: :request do
   end
 
   describe 'Cache consistency edge cases' do
-    scenario 'handles cache invalidation during concurrent updates' do
+    it 'handles cache invalidation during concurrent updates' do
       # 同時更新餐廳設定和建立訂位
       threads = []
 

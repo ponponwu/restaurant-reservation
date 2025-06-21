@@ -20,14 +20,14 @@ RSpec.describe EnhancedReservationLockService, type: :service do
     context '成功獲取鎖定' do
       it '執行區塊並釋放鎖定' do
         result = nil
-        expect {
+        expect do
           service.with_lock(restaurant_id, datetime, party_size) do
             result = 'success'
           end
-        }.not_to raise_error
+        end.not_to raise_error
 
         expect(result).to eq('success')
-        expect(service.locked?(restaurant_id, datetime, party_size)).to be_falsey
+        expect(service).not_to be_locked(restaurant_id, datetime, party_size)
       end
 
       it '記錄獲取和釋放鎖定的日誌' do
@@ -46,11 +46,11 @@ RSpec.describe EnhancedReservationLockService, type: :service do
         lock_key = service.send(:generate_lock_key, restaurant_id, datetime, party_size)
         Redis.current.set(lock_key, 'other_process', nx: true, ex: 30)
 
-        expect {
+        expect do
           service.with_lock(restaurant_id, datetime, party_size) do
             # 這個區塊不應該被執行
           end
-        }.to raise_error(ConcurrentReservationError, /有其他客戶正在預訂相同時段/)
+        end.to raise_error(ConcurrentReservationError, /有其他客戶正在預訂相同時段/)
       end
 
       it '記錄無法獲取鎖定的警告' do
@@ -60,38 +60,38 @@ RSpec.describe EnhancedReservationLockService, type: :service do
 
         expect(Rails.logger).to receive(:warn).with(/無法獲取訂位鎖定/)
 
-        expect {
+        expect do
           service.with_lock(restaurant_id, datetime, party_size) do
             # 不會執行
           end
-        }.to raise_error(ConcurrentReservationError)
+        end.to raise_error(ConcurrentReservationError)
       end
     end
 
     context '異常處理' do
       it '即使區塊拋出異常也要釋放鎖定' do
-        expect {
+        expect do
           service.with_lock(restaurant_id, datetime, party_size) do
             raise StandardError, '測試異常'
           end
-        }.to raise_error(StandardError, '測試異常')
+        end.to raise_error(StandardError, '測試異常')
 
         # 確保鎖定已被釋放
-        expect(service.locked?(restaurant_id, datetime, party_size)).to be_falsey
+        expect(service).not_to be_locked(restaurant_id, datetime, party_size)
       end
     end
   end
 
   describe '.locked?' do
     it '當沒有鎖定時返回 false' do
-      expect(service.locked?(restaurant_id, datetime, party_size)).to be_falsey
+      expect(service).not_to be_locked(restaurant_id, datetime, party_size)
     end
 
     it '當有鎖定時返回 true' do
       lock_key = service.send(:generate_lock_key, restaurant_id, datetime, party_size)
       Redis.current.set(lock_key, 'test_value', ex: 30)
 
-      expect(service.locked?(restaurant_id, datetime, party_size)).to be_truthy
+      expect(service).to be_locked(restaurant_id, datetime, party_size)
     end
   end
 
@@ -100,12 +100,12 @@ RSpec.describe EnhancedReservationLockService, type: :service do
       lock_key = service.send(:generate_lock_key, restaurant_id, datetime, party_size)
       Redis.current.set(lock_key, 'test_value', ex: 30)
 
-      expect(service.locked?(restaurant_id, datetime, party_size)).to be_truthy
+      expect(service).to be_locked(restaurant_id, datetime, party_size)
 
       result = service.force_unlock(restaurant_id, datetime, party_size)
-      
+
       expect(result).to be_truthy
-      expect(service.locked?(restaurant_id, datetime, party_size)).to be_falsey
+      expect(service).not_to be_locked(restaurant_id, datetime, party_size)
     end
 
     it '對不存在的鎖定返回 false' do
@@ -119,7 +119,7 @@ RSpec.describe EnhancedReservationLockService, type: :service do
       # 創建幾個測試鎖定
       lock1_key = service.send(:generate_lock_key, 1, datetime, 2)
       lock2_key = service.send(:generate_lock_key, 2, datetime, 4)
-      
+
       Redis.current.set(lock1_key, 'value1', ex: 30)
       Redis.current.set(lock2_key, 'value2', ex: 60)
 
@@ -127,17 +127,17 @@ RSpec.describe EnhancedReservationLockService, type: :service do
 
       expect(active_locks.length).to eq(2)
       expect(active_locks.map { |lock| lock[:key] }).to contain_exactly(lock1_key, lock2_key)
-      expect(active_locks.all? { |lock| lock[:ttl] > 0 }).to be_truthy
+      expect(active_locks).to(be_all { |lock| lock[:ttl] > 0 })
     end
 
     it '不返回已過期的鎖定' do
       # 創建一個短期鎖定
       lock_key = service.send(:generate_lock_key, restaurant_id, datetime, party_size)
       Redis.current.set(lock_key, 'test_value', ex: 1)
-      
+
       # 等待過期
       sleep(1.1)
-      
+
       active_locks = service.active_locks
       expect(active_locks).to be_empty
     end
@@ -151,14 +151,12 @@ RSpec.describe EnhancedReservationLockService, type: :service do
       # 創建多個線程嘗試獲取相同鎖定
       5.times do |i|
         threads << Thread.new do
-          begin
-            service.with_lock(restaurant_id, datetime, party_size) do
-              sleep(0.1) # 模擬一些工作
-              results << "Thread #{i} success"
-            end
-          rescue ConcurrentReservationError
-            results << "Thread #{i} failed"
+          service.with_lock(restaurant_id, datetime, party_size) do
+            sleep(0.1) # 模擬一些工作
+            results << "Thread #{i} success"
           end
+        rescue ConcurrentReservationError
+          results << "Thread #{i} failed"
         end
       end
 
@@ -178,11 +176,11 @@ RSpec.describe EnhancedReservationLockService, type: :service do
     it '處理 Redis 連接錯誤' do
       allow(Redis.current).to receive(:set).and_raise(Redis::ConnectionError)
 
-      expect {
+      expect do
         service.with_lock(restaurant_id, datetime, party_size) do
           # 不會執行
         end
-      }.to raise_error(ConcurrentReservationError)
+      end.to raise_error(ConcurrentReservationError)
     end
   end
 
@@ -194,11 +192,11 @@ RSpec.describe EnhancedReservationLockService, type: :service do
 
       # 這應該會重試並最終成功
       result = nil
-      expect {
+      expect do
         service.with_lock(restaurant_id, datetime, party_size) do
           result = 'success after retry'
         end
-      }.not_to raise_error
+      end.not_to raise_error
 
       expect(result).to eq('success after retry')
     end

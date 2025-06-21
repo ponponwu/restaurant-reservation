@@ -5,7 +5,7 @@ require 'selenium/webdriver'
 # 配置 Capybara
 Capybara.register_driver :headless_chrome do |app|
   options = Selenium::WebDriver::Chrome::Options.new
-  
+
   # 基本選項
   options.add_argument('--headless')
   options.add_argument('--no-sandbox')
@@ -17,23 +17,21 @@ Capybara.register_driver :headless_chrome do |app|
   options.add_argument('--disable-images')
   options.add_argument('--disable-web-security')
   options.add_argument('--allow-running-insecure-content')
-  
+
   # 效能優化選項
   options.add_argument('--aggressive-cache-discard')
   options.add_argument('--memory-pressure-off')
   options.add_argument('--disable-background-timer-throttling')
   options.add_argument('--disable-renderer-backgrounding')
   options.add_argument('--disable-backgrounding-occluded-windows')
-  
+
   # 相容性選項
   options.add_argument('--disable-features=TranslateUI')
   options.add_argument('--disable-ipc-flooding-protection')
-  
+
   # 嘗試設定 Chrome 二進位路徑（如果需要特定版本）
-  chrome_bin = ENV['CHROME_BIN']
-  if chrome_bin && File.exist?(chrome_bin)
-    options.binary = chrome_bin
-  end
+  chrome_bin = ENV.fetch('CHROME_BIN', nil)
+  options.binary = chrome_bin if chrome_bin && File.exist?(chrome_bin)
 
   Capybara::Selenium::Driver.new(
     app,
@@ -48,11 +46,9 @@ Capybara.register_driver :chrome do |app|
   options.add_argument('--window-size=1400,1400')
   options.add_argument('--disable-web-security')
   options.add_argument('--allow-running-insecure-content')
-  
-  chrome_bin = ENV['CHROME_BIN']
-  if chrome_bin && File.exist?(chrome_bin)
-    options.binary = chrome_bin
-  end
+
+  chrome_bin = ENV.fetch('CHROME_BIN', nil)
+  options.binary = chrome_bin if chrome_bin && File.exist?(chrome_bin)
 
   Capybara::Selenium::Driver.new(
     app,
@@ -77,35 +73,28 @@ Capybara.server = :puma, { Silent: true }
 RSpec.configure do |config|
   config.before(:each, type: :system) do
     # 嘗試偵測可用的 Chrome 版本
-    begin
-      driven_by :headless_chrome
-    rescue Selenium::WebDriver::Error::SessionNotCreatedError => e
-      if e.message.include?('ChromeDriver only supports Chrome version')
-        # 如果 ChromeDriver 不相容，跳過系統測試
-        skip "ChromeDriver version incompatible: #{e.message}"
-      else
-        raise e
-      end
-    end
+
+    driven_by :headless_chrome
+  rescue Selenium::WebDriver::Error::SessionNotCreatedError => e
+    raise e unless e.message.include?('ChromeDriver only supports Chrome version')
+
+    # 如果 ChromeDriver 不相容，跳過系統測試
+    skip "ChromeDriver version incompatible: #{e.message}"
   end
-  
-  config.before(:each, type: :system, js: true) do
-    begin
-      driven_by :headless_chrome
-    rescue Selenium::WebDriver::Error::SessionNotCreatedError => e
-      if e.message.include?('ChromeDriver only supports Chrome version')
-        skip "ChromeDriver version incompatible: #{e.message}"
-      else
-        raise e
-      end
-    end
+
+  config.before(:each, :js, type: :system) do
+    driven_by :headless_chrome
+  rescue Selenium::WebDriver::Error::SessionNotCreatedError => e
+    raise e unless e.message.include?('ChromeDriver only supports Chrome version')
+
+    skip "ChromeDriver version incompatible: #{e.message}"
   end
-  
+
   # 允許在特定環境下使用有頭模式進行偵錯
-  config.before(:each, type: :system, debug: true) do
+  config.before(:each, :debug, type: :system) do
     driven_by :chrome
   end
-  
+
   config.after(:each, type: :system) do
     # 清理截圖和其他資源
     Capybara.reset_sessions!
@@ -117,7 +106,7 @@ if ENV['CI'] || ENV['GITHUB_ACTIONS']
   # CI 環境配置
   Capybara.default_max_wait_time = 30
   Capybara.server_port = 3002
-  
+
   # 在 CI 中使用更穩定的設定
   Capybara.register_driver :ci_chrome do |app|
     options = Selenium::WebDriver::Chrome::Options.new
@@ -129,14 +118,14 @@ if ENV['CI'] || ENV['GITHUB_ACTIONS']
     options.add_argument('--disable-extensions')
     options.add_argument('--disable-web-security')
     options.add_argument('--remote-debugging-port=9222')
-    
+
     Capybara::Selenium::Driver.new(
       app,
       browser: :chrome,
       options: options
     )
   end
-  
+
   Capybara.javascript_driver = :ci_chrome
 end
 
@@ -150,20 +139,18 @@ end
 
 # 輔助方法：檢查瀏覽器是否可用
 def browser_available?
-  begin
-    # 嘗試創建一個簡單的 WebDriver 實例
-    options = Selenium::WebDriver::Chrome::Options.new
-    options.add_argument('--headless')
-    options.add_argument('--no-sandbox')
-    options.add_argument('--disable-dev-shm-usage')
-    
-    driver = Selenium::WebDriver.for(:chrome, options: options)
-    driver.quit
-    true
-  rescue => e
-    Rails.logger.warn "Browser availability check failed: #{e.message}" if defined?(Rails)
-    false
-  end
+  # 嘗試創建一個簡單的 WebDriver 實例
+  options = Selenium::WebDriver::Chrome::Options.new
+  options.add_argument('--headless')
+  options.add_argument('--no-sandbox')
+  options.add_argument('--disable-dev-shm-usage')
+
+  driver = Selenium::WebDriver.for(:chrome, options: options)
+  driver.quit
+  true
+rescue StandardError => e
+  Rails.logger.warn "Browser availability check failed: #{e.message}" if defined?(Rails)
+  false
 end
 
 # 條件性系統測試支援 - 如果瀏覽器不可用則跳過系統測試

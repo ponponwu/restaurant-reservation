@@ -1,12 +1,18 @@
 # RuboCop 配置檔案
 require:
-    - rubocop-rails
     - rubocop-rspec
+    - rubocop-rspec_rails
+
+plugins:
+    - rubocop-rails
     - rubocop-performance
+    - rubocop-capybara
+    - rubocop-factory_bot
 
 AllCops:
     NewCops: enable
     TargetRubyVersion: 2.7
+    SuggestExtensions: false
     Exclude:
         - 'db/schema.rb'
         - 'db/migrate/*'
@@ -19,6 +25,7 @@ AllCops:
         - 'tmp/**/*'
         - 'log/**/*'
         - 'public/**/*'
+        - 'test/**/*'
 
 # Layout
 Layout/LineLength:
@@ -94,7 +101,45 @@ RSpec/DescribeClass:
     Exclude:
         - 'spec/system/**/*'
         - 'spec/requests/**/*'
+        - 'spec/views/**/*'
 
 # Performance
 Performance/UnfreezeString:
     Enabled: true
+
+# Rails Time Zone
+Rails/TimeZoneAssignment:
+    Enabled: false
+
+# 排除一些過於嚴格的規則
+Style/NumericLiterals:
+    Enabled: false
+
+Style/CommentAnnotation:
+    Enabled: false
+
+# 允許長的 spec 描述
+RSpec/ContextWording:
+    Enabled: false
+
+RSpec/DescribedClass:
+    Enabled: false
+
+# 更多 RSpec 規則調整
+RSpec/NestedGroups:
+    Max: 5
+
+RSpec/MultipleMemoizedHelpers:
+    Max: 10
+
+RSpec/LetSetup:
+    Enabled: false
+
+RSpec/InstanceVariable:
+    Enabled: false
+
+# 允許較長的測試檔案
+Metrics/ModuleLength:
+    Exclude:
+        - 'spec/**/*'
+

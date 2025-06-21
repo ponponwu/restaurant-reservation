@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe ReservationPolicy, type: :model do
+RSpec.describe ReservationPolicy do
   # 1. 測試設定
   let!(:restaurant) { create(:restaurant) }
   let!(:reservation_policy) { create(:reservation_policy, restaurant: restaurant) }
@@ -63,43 +63,43 @@ RSpec.describe ReservationPolicy, type: :model do
     it 'validates advance_booking_days is greater than or equal to 0' do
       reservation_policy.advance_booking_days = -1
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:advance_booking_days]).to include("must be greater than or equal to 0")
+      expect(reservation_policy.errors[:advance_booking_days]).to include('must be greater than or equal to 0')
     end
 
     it 'validates minimum_advance_hours is greater than or equal to 0' do
       reservation_policy.minimum_advance_hours = -1
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:minimum_advance_hours]).to include("must be greater than or equal to 0")
+      expect(reservation_policy.errors[:minimum_advance_hours]).to include('must be greater than or equal to 0')
     end
 
     it 'validates max_party_size is greater than 0' do
       reservation_policy.max_party_size = 0
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:max_party_size]).to include("must be greater than 0")
+      expect(reservation_policy.errors[:max_party_size]).to include('must be greater than 0')
     end
 
     it 'validates min_party_size is greater than 0' do
       reservation_policy.min_party_size = 0
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:min_party_size]).to include("must be greater than 0")
+      expect(reservation_policy.errors[:min_party_size]).to include('must be greater than 0')
     end
 
     it 'validates deposit_amount is greater than or equal to 0' do
       reservation_policy.deposit_amount = -1
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:deposit_amount]).to include("must be greater than or equal to 0")
+      expect(reservation_policy.errors[:deposit_amount]).to include('must be greater than or equal to 0')
     end
 
     it 'validates max_bookings_per_phone is greater than 0' do
       reservation_policy.max_bookings_per_phone = 0
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:max_bookings_per_phone]).to include("must be greater than 0")
+      expect(reservation_policy.errors[:max_bookings_per_phone]).to include('must be greater than 0')
     end
 
     it 'validates phone_limit_period_days is greater than 0' do
       reservation_policy.phone_limit_period_days = 0
       expect(reservation_policy).not_to be_valid
-      expect(reservation_policy.errors[:phone_limit_period_days]).to include("must be greater than 0")
+      expect(reservation_policy.errors[:phone_limit_period_days]).to include('must be greater than 0')
     end
 
     describe 'party size validation' do
@@ -124,13 +124,13 @@ RSpec.describe ReservationPolicy, type: :model do
     let!(:without_deposit) { create(:reservation_policy, restaurant: create(:restaurant)) }
 
     it 'returns policies with deposit' do
-      expect(ReservationPolicy.requiring_deposit).to include(with_deposit)
-      expect(ReservationPolicy.requiring_deposit).not_to include(without_deposit)
+      expect(described_class.requiring_deposit).to include(with_deposit)
+      expect(described_class.requiring_deposit).not_to include(without_deposit)
     end
 
     it 'returns policies without deposit' do
-      expect(ReservationPolicy.not_requiring_deposit).to include(without_deposit)
-      expect(ReservationPolicy.not_requiring_deposit).not_to include(with_deposit)
+      expect(described_class.not_requiring_deposit).to include(without_deposit)
+      expect(described_class.not_requiring_deposit).not_to include(with_deposit)
     end
   end
 
@@ -146,7 +146,7 @@ RSpec.describe ReservationPolicy, type: :model do
   describe '#latest_booking_datetime' do
     it 'returns correct latest booking datetime' do
       reservation_policy.minimum_advance_hours = 24
-      expected_datetime = Time.current + 24.hours
+      expected_datetime = 24.hours.from_now
       expect(reservation_policy.latest_booking_datetime).to be_within(1.minute).of(expected_datetime)
     end
   end
@@ -175,12 +175,12 @@ RSpec.describe ReservationPolicy, type: :model do
     end
 
     it 'returns true when booking in time' do
-      valid_time = Time.current + 48.hours
+      valid_time = 48.hours.from_now
       expect(reservation_policy.can_book_at_time?(valid_time)).to be true
     end
 
     it 'returns false when booking too late' do
-      invalid_time = Time.current + 12.hours
+      invalid_time = 12.hours.from_now
       expect(reservation_policy.can_book_at_time?(invalid_time)).to be false
     end
   end
@@ -291,7 +291,7 @@ RSpec.describe ReservationPolicy, type: :model do
   # 6. 手機號碼限制測試
   describe 'phone booking limits' do
     let(:phone_number) { '0912345678' }
-    
+
     before do
       reservation_policy.max_bookings_per_phone = 3
       reservation_policy.phone_limit_period_days = 30
@@ -302,18 +302,18 @@ RSpec.describe ReservationPolicy, type: :model do
       before do
         # 創建在限制期間內的訂位
         create_list(:reservation, 2,
-                   restaurant: restaurant,
-                   customer_phone: phone_number,
-                   reservation_datetime: 5.days.from_now,
-                   status: :confirmed)
-        
+                    restaurant: restaurant,
+                    customer_phone: phone_number,
+                    reservation_datetime: 5.days.from_now,
+                    status: :confirmed)
+
         # 創建超出限制期間的訂位（不應計算）
         create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
                reservation_datetime: 45.days.from_now,
                status: :confirmed)
-        
+
         # 創建已取消的訂位（不應計算）
         create(:reservation,
                restaurant: restaurant,
@@ -340,17 +340,17 @@ RSpec.describe ReservationPolicy, type: :model do
                customer_phone: phone_number,
                reservation_datetime: 5.days.from_now,
                status: :confirmed)
-        
+
         expect(reservation_policy.phone_booking_limit_exceeded?(phone_number)).to be false
       end
 
       it 'returns true when at limit' do
         create_list(:reservation, 3,
-                   restaurant: restaurant,
-                   customer_phone: phone_number,
-                   reservation_datetime: 5.days.from_now,
-                   status: :confirmed)
-        
+                    restaurant: restaurant,
+                    customer_phone: phone_number,
+                    reservation_datetime: 5.days.from_now,
+                    status: :confirmed)
+
         expect(reservation_policy.phone_booking_limit_exceeded?(phone_number)).to be true
       end
 
@@ -366,18 +366,18 @@ RSpec.describe ReservationPolicy, type: :model do
                customer_phone: phone_number,
                reservation_datetime: 5.days.from_now,
                status: :confirmed)
-        
+
         remaining = reservation_policy.remaining_bookings_for_phone(phone_number)
         expect(remaining).to eq(2)
       end
 
       it 'returns 0 when at limit' do
         create_list(:reservation, 3,
-                   restaurant: restaurant,
-                   customer_phone: phone_number,
-                   reservation_datetime: 5.days.from_now,
-                   status: :confirmed)
-        
+                    restaurant: restaurant,
+                    customer_phone: phone_number,
+                    reservation_datetime: 5.days.from_now,
+                    status: :confirmed)
+
         remaining = reservation_policy.remaining_bookings_for_phone(phone_number)
         expect(remaining).to eq(0)
       end
@@ -428,17 +428,17 @@ RSpec.describe ReservationPolicy, type: :model do
   describe '.for_restaurant' do
     it 'finds existing policy' do
       existing_policy = create(:reservation_policy, restaurant: restaurant)
-      result = ReservationPolicy.for_restaurant(restaurant)
+      result = described_class.for_restaurant(restaurant)
       expect(result.restaurant_id).to eq(existing_policy.restaurant_id)
     end
 
     it 'creates new policy if not exists' do
       new_restaurant = create(:restaurant)
       expect(new_restaurant.reservation_policy).to be_nil
-      
-      expect {
-        ReservationPolicy.for_restaurant(new_restaurant)
-      }.to change(ReservationPolicy, :count).by(1)
+
+      expect do
+        described_class.for_restaurant(new_restaurant)
+      end.to change(described_class, :count).by(1)
     end
   end
 
@@ -446,9 +446,9 @@ RSpec.describe ReservationPolicy, type: :model do
   describe 'callbacks' do
     describe 'before_validation :set_defaults' do
       it 'sets default values' do
-        policy = ReservationPolicy.new(restaurant: restaurant)
+        policy = described_class.new(restaurant: restaurant)
         policy.valid?
-        
+
         expect(policy.advance_booking_days).to eq(30)
         expect(policy.minimum_advance_hours).to eq(2)
         expect(policy.max_party_size).to eq(10)
@@ -462,11 +462,11 @@ RSpec.describe ReservationPolicy, type: :model do
     describe 'before_validation :sanitize_inputs' do
       it 'sanitizes policy text fields' do
         policy = build(:reservation_policy,
-                      restaurant: restaurant,
-                      no_show_policy: '  測試政策  ',
-                      modification_policy: '  修改政策  ')
+                       restaurant: restaurant,
+                       no_show_policy: '  測試政策  ',
+                       modification_policy: '  修改政策  ')
         policy.valid?
-        
+
         expect(policy.no_show_policy).to eq('測試政策')
         expect(policy.modification_policy).to eq('修改政策')
       end
@@ -477,19 +477,19 @@ RSpec.describe ReservationPolicy, type: :model do
   describe '#booking_rules_summary' do
     it 'returns comprehensive rules summary' do
       policy = create(:reservation_policy,
-                     restaurant: restaurant,
-                     advance_booking_days: 14,
-                     minimum_advance_hours: 4,
-                     min_party_size: 2,
-                     max_party_size: 6,
-                     deposit_required: true,
-                     deposit_amount: 200,
-                     deposit_per_person: false,
-                     max_bookings_per_phone: 2,
-                     phone_limit_period_days: 7)
-      
+                      restaurant: restaurant,
+                      advance_booking_days: 14,
+                      minimum_advance_hours: 4,
+                      min_party_size: 2,
+                      max_party_size: 6,
+                      deposit_required: true,
+                      deposit_amount: 200,
+                      deposit_per_person: false,
+                      max_bookings_per_phone: 2,
+                      phone_limit_period_days: 7)
+
       summary = policy.booking_rules_summary
-      
+
       expect(summary).to include('最多提前 14 天預約')
       expect(summary).to include('最少提前 4 小時預約')
       expect(summary).to include('人數限制：2-6 人')
@@ -504,44 +504,44 @@ RSpec.describe ReservationPolicy, type: :model do
     let(:tomorrow) { Date.current + 1.day }
     let(:today_noon) { Time.current.change(hour: 12, min: 0) }
     let(:tomorrow_noon) { tomorrow.to_time.change(hour: 12, min: 0) }
-    
+
     describe '#can_book_on_date?' do
       it '不允許當天訂位' do
         expect(reservation_policy.can_book_on_date?(today)).to be false
       end
-      
+
       it '允許明天訂位' do
         expect(reservation_policy.can_book_on_date?(tomorrow)).to be true
       end
     end
-    
+
     describe '#can_book_at_time?' do
       it '不允許當天時間訂位' do
         expect(reservation_policy.can_book_at_time?(today_noon)).to be false
       end
-      
+
       it '允許明天時間訂位' do
         expect(reservation_policy.can_book_at_time?(tomorrow_noon)).to be true
       end
     end
-    
+
     describe '#can_reserve_at?' do
       it '綜合檢查不允許當天訂位' do
         expect(reservation_policy.can_reserve_at?(today_noon)).to be false
       end
-      
+
       it '綜合檢查允許明天訂位' do
         expect(reservation_policy.can_reserve_at?(tomorrow_noon)).to be true
       end
     end
-    
+
     describe '#reservation_rejection_reason' do
       it '當天訂位返回拒絕原因' do
         reason = reservation_policy.reservation_rejection_reason(today_noon)
         expect(reason).to be_present
         expect(reason).to include('當天')
       end
-      
+
       it '明天訂位不返回拒絕原因' do
         reason = reservation_policy.reservation_rejection_reason(tomorrow_noon)
         expect(reason).to be_nil
@@ -591,112 +591,112 @@ RSpec.describe ReservationPolicy, type: :model do
       it '預設為關閉' do
         expect(reservation_policy.unlimited_dining_time?).to be false
       end
-      
+
       it '可以設定為開啟' do
         reservation_policy.update!(unlimited_dining_time: true)
         expect(reservation_policy.unlimited_dining_time?).to be true
       end
     end
-    
+
     context '當開啟無限用餐時間時' do
       before { reservation_policy.update!(unlimited_dining_time: true) }
-      
+
       it '用餐時間設定不影響分配邏輯' do
         # 無限用餐時間模式下，每餐期每桌只能有一個訂位
         # 這個邏輯在 ReservationAllocatorService 中實現
         expect(reservation_policy.unlimited_dining_time?).to be true
       end
-      
+
       it '不檢查用餐時間長度' do
         expect(reservation_policy.total_dining_duration_minutes).to be_nil
       end
-      
+
       it '不檢查緩衝時間' do
         expect(reservation_policy.has_time_limit?).to be false
       end
-      
+
       it '用餐時間設定摘要顯示無限制' do
         expect(reservation_policy.dining_settings_summary).to eq('無限用餐時間')
       end
-      
+
       it '即使設定了用餐時間也不生效' do
         reservation_policy.update!(
           default_dining_duration_minutes: 90,
           buffer_time_minutes: 30
         )
-        
+
         # 無限時模式下，這些設定都不生效
         expect(reservation_policy.total_dining_duration_minutes).to be_nil
         expect(reservation_policy.has_time_limit?).to be false
       end
-      
+
       it '驗證規則不檢查用餐時間必填' do
         reservation_policy.default_dining_duration_minutes = nil
         reservation_policy.buffer_time_minutes = nil
-        
+
         expect(reservation_policy).to be_valid
       end
     end
-    
+
     context '當關閉無限用餐時間時' do
       before { reservation_policy.update!(unlimited_dining_time: false) }
-      
+
       it '需要檢查用餐時間設定' do
         expect(reservation_policy.has_time_limit?).to be true
       end
-      
+
       it '計算總用餐時間包含緩衝時間' do
         reservation_policy.update!(
           default_dining_duration_minutes: 120,
           buffer_time_minutes: 15
         )
-        
+
         expect(reservation_policy.total_dining_duration_minutes).to eq(135)
       end
-      
+
       it '用餐時間為必填欄位' do
         reservation_policy.default_dining_duration_minutes = nil
         expect(reservation_policy).not_to be_valid
         expect(reservation_policy.errors[:default_dining_duration_minutes]).to be_present
       end
     end
-    
+
     describe '與餐廳模型的整合' do
       let(:restaurant) { create(:restaurant) }
-      
+
       before do
         restaurant.reservation_policy.update!(unlimited_dining_time: true)
       end
-      
+
       it '餐廳委派方法正確回傳無限時狀態' do
         expect(restaurant.unlimited_dining_time?).to be true
         expect(restaurant.limited_dining_time?).to be false
       end
-      
+
       it '餐廳用餐時間方法在無限時模式下回傳 nil' do
         expect(restaurant.dining_duration_minutes).to be_nil
         expect(restaurant.dining_duration_with_buffer).to be_nil
       end
     end
-    
+
     describe '與桌位可用性檢查的整合' do
       let(:restaurant) { create(:restaurant) }
       let(:table) { create(:table, restaurant: restaurant) }
-      
+
       before do
         restaurant.reservation_policy.update!(unlimited_dining_time: true)
       end
-      
+
       it '桌位可用性檢查在無限時模式下不檢查時間衝突' do
         # 創建一個已確認的訂位
-        existing_reservation = create(:reservation, :confirmed,
-                                    restaurant: restaurant,
-                                    table: table,
-                                    reservation_datetime: 2.hours.from_now)
-        
+        create(:reservation, :confirmed,
+               restaurant: restaurant,
+               table: table,
+               reservation_datetime: 2.hours.from_now)
+
         # 在無限時模式下，同一時間的桌位檢查應該回傳 true（不檢查時間衝突）
         expect(table.available_for_datetime?(2.hours.from_now)).to be true
       end
     end
   end
-end 
+end

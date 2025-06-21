@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Internationalization Tests', type: :request do
+RSpec.describe 'Internationalization Tests' do
   let(:restaurant) { create(:restaurant, name: 'International Restaurant') }
   let(:business_period) { create(:business_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -34,7 +34,7 @@ RSpec.describe 'Internationalization Tests', type: :request do
       it 'validates error messages in Traditional Chinese' do
         post restaurant_reservations_path(restaurant.slug), params: {
           reservation: {
-            customer_name: '',  # 空白姓名
+            customer_name: '', # 空白姓名
             customer_phone: '0912345678',
             customer_email: 'test@example.com'
           },
@@ -72,7 +72,7 @@ RSpec.describe 'Internationalization Tests', type: :request do
       it 'validates error messages in English' do
         post restaurant_reservations_path(restaurant.slug), params: {
           reservation: {
-            customer_name: '',  # 空白姓名
+            customer_name: '', # 空白姓名
             customer_phone: '0912345678',
             customer_email: 'test@example.com'
           },
@@ -152,7 +152,7 @@ RSpec.describe 'Internationalization Tests', type: :request do
     context 'Validation errors' do
       it 'provides localized validation messages' do
         reservation = Reservation.new(restaurant: restaurant)
-        
+
         # 測試不同語言的驗證訊息
         I18n.with_locale(:'zh-TW') do
           reservation.valid?
@@ -198,20 +198,20 @@ RSpec.describe 'Internationalization Tests', type: :request do
       it 'handles reservations across time zones' do
         # 測試時區處理
         original_zone = Time.zone
-        
+
         begin
           # 測試台北時區
           Time.zone = 'Asia/Taipei'
           taipei_time = Time.zone.parse('2024-12-25 18:00:00')
-          
+
           # 測試東京時區
           Time.zone = 'Asia/Tokyo'
           tokyo_time = Time.zone.parse('2024-12-25 18:00:00')
-          
+
           # 測試紐約時區
           Time.zone = 'America/New_York'
           ny_time = Time.zone.parse('2024-12-25 18:00:00')
-          
+
           expect(taipei_time).to be_present
           expect(tokyo_time).to be_present
           expect(ny_time).to be_present
@@ -226,7 +226,7 @@ RSpec.describe 'Internationalization Tests', type: :request do
     context 'Unicode support' do
       it 'handles unicode characters in customer names' do
         unicode_names = [
-          '張三',           # 中文
+          '張三', # 中文
           'José María',     # 西班牙文
           'François',       # 法文
           '田中太郎',        # 日文
@@ -251,7 +251,7 @@ RSpec.describe 'Internationalization Tests', type: :request do
 
           # 應該能正確處理 Unicode 字符，不會導致錯誤
           expect([200, 302, 422]).to include(response.status)
-          
+
           if response.status == 302
             reservation = Reservation.last
             expect(reservation.customer_name).to eq(name)
@@ -263,9 +263,9 @@ RSpec.describe 'Internationalization Tests', type: :request do
     context 'Email encoding' do
       it 'handles international email addresses' do
         international_emails = [
-          'test@测试.com',      # 中文域名
+          'test@测试.com', # 中文域名
           'użytkownik@świat.pl', # 波蘭文
-          'тест@тест.рф'        # 俄文
+          'тест@тест.рф' # 俄文
         ]
 
         international_emails.each do |email|
@@ -310,7 +310,7 @@ RSpec.describe 'Internationalization Tests', type: :request do
           }
 
           expect([200, 302, 422]).to include(response.status)
-          
+
           if response.status == 302
             reservation = Reservation.last
             expect(reservation.customer_name).to eq(name)
@@ -325,13 +325,13 @@ RSpec.describe 'Internationalization Tests', type: :request do
       it 'handles pluralization correctly' do
         # 測試不同語言的複數規則
         party_sizes = [1, 2, 5, 11, 21]
-        
+
         party_sizes.each do |size|
           I18n.with_locale(:'zh-TW') do
             # 中文沒有複數變化
             expect(I18n.t('party_size', count: size, default: "#{size} 人")).to include(size.to_s)
           end
-          
+
           I18n.with_locale(:en) do
             # 英文有複數變化
             if size == 1

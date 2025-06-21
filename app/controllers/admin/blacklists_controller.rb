@@ -1,39 +1,38 @@
 class Admin::BlacklistsController < Admin::BaseController
   before_action :set_restaurant
   before_action :check_restaurant_access
-  before_action :set_blacklist, only: [:show, :edit, :update, :destroy, :toggle_active]
+  before_action :set_blacklist, only: %i[show edit update destroy toggle_active]
 
   def index
     @q = @restaurant.blacklists.ransack(params[:q])
     @blacklists = @q.result.recent.page(params[:page]).per(20)
-    
+
     respond_to do |format|
       format.html
     end
   end
 
-  def show
-  end
+  def show; end
 
   def new
     @blacklist = @restaurant.blacklists.build
-    
+
     # 如果從訂位頁面跳轉過來，預填客戶資訊
     if params[:customer_phone].present?
       @blacklist.customer_phone = params[:customer_phone]
       @blacklist.customer_name = params[:customer_name]
     end
-    
+
     respond_to do |format|
       format.html do
         # 如果是 AJAX 請求，不使用佈局
-        if request.xhr? || request.headers['X-Requested-With'] == 'XMLHttpRequest'
-          render layout: false
-        end
+        render layout: false if request.xhr? || request.headers['X-Requested-With'] == 'XMLHttpRequest'
       end
       format.json { render json: @blacklist }
     end
   end
+
+  def edit; end
 
   def create
     @blacklist = @restaurant.blacklists.new(blacklist_params)
@@ -41,30 +40,27 @@ class Admin::BlacklistsController < Admin::BaseController
 
     respond_to do |format|
       if @blacklist.save
-        format.html { redirect_to admin_restaurant_blacklists_path(@restaurant), notice: "黑名單已成功建立" }
+        format.html { redirect_to admin_restaurant_blacklists_path(@restaurant), notice: '黑名單已成功建立' }
         format.turbo_stream do
           render turbo_stream: [
-            turbo_stream.update('modal-content', 
-                               partial: 'admin/blacklists/success',
-                               locals: { message: "黑名單已成功建立" }),
-            turbo_stream.after('body', 
-                              partial: 'shared/flash',
-                              locals: { message: "黑名單已成功建立", type: "success" })
+            turbo_stream.update('modal-content',
+                                partial: 'admin/blacklists/success',
+                                locals: { message: '黑名單已成功建立' }),
+            turbo_stream.after('body',
+                               partial: 'shared/flash',
+                               locals: { message: '黑名單已成功建立', type: 'success' })
           ]
         end
       else
         format.html { render :new, status: :unprocessable_entity }
-        format.turbo_stream {
+        format.turbo_stream do
           render turbo_stream: turbo_stream.update('modal-content',
-                                                  partial: 'admin/blacklists/form',
-                                                  locals: { blacklist: @blacklist }),
+                                                   partial: 'admin/blacklists/form',
+                                                   locals: { blacklist: @blacklist }),
                  status: :unprocessable_entity
-        }
+        end
       end
     end
-  end
-
-  def edit
   end
 
   def update
@@ -78,7 +74,7 @@ class Admin::BlacklistsController < Admin::BaseController
   def destroy
     customer_name = @blacklist.customer_name
     @blacklist.destroy
-    
+
     # 強制使用 HTML 格式重導向
     redirect_to admin_restaurant_blacklists_path(@restaurant), notice: "已成功刪除黑名單：#{customer_name}"
   end
@@ -91,16 +87,16 @@ class Admin::BlacklistsController < Admin::BaseController
       @blacklist.activate!
       message = '已啟用黑名單'
     end
-    
+
     respond_to do |format|
       format.turbo_stream do
         render turbo_stream: [
-          turbo_stream.replace("blacklist_#{@blacklist.id}", 
-                              partial: 'blacklist', 
-                              locals: { blacklist: @blacklist }),
-          turbo_stream.update('flash', 
-                             partial: 'shared/flash', 
-                             locals: { message: message, type: 'success' })
+          turbo_stream.replace("blacklist_#{@blacklist.id}",
+                               partial: 'blacklist',
+                               locals: { blacklist: @blacklist }),
+          turbo_stream.update('flash',
+                              partial: 'shared/flash',
+                              locals: { message: message, type: 'success' })
         ]
       end
       format.html { redirect_to admin_restaurant_blacklists_path(@restaurant), notice: message }
@@ -116,7 +112,7 @@ class Admin::BlacklistsController < Admin::BaseController
     else
       # 餐廳管理員和員工只能存取自己的餐廳
       @restaurant = current_user.restaurant
-      
+
       # 檢查路由參數中的餐廳是否與用戶的餐廳一致
       if params[:restaurant_id].present?
         requested_restaurant = Restaurant.find_by!(slug: params[:restaurant_id])
@@ -126,17 +122,17 @@ class Admin::BlacklistsController < Admin::BaseController
         end
       end
     end
-    
+
     # 如果還是沒有餐廳，拋出錯誤
-    unless @restaurant
-      redirect_to admin_restaurants_path, alert: '找不到指定的餐廳'
-    end
+    return if @restaurant
+
+    redirect_to admin_restaurants_path, alert: '找不到指定的餐廳'
   end
 
   def check_restaurant_access
-    unless current_user.can_manage_restaurant?(@restaurant)
-      redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的黑名單管理'
-    end
+    return if current_user.can_manage_restaurant?(@restaurant)
+
+    redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的黑名單管理'
   end
 
   def set_blacklist
@@ -152,7 +148,7 @@ class Admin::BlacklistsController < Admin::BaseController
   def render_turbo_stream_update(success: true)
     respond_to do |format|
       format.turbo_stream do
-        Rails.logger.info "🌊 正在渲染 turbo_stream 回應"
+        Rails.logger.info '🌊 正在渲染 turbo_stream 回應'
       end
       format.html { redirect_to admin_blacklists_path, notice: '黑名單新增成功' }
     end

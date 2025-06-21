@@ -1,6 +1,6 @@
 require 'rails_helper'
 
-RSpec.describe 'Frontend Reservation API', type: :request do
+RSpec.describe 'Frontend Reservation API' do
   let(:restaurant) { create(:restaurant) }
   let(:business_period) { create(:business_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -31,13 +31,13 @@ RSpec.describe 'Frontend Reservation API', type: :request do
 
     context 'with valid parameters' do
       it 'creates a new reservation' do
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: valid_reservation_params
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
 
         expect(response).to have_http_status(:redirect)
         expect(response).to redirect_to(restaurant_public_path(restaurant.slug))
-        
+
         reservation = Reservation.last
         expect(reservation.customer_name).to eq('測試客戶')
         expect(reservation.customer_phone).to eq('0912345678')
@@ -47,7 +47,7 @@ RSpec.describe 'Frontend Reservation API', type: :request do
 
       it 'includes cancellation token' do
         post restaurant_reservations_path(restaurant.slug), params: valid_reservation_params
-        
+
         reservation = Reservation.last
         expect(reservation.cancellation_token).to be_present
         expect(reservation.cancellation_token.length).to eq(32)
@@ -59,9 +59,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         invalid_params = valid_reservation_params.deep_dup
         invalid_params[:reservation][:customer_name] = ''
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -70,9 +70,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         invalid_params = valid_reservation_params.deep_dup
         invalid_params[:reservation][:customer_phone] = ''
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -101,9 +101,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         blacklisted_params = valid_reservation_params.deep_dup
         blacklisted_params[:reservation][:customer_phone] = '0987654321'
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: blacklisted_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.body).to include('訂位失敗，請聯繫餐廳')
@@ -117,7 +117,7 @@ RSpec.describe 'Frontend Reservation API', type: :request do
           max_bookings_per_phone: 1,
           phone_limit_period_days: 30
         )
-        
+
         # 創建現有訂位達到限制
         create(:reservation,
                restaurant: restaurant,
@@ -130,9 +130,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         limited_params = valid_reservation_params.deep_dup
         limited_params[:reservation][:customer_phone] = '0966666666'
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: limited_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
         expect(response.body).to include('訂位失敗，請聯繫餐廳')
@@ -153,9 +153,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         valid_params[:adults] = 4
         valid_params[:children] = 2
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: valid_params
-        }.to change(Reservation, :count).by(1)
+        end.to change(Reservation, :count).by(1)
 
         reservation = Reservation.last
         expect(reservation.party_size).to eq(6)
@@ -168,9 +168,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         invalid_params[:adults] = 1
         invalid_params[:children] = 0
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -180,9 +180,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         invalid_params[:adults] = 6
         invalid_params[:children] = 4
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -200,9 +200,9 @@ RSpec.describe 'Frontend Reservation API', type: :request do
         invalid_params = valid_reservation_params.deep_dup
         invalid_params[:date] = 20.days.from_now.strftime('%Y-%m-%d')
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end
@@ -210,11 +210,11 @@ RSpec.describe 'Frontend Reservation API', type: :request do
       it 'rejects booking too close to current time' do
         invalid_params = valid_reservation_params.deep_dup
         invalid_params[:date] = Date.current.strftime('%Y-%m-%d')
-        invalid_params[:time_slot] = (Time.current + 12.hours).strftime('%H:%M')
+        invalid_params[:time_slot] = 12.hours.from_now.strftime('%H:%M')
 
-        expect {
+        expect do
           post restaurant_reservations_path(restaurant.slug), params: invalid_params
-        }.not_to change(Reservation, :count)
+        end.not_to change(Reservation, :count)
 
         expect(response).to have_http_status(:unprocessable_entity)
       end

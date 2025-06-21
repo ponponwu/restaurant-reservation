@@ -5,7 +5,7 @@ class Admin::DashboardController < AdminController
       redirect_to admin_restaurant_path(current_user.restaurant)
       return
     end
-    
+
     @stats = dashboard_stats
     @recent_activities = recent_activities
     @system_status = system_status
@@ -30,11 +30,9 @@ class Admin::DashboardController < AdminController
 
   def recent_activities
     # 簡單的活動記錄 - 最近建立的使用者和餐廳
-    activities = []
-
     # 最近建立的使用者
-    User.active.order(created_at: :desc).limit(3).each do |user|
-      activities << {
+    activities = User.active.order(created_at: :desc).limit(3).map do |user|
+      {
         type: 'user_created',
         description: "新管理員 #{user.full_name} 已建立",
         timestamp: user.created_at,
@@ -55,7 +53,7 @@ class Admin::DashboardController < AdminController
     end
 
     # 按時間排序並取前5筆
-    activities.sort_by { |a| a[:timestamp] }.reverse.first(5)
+    activities.sort_by { |a| a[:timestamp] }.last(5).reverse
   end
 
   def system_status
@@ -67,19 +65,17 @@ class Admin::DashboardController < AdminController
   end
 
   def database_status
-    begin
-      ActiveRecord::Base.connection.execute('SELECT 1')
-      'healthy'
-    rescue => e
-      'error'
-    end
+    ActiveRecord::Base.connection.execute('SELECT 1')
+    'healthy'
+  rescue StandardError
+    'error'
   end
 
   def users_health_status
     inactive_users = User.where(active: false).count
     total_users = User.count
 
-    if total_users == 0
+    if total_users.zero?
       'warning'
     elsif inactive_users.to_f / total_users > 0.3
       'warning'
@@ -92,7 +88,7 @@ class Admin::DashboardController < AdminController
     inactive_restaurants = Restaurant.where(active: false).count
     total_restaurants = Restaurant.count
 
-    if total_restaurants == 0
+    if total_restaurants.zero?
       'warning'
     elsif inactive_restaurants.to_f / total_restaurants > 0.5
       'warning'
@@ -100,4 +96,4 @@ class Admin::DashboardController < AdminController
       'healthy'
     end
   end
-end 
+end

@@ -8,12 +8,12 @@ class ReservationSlot < ApplicationRecord
   validates :max_capacity, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :interval_minutes, presence: true, numericality: { greater_than: 0 }
   validates :reservation_deadline, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  
+
   # 3. Scope 定義
   scope :active, -> { where(active: true) }
   scope :for_time, ->(time) { where(slot_time: time) }
   scope :ordered, -> { order(:slot_time) }
-  scope :available_for_date, ->(date) {
+  scope :available_for_date, lambda { |_date|
     joins(:business_period)
       .where(active: true)
       .where(business_periods: { active: true })
@@ -28,13 +28,13 @@ class ReservationSlot < ApplicationRecord
   end
 
   def available_capacity_for_date(date)
-    return 0 unless max_capacity > 0
-    
+    return 0 unless max_capacity.positive?
+
     used_capacity = reservations
-                   .where(reservation_datetime: date.all_day)
-                   .where(status: 'confirmed')
-                   .sum(:party_size)
-    
+      .where(reservation_datetime: date.all_day)
+      .where(status: 'confirmed')
+      .sum(:party_size)
+
     max_capacity - used_capacity
   end
 
@@ -45,7 +45,7 @@ class ReservationSlot < ApplicationRecord
   def is_available_for_booking?(datetime)
     return false unless active?
     return false unless business_period.active?
-    
+
     # 檢查是否在預約截止時間之前
     deadline = datetime - reservation_deadline.minutes
     Time.current <= deadline
@@ -54,7 +54,7 @@ class ReservationSlot < ApplicationRecord
   def has_capacity_for?(party_size, date)
     return false unless active?
     return false unless business_period.active?
-    
+
     # 檢查是否有足夠容量
     available_capacity_for_date(date) >= party_size
   end
@@ -68,4 +68,4 @@ class ReservationSlot < ApplicationRecord
     self.interval_minutes ||= 30
     self.reservation_deadline ||= 60
   end
-end 
+end

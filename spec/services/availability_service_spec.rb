@@ -8,17 +8,17 @@ RSpec.describe AvailabilityService, type: :service do
 
   before do
     # 設定基本的營業時段
-    create(:business_period, restaurant: restaurant, name: '午餐', 
-           days_of_week: %w[1 2 3 4 5], start_time: '11:00', end_time: '14:00')
+    create(:business_period, restaurant: restaurant, name: '午餐',
+                             days_of_week: %w[1 2 3 4 5], start_time: '11:00', end_time: '14:00')
     create(:business_period, restaurant: restaurant, name: '晚餐',
-           days_of_week: %w[1 2 3 4 5], start_time: '17:00', end_time: '21:00')
-    
+                             days_of_week: %w[1 2 3 4 5], start_time: '17:00', end_time: '21:00')
+
     # 設定桌位
     table_group = create(:table_group, restaurant: restaurant)
     create(:restaurant_table, restaurant: restaurant, table_group: table_group,
-           table_number: 'A1', capacity: 4, table_type: 'standard')
+                              table_number: 'A1', capacity: 4, table_type: 'standard')
     create(:restaurant_table, restaurant: restaurant, table_group: table_group,
-           table_number: 'A2', capacity: 2, table_type: 'standard')
+                              table_number: 'A2', capacity: 2, table_type: 'standard')
   end
 
   describe '#has_any_availability_on_date?' do
@@ -32,7 +32,7 @@ RSpec.describe AvailabilityService, type: :service do
       before do
         # 預訂所有可用時段
         restaurant.available_time_options_for_date(tomorrow).each do |time_option|
-          create(:reservation, 
+          create(:reservation,
                  restaurant: restaurant,
                  reservation_datetime: time_option[:datetime],
                  business_period_id: time_option[:business_period_id],
@@ -67,7 +67,7 @@ RSpec.describe AvailabilityService, type: :service do
     context '當有可用時段時' do
       it '回傳可用的時間槽' do
         slots = service.get_available_slots_by_period(tomorrow, party_size, adults, children)
-        
+
         expect(slots).not_to be_empty
         expect(slots.first).to include(:time, :period_id, :period_name, :available)
         expect(slots.first[:available]).to be true
@@ -76,11 +76,11 @@ RSpec.describe AvailabilityService, type: :service do
 
     context '當有兒童時' do
       let(:children) { 1 }
-      
+
       before do
         # 創建吧台座位
         create(:restaurant_table, restaurant: restaurant,
-               table_number: 'BAR1', capacity: 2, table_type: 'bar')
+                                  table_number: 'BAR1', capacity: 2, table_type: 'bar')
       end
 
       it '排除吧台座位' do
@@ -94,7 +94,7 @@ RSpec.describe AvailabilityService, type: :service do
       before do
         # 預訂所有可用時段
         restaurant.available_time_options_for_date(tomorrow).each do |time_option|
-          create(:reservation, 
+          create(:reservation,
                  restaurant: restaurant,
                  reservation_datetime: time_option[:datetime],
                  business_period_id: time_option[:business_period_id],
@@ -127,7 +127,7 @@ RSpec.describe AvailabilityService, type: :service do
       before do
         # 讓明天沒有可用性
         restaurant.available_time_options_for_date(tomorrow).each do |time_option|
-          create(:reservation, 
+          create(:reservation,
                  restaurant: restaurant,
                  reservation_datetime: time_option[:datetime],
                  business_period_id: time_option[:business_period_id],
@@ -165,17 +165,17 @@ RSpec.describe AvailabilityService, type: :service do
       table_group = restaurant.table_groups.first
       5.times do |i|
         create(:restaurant_table, restaurant: restaurant, table_group: table_group,
-               table_number: "B#{i+1}", capacity: 4, table_type: 'standard')
+                                  table_number: "B#{i + 1}", capacity: 4, table_type: 'standard')
       end
 
       # 創建一些現有訂位
       10.times do |i|
         date = today + i.days
         next if restaurant.closed_on_date?(date)
-        
+
         time_options = restaurant.available_time_options_for_date(date)
         next if time_options.empty?
-        
+
         time_option = time_options.sample
         create(:reservation,
                restaurant: restaurant,
@@ -188,15 +188,15 @@ RSpec.describe AvailabilityService, type: :service do
     end
 
     it '在合理時間內完成批量可用性檢查' do
-      expect {
+      expect do
         service.check_availability_for_date_range(start_date, end_date, 2)
-      }.to perform_under(1.second)
+      end.to perform_under(1.second)
     end
 
     it '避免 N+1 查詢問題' do
-      expect {
+      expect do
         service.check_availability_for_date_range(start_date, end_date, 2)
-      }.to perform_at_most(10).db_queries
+      end.to perform_at_most(10).db_queries
     end
   end
-end 
+end
