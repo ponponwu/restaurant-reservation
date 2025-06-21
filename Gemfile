@@ -87,7 +87,7 @@ group :development, :test do
   gem 'pry-byebug'
 
   # 測試框架
-  gem 'capybara', '>= 3.39'
+  gem 'capybara', '~> 3.40'
   gem 'factory_bot_rails', '~> 6.2'
   gem 'rspec-rails', '~> 6.0'
   gem 'selenium-webdriver', '>= 4.9.0'
