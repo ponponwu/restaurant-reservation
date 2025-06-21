@@ -1,0 +1,22 @@
+{
+  "ignored_warnings": [
+    {
+      "warning_type": "Unmaintained Dependency",
+      "warning_code": 120,
+      "fingerprint": "f3b5b6c1e9a6b8d3f4c5e7d8a9b2c4e6f7a8b9c1d2e3f4a5b6c7d8e9",
+      "check_name": "EOLRuby",
+      "message": "Support for Ruby 2.7.7 ended on 2023-03-31",
+      "file": ".ruby-version",
+      "line": 1,
+      "link": "https://brakemanscanner.org/docs/warning_types/unmaintained_dependency/",
+      "code": null,
+      "render_path": null,
+      "location": null,
+      "user_input": null,
+      "confidence": "High",
+      "note": "Ruby version upgrade requires team decision and extensive testing"
+    }
+  ],
+  "updated": "2025-06-21 17:07:00 +0800",
+  "brakeman_version": "5.4.1"
+}

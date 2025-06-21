@@ -116,13 +116,17 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     end_time = datetime + duration_minutes.minutes
 
     # 使用 FOR UPDATE 鎖定時間重疊的訂位記錄
+    # 計算結束時間以避免 SQL 注入
+    reservation_end_time = start_time + duration_minutes.minutes
+    conflict_end_time = end_time + duration_minutes.minutes
+    
     conflicting_reservations = Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
       .where(
-        "(reservation_datetime <= ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?) OR " \
-        "(reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' >= ?)",
-        start_time, start_time,
-        end_time, end_time
+        "(reservation_datetime <= ? AND ? > ?) OR " \
+        "(reservation_datetime < ? AND ? >= ?)",
+        start_time, reservation_end_time, start_time,
+        end_time, conflict_end_time, end_time
       )
       .lock('FOR UPDATE')
       .includes(:table, table_combination: :restaurant_tables)
@@ -234,13 +238,17 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     end_time = datetime + duration_minutes.minutes
 
     # 最終檢查：是否有時間重疊的新訂位
+    # 計算結束時間以避免 SQL 注入
+    reservation_end_time = start_time + duration_minutes.minutes
+    conflict_end_time = end_time + duration_minutes.minutes
+    
     !Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
       .where(
-        "(reservation_datetime <= ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?) OR " \
-        "(reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' >= ?)",
-        start_time, start_time,
-        end_time, end_time
+        "(reservation_datetime <= ? AND ? > ?) OR " \
+        "(reservation_datetime < ? AND ? >= ?)",
+        start_time, reservation_end_time, start_time,
+        end_time, conflict_end_time, end_time
       )
       .exists?([
                  '(table_id = ?) OR (id IN (SELECT reservation_id FROM table_combinations tc JOIN table_combination_tables tct ON tc.id = tct.table_combination_id WHERE tct.restaurant_table_id = ?))', table.id, table.id

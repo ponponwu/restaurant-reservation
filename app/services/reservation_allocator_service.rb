@@ -184,13 +184,17 @@ class ReservationAllocatorService
       start_time = datetime
       end_time = datetime + duration_minutes.minutes
 
+      # 計算結束時間以避免 SQL 注入
+      reservation_end_time = start_time + duration_minutes.minutes
+      conflict_end_time = end_time + duration_minutes.minutes
+      
       conflicting_reservations = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
         .where(
-          "(reservation_datetime <= ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?) OR " \
-          "(reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' >= ?)",
-          start_time, start_time,
-          end_time, end_time
+          "(reservation_datetime <= ? AND ? > ?) OR " \
+          "(reservation_datetime < ? AND ? >= ?)",
+          start_time, reservation_end_time, start_time,
+          end_time, conflict_end_time, end_time
         )
         .includes(:table, table_combination: :restaurant_tables)
     end
@@ -280,11 +284,14 @@ class ReservationAllocatorService
       duration_minutes = @restaurant.dining_duration_with_buffer
       return false unless duration_minutes # 如果沒有設定時間，不檢查容量限制
 
+      # 計算結束時間以避免 SQL 注入
+      end_time = datetime + duration_minutes.minutes
+      
       query = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
         .where(
-          "reservation_datetime <= ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
-          datetime, datetime
+          "reservation_datetime <= ? AND ? > ?",
+          datetime, end_time, datetime
         )
 
       # 排除當前正在處理的預訂（如果有的話）

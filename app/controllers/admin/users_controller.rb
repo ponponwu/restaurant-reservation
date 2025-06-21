@@ -104,6 +104,13 @@ class Admin::UsersController < AdminController
   end
 
   def user_params
-    params.require(:user).permit(:first_name, :last_name, :email, :role, :restaurant_id)
+    base_params = [:first_name, :last_name, :email]
+    
+    # 只有超級管理員可以修改角色和餐廳分配
+    if current_user.super_admin?
+      base_params += [:role, :restaurant_id]
+    end
+    
+    params.require(:user).permit(base_params)
   end
 end
