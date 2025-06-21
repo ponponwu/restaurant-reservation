@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-controller="modal">
   <!-- 頁面標題 -->
   <div class="lg:flex lg:items-center lg:justify-between mb-8">
     <div class="min-w-0 flex-1">
@@ -243,5 +243,20 @@
         <%= render 'reservations_table', reservations: @reservations, reservations_by_period: @reservations_by_period %>
       </div>
     </div> 
+  </div>
+
+  <!-- Modal 容器 -->
+  <div id="modal" class="fixed inset-0 z-50 hidden overflow-y-auto" data-modal-target="container">
+    <div class="flex min-h-screen items-center justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+      <!-- 背景遮罩 -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" data-action="click->modal#close"></div>
+      
+      <!-- Modal 內容 -->
+      <div class="relative inline-block transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6" data-modal-target="content">
+        <div id="modal-content">
+          <!-- 動態載入的內容 -->
+        </div>
+      </div>
+    </div>
   </div>
 </div> 
