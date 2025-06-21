@@ -43,10 +43,14 @@ class Admin::BlacklistsController < Admin::BaseController
       if @blacklist.save
         format.html { redirect_to admin_restaurant_blacklists_path(@restaurant), notice: "黑名單已成功建立" }
         format.turbo_stream do
-          flash.now[:notice] = "黑名單已成功建立"
-          render turbo_stream: turbo_stream.update('blacklist-list',
-                                                  partial: 'admin/blacklists/blacklist_list',
-                                                  locals: { blacklists: @restaurant.blacklists.recent.limit(20) })
+          render turbo_stream: [
+            turbo_stream.update('modal-content', 
+                               partial: 'admin/blacklists/success',
+                               locals: { message: "黑名單已成功建立" }),
+            turbo_stream.after('body', 
+                              partial: 'shared/flash',
+                              locals: { message: "黑名單已成功建立", type: "success" })
+          ]
         end
       else
         format.html { render :new, status: :unprocessable_entity }
