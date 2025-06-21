@@ -35,7 +35,7 @@
     </td>
     <td class="px-4 py-3 text-sm">
       <div class="flex items-center space-x-2">
-        <%= button_to toggle_active_admin_blacklist_path(blacklist), 
+        <%= button_to toggle_active_admin_restaurant_blacklist_path(@restaurant, blacklist), 
                       method: :patch,
                       
                       form_class: "inline",
@@ -43,13 +43,13 @@
           <%= blacklist.active? ? '停用' : '啟用' %>
         <% end %>
         
-        <%= link_to edit_admin_blacklist_path(blacklist), 
+        <%= link_to edit_admin_restaurant_blacklist_path(@restaurant, blacklist), 
                     class: "text-xs px-2 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors",
                     data: { turbo_frame: "blacklist_form" } do %>
           編輯
         <% end %>
         
-        <%= button_to admin_blacklist_path(blacklist), 
+        <%= button_to admin_restaurant_blacklist_path(@restaurant, blacklist), 
                       method: :delete,
                       local: true,
                       form_class: "inline",
