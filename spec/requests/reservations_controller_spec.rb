@@ -5,8 +5,12 @@ RSpec.describe ReservationsController do
   let(:reservation_policy) { restaurant.reservation_policy || restaurant.create_reservation_policy! }
 
   before do
-    # 確保餐廳有基本的營業設定
-    create(:business_period, restaurant: restaurant) unless restaurant.business_periods.any?
+    # 確保餐廳有基本的營業設定 - 設定為全週營業以避免測試受當前日期影響
+    unless restaurant.business_periods.any?
+      create(:business_period, 
+             restaurant: restaurant, 
+             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+    end
 
     # 確保餐廳有桌位群組和桌位
     unless restaurant.table_groups.any?

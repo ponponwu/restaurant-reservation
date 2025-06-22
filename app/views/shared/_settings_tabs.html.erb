@@ -40,7 +40,7 @@
         </svg>
         預約規則
         <% if current_tab == 'reservation_policies' %>
-          <% if restaurant.reservation_policy&.reservation_enabled? %>
+          <% if restaurant.reservation_policy&.reservation_enabled %>
             <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
               已啟用
             </span>

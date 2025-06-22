@@ -118,12 +118,12 @@ class ReservationPolicy < ApplicationRecord
 
   # 檢查餐廳是否接受線上訂位
   def accepts_online_reservations?
-    reservation_enabled?
+    reservation_enabled
   end
 
   # 獲取訂位功能關閉的原因說明
   def reservation_disabled_message
-    return if reservation_enabled?
+    return if reservation_enabled
 
     '線上訂位功能暫停服務，如需訂位請直接致電餐廳'
   end

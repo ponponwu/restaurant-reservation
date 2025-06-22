@@ -21,6 +21,13 @@ FactoryBot.define do
     # 訂位功能開關
     reservation_enabled { true }
 
+    # 用餐時間設定
+    unlimited_dining_time { false }
+    default_dining_duration_minutes { 120 }
+    buffer_time_minutes { 15 }
+    allow_table_combinations { true }
+    max_combination_tables { 3 }
+
     # 政策文字
     no_show_policy { '未到場將記錄於黑名單' }
     modification_policy { '用餐前24小時可免費修改' }

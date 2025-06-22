@@ -41,12 +41,12 @@
                   id: "reservation_policy_form" do |f| %>
       
       <!-- 訂位功能總開關 -->
-      <div class="bg-white shadow rounded-lg border-l-4 <%= @reservation_policy.reservation_enabled? ? 'border-green-500' : 'border-red-500' %>">
+      <div class="bg-white shadow rounded-lg border-l-4 <%= @reservation_policy.reservation_enabled ? 'border-green-500' : 'border-red-500' %>">
         <div class="px-4 py-5 sm:p-6">
           <div class="flex items-center justify-between">
             <div class="flex items-center">
               <div class="flex-shrink-0">
-                <% if @reservation_policy.reservation_enabled? %>
+                <% if @reservation_policy.reservation_enabled %>
                   <svg class="h-8 w-8 text-green-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
                   </svg>
@@ -74,21 +74,21 @@
                       reservation_policy_target: "checkbox",
                       action: "change->reservation-policy#checkboxChanged"
                     } %>
-                <div class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 <%= @reservation_policy.reservation_enabled? ? 'bg-blue-600' : 'bg-gray-200' %>" 
+                <div class="relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 <%= @reservation_policy.reservation_enabled ? 'bg-blue-600' : 'bg-gray-200' %>" 
                      data-reservation-policy-target="toggle"
                      data-action="click->reservation-policy#toggle">
                   <span class="sr-only">啟用訂位功能</span>
-                  <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out <%= @reservation_policy.reservation_enabled? ? 'translate-x-5' : 'translate-x-0' %>"
+                  <span class="pointer-events-none inline-block h-5 w-5 rounded-full bg-white shadow transform ring-0 transition duration-200 ease-in-out <%= @reservation_policy.reservation_enabled ? 'translate-x-5' : 'translate-x-0' %>"
                         data-reservation-policy-target="toggleButton"></span>
                 </div>
                 <span class="ml-3 text-sm font-medium text-gray-900" data-reservation-policy-target="status">
-                  <%= @reservation_policy.reservation_enabled? ? '已啟用' : '已停用' %>
+                  <%= @reservation_policy.reservation_enabled ? '已啟用' : '已停用' %>
                 </span>
               </label>
             </div>
           </div>
           
-          <% unless @reservation_policy.reservation_enabled? %>
+          <% unless @reservation_policy.reservation_enabled %>
             <div class="mt-4 p-4 bg-red-50 rounded-md">
               <div class="flex">
                 <div class="flex-shrink-0">
@@ -107,7 +107,7 @@
         </div>
       </div>
 
-      <div data-reservation-policy-target="settings" class="<%= 'opacity-50 pointer-events-none' unless @reservation_policy.reservation_enabled? %>">
+      <div data-reservation-policy-target="settings" class="<%= 'opacity-50 pointer-events-none' unless @reservation_policy.reservation_enabled %>">
         <!-- 基本預約設定 -->
         <div class="bg-white shadow rounded-lg">
           <div class="px-4 py-5 sm:p-6">
