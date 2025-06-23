@@ -1,8 +1,8 @@
 FactoryBot.define do
   factory :table, class: 'RestaurantTable' do
-    association :restaurant
-    association :table_group
-    
+    restaurant
+    table_group
+
     sequence(:table_number) { |n| "Table-#{n}" }
     capacity { 4 }
     min_capacity { 1 }
@@ -12,6 +12,7 @@ FactoryBot.define do
     status { 'available' }
     operational_status { 'normal' }
     active { true }
+    can_combine { false }
 
     trait :window_round_table do
       table_number { '窗邊圓桌' }

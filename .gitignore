@@ -30,3 +30,4 @@ node_modules/
 /coverage/*
 
 public/assets/*
+app/assets/builds/*app/assets/builds/*

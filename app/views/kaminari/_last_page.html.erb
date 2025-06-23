@@ -6,6 +6,10 @@
     per_page:      number of items to fetch per page
     remote:        data-remote
 -%>
-<span class="last">
-  <%= link_to_unless current_page.last?, t('views.pagination.last').html_safe, url, remote: remote %>
-</span>
+<%= link_to_unless current_page.last?, t("views.pagination.last"), url, {
+    remote: remote,
+    class: "relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50" } do %>
+  <span class="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-gray-100 text-sm font-medium text-gray-400 cursor-not-allowed">
+    <%= t("views.pagination.last") %>
+  </span>
+<% end %>

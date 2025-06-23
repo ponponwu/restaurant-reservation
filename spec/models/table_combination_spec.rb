@@ -1,5 +1,5 @@
 require 'rails_helper'
 
-RSpec.describe TableCombination, type: :model do
+RSpec.describe TableCombination do
   pending "add some examples to (or delete) #{__FILE__}"
 end

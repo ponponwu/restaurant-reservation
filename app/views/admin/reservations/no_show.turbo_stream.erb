@@ -1,0 +1,7 @@
+<%= turbo_stream.update "reservation_#{@reservation.id}" do %>
+  <%= render 'reservation_row', reservation: @reservation %>
+<% end %>
+
+<%= turbo_stream.update "flash_messages" do %>
+  <%= render 'shared/flash', notice: '已標記為未出席' %>
+<% end %> 

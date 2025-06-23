@@ -13,7 +13,7 @@ class User < ApplicationRecord
   validates :role, presence: true
 
   # 3. 枚舉定義
-  enum role: { 
+  enum :role, {
     super_admin: 0,  # 系統超級管理員，可管理所有餐廳
     manager: 1,      # 餐廳管理員，可管理特定餐廳
     employee: 2      # 餐廳員工，有限權限
@@ -21,8 +21,8 @@ class User < ApplicationRecord
 
   # 4. Scope 定義
   scope :active, -> { where(active: true, deleted_at: nil) }
-  scope :search_by_name_or_email, ->(term) {
-    where("first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?",
+  scope :search_by_name_or_email, lambda { |term|
+    where('first_name ILIKE ? OR last_name ILIKE ? OR email ILIKE ?',
           "%#{term}%", "%#{term}%", "%#{term}%")
   }
 
@@ -36,7 +36,7 @@ class User < ApplicationRecord
   end
 
   def display_name
-    full_name.present? ? full_name : email
+    full_name.presence || email
   end
 
   def soft_delete!
@@ -46,7 +46,7 @@ class User < ApplicationRecord
   def generate_random_password
     self.password = SecureRandom.hex(8)
     self.password_confirmation = password
-    self.password_changed_at = nil  # 標記需要強制修改密碼
+    self.password_changed_at = nil # 標記需要強制修改密碼
   end
 
   def needs_password_change?
@@ -69,7 +69,7 @@ class User < ApplicationRecord
   def can_manage_restaurant?(restaurant = nil)
     return true if super_admin?
     return false unless manager? || employee?
-    
+
     # 管理員和員工只能管理自己的餐廳
     restaurant ? self.restaurant == restaurant : self.restaurant.present?
   end
@@ -99,7 +99,7 @@ class User < ApplicationRecord
   private
 
   def set_default_values
-    self.role ||= 'employee'  # 預設為員工角色
+    self.role ||= 'employee' # 預設為員工角色
     self.active = true if active.nil?
   end
 

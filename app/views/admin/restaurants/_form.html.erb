@@ -1,6 +1,7 @@
 <div class="shadow sm:overflow-hidden sm:rounded-md">
   <%= form_with model: [:admin, restaurant],
-      data: { turbo_frame: "restaurant_form" },
+      local: true,
+      data: { turbo: false },
       class: "space-y-6 bg-white py-6 px-4 sm:p-6" do |f| %>
 
     <!-- 錯誤訊息 -->
@@ -17,7 +18,7 @@
             <div class="mt-2 text-sm text-red-700">
               <ul class="list-disc space-y-1 pl-5">
                 <% restaurant.errors.full_messages.each do |message| %>
-                  <li><%= message %></li>
+                  <li><%= sanitize(message) %></li>
                 <% end %>
               </ul>
             </div>
@@ -55,11 +56,36 @@
         <%= f.text_area :address, rows: 2,
             class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:address].any?}" %>
       </div>
+
+      <!-- 營業人名稱 -->
+      <div class="col-span-6 sm:col-span-3">
+        <%= f.label :business_name, "營業人名稱", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :business_name,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:business_name].any?}" %>
+        <p class="mt-1 text-sm text-gray-500">選填，將顯示在餐廳資訊中</p>
+      </div>
+
+      <!-- 統一編號 -->
+      <div class="col-span-6 sm:col-span-3">
+        <%= f.label :tax_id, "統一編號", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :tax_id,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:tax_id].any?}" %>
+        <p class="mt-1 text-sm text-gray-500">選填，將顯示在餐廳資訊中</p>
+      </div>
+
+      <!-- 提醒事項 -->
+      <div class="col-span-6">
+        <%= f.label :reminder_notes, "提醒事項", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_area :reminder_notes, rows: 4,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if restaurant.errors[:reminder_notes].any?}",
+            placeholder: "每行一個提醒事項，例如：\n🚫 開放27日內的日子，日一公休\n🚫 包場需來詢問IG私訊\n🚫 店內提供多種自然酒搭配餐點，恕不接受自帶酒水" %>
+        <p class="mt-2 text-sm text-gray-500">選填，每行一個提醒事項，將顯示在餐廳資訊中</p>
+      </div>
     </div>
 
     <!-- 按鈕區域 -->
     <div class="flex justify-end space-x-3">
-      <%= link_to admin_restaurants_path,
+      <%= link_to (restaurant.persisted? ? admin_restaurant_path(restaurant) : admin_restaurants_path),
           class: "rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" do %>
         取消
       <% end %>

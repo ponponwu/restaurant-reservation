@@ -1,0 +1,16 @@
+<div class="bg-white p-6 rounded-lg">
+  <!-- Modal Header -->
+  <div class="flex justify-between items-center pb-4 border-b">
+    <h3 class="text-lg font-semibold text-gray-900">新增黑名單</h3>
+    <button data-action="click->modal#close" class="text-gray-400 hover:text-gray-600">
+      <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+
+  <!-- Form -->
+  <div class="mt-4">
+    <%= render 'form', blacklist: blacklist %>
+  </div>
+</div>

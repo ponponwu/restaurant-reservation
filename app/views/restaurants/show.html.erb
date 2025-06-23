@@ -1,16 +1,111 @@
-<div class="min-h-screen bg-gray-50">
+<div class="min-h-screen bg-gray-900 text-white">
+  <!-- Flash 訊息顯示 -->
+  <% if notice || alert %>
+    <div class="fixed top-4 right-4 z-50">
+      <%= render 'shared/flash' %>
+    </div>
+  <% end %>
+
   <!-- 主要內容 -->
-  <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
-       data-controller="reservation"
-       data-reservation-restaurant-slug-value="<%= @restaurant.slug %>">
+  <div class="w-full max-w-md mx-auto bg-gray-900 min-h-screen md:max-w-lg lg:max-w-xl"
+       data-controller="reservation restaurant-info"
+       data-reservation-restaurant-slug-value="<%= @restaurant.slug %>"
+       data-reservation-max-party-size-value="<%= @max_party_size %>"
+       data-reservation-min-party-size-value="<%= @min_party_size %>">
     
-    <!-- 餐廳標題 -->
-    <div class="text-center mb-8">
-      <h1 class="text-3xl font-bold text-gray-900 mb-2"><%= @restaurant.name %></h1>
-      <p class="text-lg text-gray-600">請選擇您的預約資訊</p>
+    <!-- 餐廳標題區域 -->
+    <div class="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
+      <div class="flex items-center space-x-3">
+        <!-- 餐廳 Logo/圖示 -->
+        <div class="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center">
+          <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+          </svg>
+        </div>
+        <div>
+          <h1 class="text-lg font-bold text-white"><%= @restaurant.name %></h1>
+          <p class="text-sm text-gray-400">線上訂位</p>
+        </div>
+      </div>
+      
+      <!-- Info Icon -->
+      <button data-restaurant-info-target="infoButton" 
+              data-action="click->restaurant-info#toggleInfo"
+              class="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center hover:bg-gray-500 transition-colors">
+        <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      </button>
     </div>
 
-    <form action="<%= new_restaurant_reservation_path(@restaurant) %>" method="get" id="reservation-form" class="space-y-6">
+    <!-- 餐廳資訊彈出層 -->
+    <div data-restaurant-info-target="infoPanel" 
+         class="hidden bg-gray-800 border-b border-gray-700">
+      <div class="p-4 space-y-4">
+        <!-- 電話 -->
+        <div>
+          <h3 class="text-sm font-medium text-gray-300 mb-1">電話</h3>
+          <p class="text-white"><%= @restaurant.phone.present? ? @restaurant.phone : '網' %></p>
+        </div>
+        
+        <!-- 地址 -->
+        <div>
+          <h3 class="text-sm font-medium text-gray-300 mb-1">地址</h3>
+          <p class="text-white text-sm"><%= @restaurant.address.present? ? @restaurant.address : '台南市中西區西門路二段372巷23號' %></p>
+        </div>
+        
+        <!-- 營業時間 -->
+        <div>
+          <h3 class="text-sm font-medium text-gray-300 mb-2">營業時間</h3>
+          <div class="space-y-1 text-sm">
+            <% 
+              day_names = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六']
+            %>
+            <% @restaurant.formatted_business_hours.each do |day_info| %>
+              <div class="flex justify-between">
+                <span class="text-gray-400"><%= day_names[day_info[:day_of_week]] %></span>
+                <% if day_info[:is_closed] %>
+                  <span class="text-gray-500">未營業</span>
+                <% elsif day_info[:periods].any? %>
+                  <div class="text-right">
+                    <% day_info[:periods].each_with_index do |period, index| %>
+                      <div class="text-white">
+                        <%= period[:start_time] %>-<%= period[:end_time] %>
+                      </div>
+                    <% end %>
+                  </div>
+                <% else %>
+                  <span class="text-gray-500">未營業</span>
+                <% end %>
+              </div>
+            <% end %>
+          </div>
+        </div>
+        
+        <!-- 提醒事項 -->
+        <% if @restaurant.formatted_reminder_notes.any? %>
+          <div>
+            <h3 class="text-sm font-medium text-gray-300 mb-2">提醒事項</h3>
+            <div class="space-y-1 text-sm text-gray-400">
+              <% @restaurant.formatted_reminder_notes.each do |note| %>
+                <p><%= sanitize(note) %></p>
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+        
+        <!-- 營業人名稱 -->
+        <% if @restaurant.has_business_info? %>
+          <div class="pt-2 border-t border-gray-700">
+            <% @restaurant.formatted_business_info.each do |info| %>
+              <p class="text-xs text-gray-500"><%= sanitize(info) %></p>
+            <% end %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+
+    <form action="<%= new_restaurant_reservation_path(@restaurant.slug) %>" method="get" id="reservation-form" class="bg-gray-900">
       <!-- 隱藏欄位用於存儲預訂資訊 -->
       <input type="hidden" name="date" id="reservation_date">
       <input type="hidden" name="time" id="reservation_time">
@@ -18,178 +113,235 @@
       <input type="hidden" name="adults" id="adult_count">
       <input type="hidden" name="children" id="child_count">
       
-      <!-- 人數選擇卡片 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
-          <h2 class="text-xl font-semibold text-gray-900">選擇用餐人數</h2>
-          <p class="text-sm text-gray-600 mt-1">請選擇成人與兒童人數</p>
-        </div>
-        <div class="p-6">
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">成人人數 <span class="text-red-500">*</span></label>
-              <select name="reservation[adult_count]" 
-                      data-reservation-target="adultCount"
-                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                <% (@min_party_size..@display_max_party_size).each do |i| %>
-                  <option value="<%= i %>" <%= 'selected' if i == 2 %>><%= i %> 人</option>
-                <% end %>
-              </select>
-            </div>
-            <div>
-              <label class="block text-sm font-medium text-gray-700 mb-2">兒童人數</label>
-              <select name="reservation[child_count]" 
-                      data-reservation-target="childCount"
-                      class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm">
-                <% (0..[@display_max_party_size - 1, 0].max).each do |i| %>
-                  <option value="<%= i %>"><%= i %> 人</option>
-                <% end %>
-              </select>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <!-- 日期選擇卡片 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
-          <h2 class="text-xl font-semibold text-gray-900">選擇日期</h2>
-          <p class="text-sm text-gray-600 mt-1">請選擇您希望用餐的日期</p>
-        </div>
-        <div class="p-6">
-          <div class="flex justify-center">
-            <input type="text" 
-                   name="reservation[reservation_date]"
-                   data-reservation-target="date"
-                   class="flatpickr-input w-full max-w-sm px-4 py-3 text-center text-lg border border-gray-300 rounded-lg shadow-sm focus:border-blue-500 focus:ring-2 focus:ring-blue-200 bg-white cursor-pointer transition-all duration-200"
-                   placeholder="點擊選擇日期"
-                   readonly>
-          </div>
-        </div>
-      </div>
-
-      <!-- 時間選擇卡片 -->
-      <div class="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-        <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
-          <h2 class="text-xl font-semibold text-gray-900">選擇時間</h2>
-          <p class="text-sm text-gray-600 mt-1">請先選擇日期以查看可用時間</p>
-        </div>
-        <div class="p-6">
-          <!-- 餐期資訊 -->
-          <div data-reservation-target="periodInfo" class="text-gray-600 mb-4">
-            <p class="text-gray-500">請先選擇日期以查看可用時間</p>
+      <!-- 用餐人數選擇 -->
+      <div class="p-4 border-b border-gray-700 bg-gray-900">
+        <h2 class="text-lg font-semibold text-white mb-3">用餐人數</h2>
+        <p class="text-sm text-gray-400 mb-4">可預約 <%= @min_party_size %> - <%= @max_party_size %> 位（含大人與小孩）</p>
+        
+        <div class="space-y-3">
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">大人</label>
+            <select name="reservation[adult_count]" 
+                    data-reservation-target="adultCount"
+                    class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              <% (@min_party_size..@display_max_party_size).each do |i| %>
+                <option value="<%= i %>" <%= 'selected' if i == 2 %>><%= i %></option>
+              <% end %>
+            </select>
           </div>
           
-          <!-- 時間槽容器 -->
-          <div data-reservation-target="timeSlots" class="space-y-4">
-            <!-- 時間選項會動態載入到這裡 -->
+          <div>
+            <label class="block text-sm font-medium text-gray-300 mb-2">小孩</label>
+            <select name="reservation[child_count]" 
+                    data-reservation-target="childCount"
+                    class="w-full bg-gray-800 border border-gray-600 rounded-lg px-3 py-3 text-white focus:border-blue-500 focus:ring-1 focus:ring-blue-500">
+              <% (0..[@display_max_party_size - 1, 0].max).each do |i| %>
+                <option value="<%= i %>"><%= i %></option>
+              <% end %>
+            </select>
           </div>
         </div>
       </div>
 
-      <!-- 進行預約按鈕 -->
-      <div class="text-center pt-4">
+      <!-- 日期選擇 -->
+      <div class="bg-gray-900 py-6 flex justify-center">
+        <!-- 隱藏的輸入欄位用於存儲選擇的日期 -->
+        <input type="hidden" 
+               name="reservation[reservation_date]"
+               data-reservation-target="date"
+               id="selected_date">
+        
+        <!-- 日曆容器 - 置中且變大 -->
+        <div class="w-full max-w-lg px-4">
+          <div data-reservation-target="calendar">
+            <!-- flatpickr 日曆會直接渲染在這裡 -->
+          </div>
+        </div>
+      </div>
+
+      <!-- 時間選擇區域 -->
+      <div class="p-4 bg-gray-900">
+        <!-- 餐期資訊 -->
+        <div data-reservation-target="periodInfo" class="text-gray-400 mb-4">
+          <p class="text-gray-500">請先選擇日期以查看可用時間</p>
+        </div>
+        
+        <!-- 時間槽容器 -->
+        <div data-reservation-target="timeSlots" class="space-y-4">
+          <!-- 時間選項會動態載入到這裡 -->
+        </div>
+      </div>
+
+      <!-- 下一步按鈕 -->
+      <div class="p-4 border-t border-gray-700 bg-gray-900">
         <button type="submit" 
                 data-reservation-target="nextStep"
-                class="inline-flex justify-center py-3 px-8 border border-transparent shadow-sm text-base font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
+                class="w-full bg-gray-600 text-white py-4 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed hover:bg-gray-500 transition-colors text-lg"
                 disabled>
-          進行預約
+          下一步
         </button>
       </div>
     </form>
-
-    <!-- 餐廳資訊卡片 -->
-    <div class="mt-8 bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-      <div class="px-6 py-4 border-b border-gray-200 bg-blue-50">
-        <h2 class="text-xl font-semibold text-gray-900">餐廳資訊</h2>
-      </div>
-      <div class="p-6 space-y-4">
-        <div>
-          <h3 class="font-medium text-gray-700">營業時間</h3>
-          <div class="mt-2 space-y-1">
-            <% 
-              # 使用自定義的週幾名稱數組
-              day_names = ['週日', '週一', '週二', '週三', '週四', '週五', '週六']
-            %>
-            <% @restaurant.formatted_business_hours.each do |day_info| %>
-              <div class="flex justify-between">
-                <span class="text-gray-600"><%= day_names[day_info[:day_of_week]] %></span>
-                <% if day_info[:is_closed] %>
-                  <span class="text-red-500">公休</span>
-                <% elsif day_info[:periods].any? %>
-                  <span class="text-gray-800">
-                    <% day_info[:periods].each_with_index do |period, index| %>
-                      <%= period[:name] %>: <%= period[:start_time] %>-<%= period[:end_time] %>
-                      <%= index < day_info[:periods].size - 1 ? ", " : "" %>
-                    <% end %>
-                  </span>
-                <% else %>
-                  <span class="text-red-500">公休</span>
-                <% end %>
-              </div>
-            <% end %>
-          </div>
-        </div>
-        <div>
-          <h3 class="font-medium text-gray-700">地址</h3>
-          <p class="text-gray-600"><%= @restaurant.address.present? ? @restaurant.address : '請聯絡餐廳確認地址' %></p>
-        </div>
-        <div>
-          <h3 class="font-medium text-gray-700">電話</h3>
-          <p class="text-gray-600"><%= @restaurant.phone.present? ? @restaurant.phone : '請聯絡餐廳確認電話' %></p>
-        </div>
-        <% if @restaurant.description.present? %>
-          <div>
-            <h3 class="font-medium text-gray-700">描述</h3>
-            <p class="text-gray-600"><%= @restaurant.description %></p>
-          </div>
-        <% end %>
-      </div>
-    </div>
   </div>
 </div>
 
 <% content_for :stylesheets do %>
   <style>
-    /* 時間槽的額外動畫效果 */
-    .time-option {
-      position: relative;
-      overflow: hidden;
+    /* 確保整個頁面都是深色背景 */
+    body {
+      background-color: #111827 !important;
+      color: #ffffff !important;
     }
     
-    .time-option::before {
-      content: '';
-      position: absolute;
-      top: 0;
-      left: -100%;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-      transition: left 0.5s;
-    }
-    
-    .time-option:hover::before {
-      left: 100%;
-    }
-    
-    .time-option.selected::before {
-      display: none;
-    }
-    
-    /* 脈衝動畫 */
-    @keyframes pulse-ring {
-      0% {
-        transform: scale(0.8);
-        opacity: 1;
+    /* 手機優先的響應式設計 */
+    @media (max-width: 768px) {
+      .w-full {
+        width: 100% !important;
       }
-      100% {
-        transform: scale(1.2);
+    }
+    
+    /* 滑動動畫 */
+    @keyframes slideDown {
+      from {
         opacity: 0;
+        transform: translateY(-10px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
       }
     }
     
-    .time-option.selected .ring-4 {
-      animation: pulse-ring 1.5s ease-out infinite;
+    .animate-slideDown {
+      animation: slideDown 0.3s ease-out;
+    }
+    
+    /* 確保日曆占滿容器且置中 */
+    .flatpickr-calendar.inline {
+      position: relative !important;
+      top: auto !important;
+      left: auto !important;
+      display: block !important;
+      margin: 0 auto !important;
+      width: 100% !important;
+      max-width: 400px !important;
+      background: #1f2937 !important;
+      border-radius: 0.75rem !important;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+      padding: 1rem !important;
+    }
+    
+    /* 強制日曆容器置中 */
+    [data-reservation-target="calendar"] {
+      display: flex !important;
+      justify-content: center !important;
+      align-items: center !important;
+    }
+    
+    /* 確保日曆在容器內置中 */
+    [data-reservation-target="calendar"] .flatpickr-calendar {
+      margin-left: auto !important;
+      margin-right: auto !important;
+    }
+    
+    /* 確保日期容器占滿寬度 */
+    .dayContainer {
+      width: 100% !important;
+      min-width: 100% !important;
+      max-width: 100% !important;
+    }
+    
+    .flatpickr-days {
+      width: 100% !important;
+    }
+    
+    .flatpickr-innerContainer {
+      width: 100% !important;
+    }
+    
+    .flatpickr-rContainer {
+      width: 100% !important;
+    }
+    
+    /* Dark 主題可見度改善 */
+    .flatpickr-day {
+      color: #e2e8f0 !important;
+      background: transparent !important;
+    }
+    
+    .flatpickr-day:hover:not(.flatpickr-disabled):not(.selected) {
+      background: #4a5568 !important;
+      color: #ffffff !important;
+    }
+    
+    .flatpickr-day.today:not(.flatpickr-disabled) {
+      background: #3182ce !important;
+      color: #ffffff !important;
+      font-weight: 600 !important;
+      border: 2px solid #63b3ed !important;
+    }
+    
+    .flatpickr-day.selected {
+      background: #2d3748 !important;
+      color: #ffffff !important;
+      font-weight: 700 !important;
+      border: 2px solid #4299e1 !important;
+    }
+    
+    .flatpickr-day.flatpickr-disabled {
+      color: #718096 !important;
+      background: #2d3748 !important;
+      opacity: 0.5 !important;
+    }
+    
+    .flatpickr-day.prevMonthDay,
+    .flatpickr-day.nextMonthDay {
+      color: #718096 !important;
+      opacity: 0.6 !important;
+    }
+    
+    /* 改善上個月和下個月日期的可見度，避免與disabled日期混淆 */
+    .flatpickr-day.prevMonthDay:not(.flatpickr-disabled):hover,
+    .flatpickr-day.nextMonthDay:not(.flatpickr-disabled):hover {
+      color: #ffffff !important;
+      background: #374151 !important;
+      opacity: 1 !important;
+    }
+    
+    /* 確保真正disabled的日期有明顯的禁用樣式 */
+    .flatpickr-day.flatpickr-disabled:hover {
+      background: #1f2937 !important;
+      color: #6b7280 !important;
+      opacity: 0.4 !important;
+    }
+    
+    /* 月份導航改善 */
+    .flatpickr-current-month {
+      color: #e2e8f0 !important;
+    }
+    
+    .flatpickr-prev-month,
+    .flatpickr-next-month {
+      color: #e2e8f0 !important;
+      fill: #e2e8f0 !important;
+    }
+    
+    .flatpickr-prev-month:hover,
+    .flatpickr-next-month:hover {
+      color: #ffffff !important;
+      fill: #ffffff !important;
+    }
+    
+    /* 星期標題改善 */
+    .flatpickr-weekday {
+      color: #a0aec0 !important;
+    }
+    
+    /* 響應式調整 */
+    @media (max-width: 640px) {
+      .flatpickr-calendar.inline {
+        width: 100% !important;
+      }
     }
   </style>
 <% end %> 

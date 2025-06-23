@@ -1,0 +1,15 @@
+<%# 1. 移除空狀態訊息（如果存在） %>
+<%= turbo_stream.remove "empty-blacklists-message" %>
+<%= turbo_stream.remove "empty-blacklists-cards-message" %>
+
+<%# 2. 將新項目 prepend 到桌面版列表中 %>
+<%= turbo_stream.prepend "blacklists-list", partial: "admin/blacklists/blacklist", locals: { blacklist: @blacklist } %>
+
+<%# 3. 將新項目 prepend 到手機版列表中 %>
+<%= turbo_stream.prepend "blacklists-cards", partial: "admin/blacklists/blacklist_card", locals: { blacklist: @blacklist } %>
+
+<%# 4. 關閉並清空 modal %>
+<%= turbo_stream.remove "modal-container" %>
+
+<%# 5. 顯示 Flash 訊息 %>
+<%= turbo_stream.update "flash_messages", partial: "shared/flash" %>

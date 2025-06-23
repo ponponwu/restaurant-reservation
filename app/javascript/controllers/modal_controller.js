@@ -11,6 +11,27 @@ export default class extends Controller {
         window.showModalFlash = (message, type) => {
             this.showFlash(message, type)
         }
+
+        // 添加全域事件委派來處理動態載入的關閉按鈕
+        this.boundHandleModalClose = this.handleModalClose.bind(this)
+        document.addEventListener('click', this.boundHandleModalClose)
+    }
+
+    disconnect() {
+        // 清理事件監聽器
+        if (this.boundHandleModalClose) {
+            document.removeEventListener('click', this.boundHandleModalClose)
+        }
+    }
+
+    // 處理 modal 關閉按鈕的全域點擊事件
+    handleModalClose(event) {
+        // 檢查點擊的元素是否有 modal 關閉 action
+        const closestActionElement = event.target.closest('[data-action*="modal#close"]')
+        if (closestActionElement) {
+            event.preventDefault()
+            this.close()
+        }
     }
 
     // 顯示確認對話框
@@ -72,23 +93,39 @@ export default class extends Controller {
 
     // 關閉對話框
     close() {
-        const modal = document.getElementById('confirmation-modal')
-        const overlayElement = modal?.querySelector('[data-modal-target="overlay"]')
-        const contentElement = modal?.querySelector('[data-modal-target="content"]')
+        // 嘗試關閉確認對話框
+        const confirmationModal = document.getElementById('confirmation-modal')
+        if (confirmationModal && !confirmationModal.classList.contains('hidden')) {
+            const overlayElement = confirmationModal?.querySelector('[data-modal-target="overlay"]')
+            const contentElement = confirmationModal?.querySelector('[data-modal-target="content"]')
 
-        if (overlayElement && contentElement) {
-            overlayElement.classList.remove('opacity-100')
-            contentElement.classList.remove('opacity-100', 'translate-y-0', 'sm:scale-100')
+            if (overlayElement && contentElement) {
+                overlayElement.classList.remove('opacity-100')
+                contentElement.classList.remove('opacity-100', 'translate-y-0', 'sm:scale-100')
+            }
+
+            setTimeout(() => {
+                if (confirmationModal) {
+                    confirmationModal.classList.add('hidden')
+                    confirmationModal.classList.remove('flex')
+                }
+                this.pendingForm = null
+                this.pendingAction = null
+            }, 200)
+            return
         }
 
-        setTimeout(() => {
-            if (modal) {
-                modal.classList.add('hidden')
-                modal.classList.remove('flex')
+        // 嘗試關閉內容 modal
+        const modalContainer = document.getElementById('modal-container')
+        if (modalContainer && !modalContainer.classList.contains('hidden')) {
+            modalContainer.classList.add('hidden')
+
+            // 清空內容
+            const modalContent = document.getElementById('modal-content')
+            if (modalContent) {
+                modalContent.innerHTML = ''
             }
-            this.pendingForm = null
-            this.pendingAction = null
-        }, 200)
+        }
     }
 
     // 確認操作
@@ -232,5 +269,73 @@ export default class extends Controller {
         if (flashContainer) {
             flashContainer.classList.add('hidden')
         }
+    }
+
+    testClick() {
+        alert('Stimulus modal controller 工作正常！')
+    }
+
+    // 遠程載入 Modal 內容
+    openRemote(event) {
+        event.preventDefault()
+
+        const link = event.currentTarget
+        const url = link.href
+
+        // 找到 modal 容器
+        const modalContainer = document.getElementById('modal-container')
+        const modalContent = document.getElementById('modal-content')
+
+        if (!modalContainer || !modalContent) {
+            console.error('❌ Modal container not found')
+            return
+        }
+
+        // 顯示載入狀態
+        modalContent.innerHTML = `
+            <div class="p-6 text-center">
+                <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <p class="mt-2 text-gray-500">載入中...</p>
+            </div>
+        `
+
+        // 顯示 Modal
+        modalContainer.classList.remove('hidden')
+
+        // 透過 AJAX 載入內容
+        fetch(url, {
+            headers: {
+                Accept: 'text/html',
+                'X-Requested-With': 'XMLHttpRequest',
+            },
+        })
+            .then((response) => {
+                console.log('📡 Response status:', response.status)
+                console.log('📡 Response headers:', response.headers.get('Content-Type'))
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+                }
+                return response.text()
+            })
+            .then((html) => {
+                console.log('✅ HTML loaded successfully, length:', html.length)
+                modalContent.innerHTML = html
+
+                // 移除有問題的 application.load() 調用
+                // 動態內容中的關閉按鈕會由全域事件委派處理
+            })
+            .catch((error) => {
+                console.error('💥 載入失敗詳細錯誤:', error)
+                modalContent.innerHTML = `
+                <div class="p-6 text-center">
+                    <p class="text-red-500">載入失敗：${error.message}</p>
+                    <p class="text-sm text-gray-500 mt-2">請檢查控制台了解詳細錯誤</p>
+                </div>
+            `
+            })
     }
 }

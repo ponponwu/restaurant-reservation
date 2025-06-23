@@ -1,0 +1,250 @@
+<%= form_with model: reservation, 
+              url: reservation.persisted? ? admin_restaurant_reservation_path(@restaurant, reservation) : admin_restaurant_reservations_path(@restaurant),
+              local: false,
+              data: { turbo_frame: "reservation_form" },
+              class: "space-y-6" do |f| %>
+  
+  <% if reservation.errors.any? %>
+    <div class="rounded-md bg-red-50 p-4">
+      <div class="flex">
+        <div class="flex-shrink-0">
+          <svg class="h-5 w-5 text-red-400" viewBox="0 0 20 20" fill="currentColor">
+            <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd"></path>
+          </svg>
+        </div>
+        <div class="ml-3">
+          <h3 class="text-sm font-medium text-red-800">
+            發現 <%= pluralize(reservation.errors.count, "個") %> 錯誤：
+          </h3>
+          <div class="mt-2 text-sm text-red-700">
+            <ul class="list-disc pl-5 space-y-1">
+              <% reservation.errors.full_messages.each do |message| %>
+                <li><%= sanitize(message) %></li>
+              <% end %>
+            </ul>
+          </div>
+        </div>
+      </div>
+    </div>
+  <% end %>
+
+  <!-- 客戶資訊 -->
+  <div class="bg-gray-50 p-4 rounded-lg">
+    <h4 class="text-sm font-medium text-gray-900 mb-4">客戶資訊</h4>
+    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+      <div>
+        <%= f.label :customer_name, "客戶姓名 *", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.text_field :customer_name, 
+            required: true,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+      </div>
+
+      <div>
+        <%= f.label :customer_phone, "電話號碼 *", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.telephone_field :customer_phone, 
+            required: true,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+      </div>
+
+      <div class="md:col-span-2">
+        <%= f.label :customer_email, "電子郵件", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.email_field :customer_email, 
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 訂位詳情 -->
+  <div class="bg-gray-50 p-4 rounded-lg" 
+       data-controller="admin-reservation reservation-form" 
+       data-admin-reservation-restaurant-slug-value="<%= @restaurant.slug %>"
+       data-reservation-form-restaurant-id-value="<%= @restaurant.id %>"
+       data-reservation-form-check-availability-url-value="/admin/restaurants/<%= @restaurant.id %>/reservations/availability_check">
+    <h4 class="text-sm font-medium text-gray-900 mb-4">訂位詳情</h4>
+    
+    <!-- 人數選擇 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+      <div>
+        <%= f.label :party_size, "總人數 *", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.number_field :party_size, 
+            required: true,
+            min: 1,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+            data: { 
+              reservation_form_target: "partySizeField", 
+              admin_reservation_target: "partySize",
+              action: "change->reservation-form#updateHeadCounts change->admin-reservation#handlePartySizeChange" 
+            } %>
+      </div>
+
+      <div>
+        <%= f.label :adults_count, "大人數", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.number_field :adults_count, 
+            min: 1,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+            data: { 
+              reservation_form_target: "adultsField",
+              admin_reservation_target: "adultsCount" 
+            } %>
+      </div>
+
+      <div>
+        <%= f.label :children_count, "小孩數", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.number_field :children_count, 
+            min: 0,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+            data: { 
+              reservation_form_target: "childrenField",
+              admin_reservation_target: "childrenCount" 
+            } %>
+      </div>
+    </div>
+
+    <!-- 日期選擇 -->
+    <div class="mb-4">
+      <label class="block text-sm font-medium text-gray-700 mb-2">選擇日期 *</label>
+      <div class="w-full">
+        <div data-admin-reservation-target="calendar" class="w-full"></div>
+      </div>
+      <!-- 用於存儲選中的日期字串 -->
+      <input type="hidden" data-admin-reservation-target="dateField" />
+    </div>
+
+    <!-- 餐期選擇 -->
+    <div class="mb-4">
+      <%= f.label :business_period_id, "餐期選擇 *", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.select :business_period_id, 
+          options_from_collection_for_select(@business_periods, :id, :display_with_time, reservation.business_period_id),
+          { prompt: "請選擇餐期" },
+          { 
+            required: true,
+            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+            data: { 
+              admin_reservation_target: "businessPeriodField",
+              action: "change->admin-reservation#handleBusinessPeriodChange"
+            }
+          } %>
+      <p class="mt-1 text-xs text-gray-500">選擇餐期後，時間會自動設定在該餐期範圍內</p>
+    </div>
+
+    <!-- 時間選擇 -->
+    <div class="mb-4">
+      <div class="flex items-center justify-between mb-2">
+        <%= f.label :reservation_time, "訂位時間 *", class: "block text-sm font-medium text-gray-700" %>
+        <div class="flex items-center">
+          <%= check_box_tag :admin_force_mode, true, false, 
+              id: "admin_force_mode",
+              class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded",
+              data: { admin_reservation_target: "forceMode", action: "change->admin-reservation#toggleForceMode" } %>
+          <%= label_tag :admin_force_mode, "管理員強制模式", 
+              class: "ml-2 block text-sm font-medium text-gray-700" %>
+        </div>
+      </div>
+      <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-3 mb-3">
+        <p class="text-xs text-yellow-700">
+          <strong>強制模式：</strong>啟用後可以無視容量限制建立訂位
+        </p>
+      </div>
+      <%= f.time_field :reservation_time, 
+          required: true,
+          class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
+          data: { 
+            admin_reservation_target: "timeField",
+            action: "change->admin-reservation#handleTimeChange"
+          } %>
+      <%= hidden_field_tag :admin_override, false, data: { admin_reservation_target: "adminOverride" } %>
+      
+      <!-- 餐期時間範圍提示 -->
+      <div class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 hidden" 
+           data-admin-reservation-target="businessPeriodHint">
+        <span class="font-medium">選中餐期時間：</span>
+        <span data-admin-reservation-target="businessPeriodTime"></span>
+      </div>
+    </div>
+
+    <!-- 完整的日期時間欄位（隱藏，用於提交） -->
+    <%= f.hidden_field :reservation_datetime, 
+        data: { 
+          reservation_form_target: "datetimeField", 
+          admin_reservation_target: "datetimeField",
+          action: "change->reservation-form#checkAvailability" 
+        } %>
+  </div>
+
+  <!-- 桌位選擇（管理員專用） -->
+  <% if current_user.super_admin? || current_user.manager? %>
+    <div class="bg-blue-50 p-4 rounded-lg">
+      <h4 class="text-sm font-medium text-gray-900 mb-4">
+        桌位指定 
+        <span class="text-xs text-gray-500">(可選，留空則自動分配)</span>
+      </h4>
+      
+      <div>
+        <%= f.label :table_id, "指定桌位", class: "block text-sm font-medium text-gray-700" %>
+        <%= f.select :table_id, 
+            options_from_collection_for_select(@available_tables, :id, :display_name, reservation.table_id),
+            { prompt: "自動分配桌位" },
+            { class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" } %>
+      </div>
+
+      <!-- 管理員強制設定選項 -->
+      <% if reservation.persisted? %>
+        <div class="mt-4 flex items-center">
+          <%= check_box_tag :admin_override, true, false, 
+              id: "admin_override",
+              class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" %>
+          <%= label_tag :admin_override, "管理員強制模式（忽略容量限制和時間衝突）", 
+              class: "ml-2 block text-sm font-medium text-gray-700" %>
+        </div>
+      <% end %>
+    </div>
+  <% end %>
+
+  <!-- 特殊需求 -->
+  <div>
+    <%= f.label :special_requests, "特殊需求", class: "block text-sm font-medium text-gray-700" %>
+    <%= f.text_area :special_requests, 
+        rows: 3,
+        placeholder: "例如：需要兒童座椅、無障礙座位、慶生等",
+        class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+  </div>
+
+  <!-- 狀態選擇（僅編輯時顯示，簡化狀態） -->
+  <% if reservation.persisted? %>
+    <div>
+      <%= f.label :status, "訂位狀態", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.select :status, 
+          options_for_select([
+            ['待確認', 'pending'],
+            ['已確認', 'confirmed'],
+            ['已完成', 'completed'],
+            ['已取消', 'cancelled'],
+            ['未出席', 'no_show']
+          ], reservation.status),
+          {},
+          { class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" } %>
+    </div>
+  <% end %>
+
+  <!-- 內部備註 -->
+  <% if current_user.super_admin? || current_user.manager? %>
+    <div>
+      <%= f.label :notes, "內部備註", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.text_area :notes, 
+          rows: 2,
+          placeholder: "僅供內部參考的備註",
+          class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" %>
+    </div>
+  <% end %>
+
+  <!-- 提交按鈕 -->
+  <div class="flex justify-end space-x-3 pt-4 border-t border-gray-200">
+    <%= link_to "取消", 
+        reservation.persisted? ? admin_restaurant_reservation_path(@restaurant, reservation) : admin_restaurant_reservations_path(@restaurant),
+        class: "inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50" %>
+    
+    <%= f.submit reservation.persisted? ? "更新訂位" : "建立訂位", 
+        class: "inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md shadow-sm text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500",
+        data: { reservation_form_target: "submitButton" } %>
+  </div>
+<% end %> 

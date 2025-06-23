@@ -13,37 +13,37 @@ class RestaurantTable < ApplicationRecord
 
   scope :active, -> { where(active: true) }
   scope :available_for_booking, -> { active.where(operational_status: 'normal') }
-  scope :ordered, -> { 
+  scope :ordered, lambda {
     joins(:table_group)
       .order('table_groups.sort_order ASC, restaurant_tables.sort_order ASC, restaurant_tables.id ASC')
   }
-  scope :by_capacity, ->(min, max = nil) { 
+  scope :by_capacity, lambda { |min, max = nil|
     if max
       where(capacity: min..max)
     else
-      where('capacity >= ?', min)
+      where(capacity: min..)
     end
   }
   scope :in_group, ->(group_id) { where(table_group_id: group_id) }
 
   # 重新命名舊的 status enum 以避免衝突，保留向後相容性
-  enum status: {
+  enum :status, {
     available: 'available',
     occupied: 'occupied',
     reserved: 'reserved',
     maintenance: 'maintenance',
     cleaning: 'cleaning'
-  }, _prefix: :legacy
+  }, prefix: :legacy
 
   # 新的 operational_status - 簡化且有意義的狀態
-  enum operational_status: {
+  enum :operational_status, {
     normal: 'normal',              # 正常狀態（取代 available/occupied/reserved）
-    maintenance: 'maintenance',    # 維修中  
+    maintenance: 'maintenance',    # 維修中
     cleaning: 'cleaning',          # 清潔中
     out_of_service: 'out_of_service' # 停止服務
   }
 
-  enum table_type: {
+  enum :table_type, {
     regular: 'regular',
     round: 'round',
     square: 'square',
@@ -62,30 +62,30 @@ class RestaurantTable < ApplicationRecord
   after_destroy_commit :update_restaurant_capacity
 
   # Ransack 搜索屬性白名單
-  def self.ransackable_attributes(auth_object = nil)
-    [
-      "capacity", 
-      "created_at", 
-      "id", 
-      "max_capacity", 
-      "min_capacity", 
-      "operational_status", 
-      "restaurant_id", 
-      "sort_order", 
-      "status", 
-      "table_group_id", 
-      "table_number", 
-      "table_type", 
-      "updated_at"
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[
+      capacity
+      created_at
+      id
+      max_capacity
+      min_capacity
+      operational_status
+      restaurant_id
+      sort_order
+      status
+      table_group_id
+      table_number
+      table_type
+      updated_at
     ]
   end
 
   # Ransack 搜索關聯白名單
-  def self.ransackable_associations(auth_object = nil)
-    [
-      "restaurant",
-      "table_group",
-      "reservations"
+  def self.ransackable_associations(_auth_object = nil)
+    %w[
+      restaurant
+      table_group
+      reservations
     ]
   end
 
@@ -100,31 +100,38 @@ class RestaurantTable < ApplicationRecord
 
   def can_accommodate?(party_size)
     return false unless available?
-    
+
     min_cap = min_capacity || 1
     max_cap = max_capacity || capacity
-    
-    party_size >= min_cap && party_size <= max_cap
+
+    party_size.between?(min_cap, max_cap)
   end
 
   def current_reservation
     reservations.where(status: 'confirmed')
-                .where('reservation_datetime <= ? AND reservation_datetime + INTERVAL \'120 minutes\' > ?', 
-                       Time.current, Time.current)
-                .first
+      .where('reservation_datetime <= ? AND reservation_datetime + INTERVAL \'120 minutes\' > ?',
+             Time.current, Time.current)
+      .first
   end
 
   def is_occupied?
     current_reservation.present?
   end
 
-  def available_for_datetime?(datetime, duration_minutes = 120)
+  def available_for_datetime?(datetime, duration_minutes = nil)
+    # 如果餐廳是無限用餐時間，則不檢查時間衝突
+    return true if restaurant.unlimited_dining_time?
+
+    # 使用傳入的時間或餐廳預設時間
+    duration_minutes ||= restaurant.dining_duration_with_buffer || 120
     end_time = datetime + duration_minutes.minutes
-    
+
     conflicting_reservations = reservations.where(status: 'confirmed')
-                                          .where("reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
-                                                 end_time, datetime)
-    
+      .where(
+        "reservation_datetime < ? AND reservation_datetime + (INTERVAL '1 minute' * ?) > ?",
+        end_time, duration_minutes.to_i, datetime
+      )
+
     conflicting_reservations.empty?
   end
 
@@ -137,9 +144,13 @@ class RestaurantTable < ApplicationRecord
   end
 
   def suitable_for?(party_size)
-    return false unless active? && normal?  # 使用 operational_status
+    return false unless active? && normal? # 使用 operational_status
     return false if party_size < (min_capacity || 1)
-    return false if max_capacity.present? && party_size > max_capacity
+
+    # 檢查容量上限：優先使用 max_capacity，否則使用 capacity
+    effective_max_capacity = max_capacity.presence || capacity
+    return false if party_size > effective_max_capacity
+
     true
   end
 
@@ -154,16 +165,16 @@ class RestaurantTable < ApplicationRecord
 
     # 獲取所有在此桌位之前的桌位數量
     previous_groups = restaurant.table_groups.active
-                                             .where("table_groups.sort_order < ?", table_group.sort_order)
-    
+      .where(table_groups: { sort_order: ...table_group.sort_order })
+
     previous_tables_count = previous_groups.joins(:restaurant_tables)
-                                         .where(restaurant_tables: { active: true })
-                                         .count
+      .where(restaurant_tables: { active: true })
+      .count
 
     # 加上同群組內在此桌位之前的桌位數量
     same_group_previous_tables = table_group.restaurant_tables.active
-                                          .where("restaurant_tables.sort_order < ?", sort_order)
-                                          .count
+      .where(restaurant_tables: { sort_order: ...sort_order })
+      .count
 
     previous_tables_count + same_group_previous_tables + 1
   end
@@ -172,78 +183,75 @@ class RestaurantTable < ApplicationRecord
   def adjacent_to?(other_table)
     return false unless other_table.is_a?(RestaurantTable)
     return false if restaurant_id != other_table.restaurant_id
-    
+
     # 如果有位置座標，使用座標計算
-    if position_x.present? && position_y.present? && 
+    if position_x.present? && position_y.present? &&
        other_table.position_x.present? && other_table.position_y.present?
-      distance = Math.sqrt((position_x - other_table.position_x)**2 + 
-                          (position_y - other_table.position_y)**2)
-      return distance <= 1.5  # 假設相鄰桌位距離不超過1.5單位
+      distance = Math.sqrt(((position_x - other_table.position_x)**2) +
+                          ((position_y - other_table.position_y)**2))
+      return distance <= 1.5 # 假設相鄰桌位距離不超過1.5單位
     end
-    
+
     # 如果沒有座標，使用桌號相鄰性判斷
     table_nums = [table_number, other_table.table_number].map do |num|
       num.gsub(/\D/, '').to_i
     end
-    
+
     return false if table_nums.any?(&:zero?)
+
     (table_nums[0] - table_nums[1]).abs <= 1
   end
 
   # 檢查桌位是否適合特定訂位需求
   def suitable_for_reservation?(reservation)
     return false unless suitable_for?(reservation.party_size)
-    
+
     # 檢查兒童友善需求
-    if reservation.children_count > 0
-      return false if table_type == 'bar'  # 吧台不適合兒童
-      return false unless is_child_friendly != false  # 如果明確標示不適合兒童
+    if reservation.children_count.positive?
+      return false if table_type == 'bar' # 吧台不適合兒童
+      return false unless is_child_friendly != false # 如果明確標示不適合兒童
     end
-    
-    # 檢查無障礙需求
-    if reservation.requires_accessibility?
-      return false unless is_wheelchair_accessible == true
-    end
-    
+
     # 檢查其他特殊需求
     if reservation.special_requests.present?
       requests = reservation.special_requests.downcase
-      
+
       # 商務聚餐偏好圓桌和安靜環境
-      if requests.include?('商務') || requests.include?('會議')
-        return false if table_type == 'bar' || table_type == 'counter'
-      end
-      
+      return false if (requests.include?('商務') || requests.include?('會議')) && %w[bar counter].include?(table_type)
+
       # 檢查安靜需求
-      if requests.include?('安靜')
-        return false if table_type == 'bar'  # 吧台通常較吵雜
+      if requests.include?('安靜') && (table_type == 'bar')
+        return false # 吧台通常較吵雜
       end
     end
-    
+
     true
   end
 
   # 檢查桌位可用性並返回詳細信息
-  def check_availability(datetime = Time.current, duration_minutes = 120)
+  def check_availability(datetime = Time.current, duration_minutes = nil)
+    # 如果餐廳是無限用餐時間，使用預設值
+    duration_minutes ||= restaurant.dining_duration_with_buffer || 120 unless restaurant.unlimited_dining_time?
+
     {
       available: available_for_datetime?(datetime, duration_minutes),
       operational_status: operational_status,
       current_reservation: current_reservation,
       next_available_time: calculate_next_available_time(datetime),
-      conflicts: find_conflicting_reservations(datetime, duration_minutes)
+      conflicts: restaurant.unlimited_dining_time? ? [] : find_conflicting_reservations(datetime, duration_minutes)
     }
   end
 
   # 計算下次可用時間
   def calculate_next_available_time(from_time = Time.current)
     return from_time if available_for_datetime?(from_time)
-    
+
     # 找下一個結束的訂位
     next_ending_reservation = reservations.where(status: 'confirmed')
-                                        .where('reservation_datetime + INTERVAL \'120 minutes\' > ?', from_time)
-                                        .order(:reservation_datetime)
-                                        .first
-    
+      .where('reservation_datetime + INTERVAL \'120 minutes\' > ?', from_time)
+      .order(:reservation_datetime)
+      .first
+
     if next_ending_reservation
       next_ending_reservation.reservation_datetime + 120.minutes
     else
@@ -252,12 +260,18 @@ class RestaurantTable < ApplicationRecord
   end
 
   # 找到衝突的訂位
-  def find_conflicting_reservations(datetime, duration_minutes = 120)
+  def find_conflicting_reservations(datetime, duration_minutes = nil)
+    # 如果餐廳是無限用餐時間，不檢查衝突
+    return [] if restaurant.unlimited_dining_time?
+
+    duration_minutes ||= restaurant.dining_duration_with_buffer || 120
     end_time = datetime + duration_minutes.minutes
-    
+
     reservations.where(status: 'confirmed')
-                .where("reservation_datetime < ? AND reservation_datetime + INTERVAL '#{duration_minutes} minutes' > ?",
-                       end_time, datetime)
+      .where(
+        "reservation_datetime < ? AND reservation_datetime + (INTERVAL '1 minute' * ?) > ?",
+        end_time, duration_minutes.to_i, datetime
+      )
   end
 
   private
@@ -268,7 +282,7 @@ class RestaurantTable < ApplicationRecord
       max_sort_order = restaurant&.restaurant_tables&.maximum(:sort_order) || 0
       self.sort_order = max_sort_order + 1
     end
-    
+
     self.status ||= 'available'
     self.operational_status ||= 'normal'
     self.table_type ||= 'regular'
@@ -299,7 +313,7 @@ class RestaurantTable < ApplicationRecord
       # 獲取群組內桌位的當前最小排序
       current_positions = table_group.restaurant_tables.where(id: ordered_ids).pluck(:id, :sort_order).to_h
       min_sort_order = current_positions.values.min
-      
+
       # 更新群組內桌位的排序，保持跨群組的連續性
       ordered_ids.each_with_index do |id, index|
         where(id: id, table_group: table_group).update_all(sort_order: min_sort_order + index)
@@ -317,14 +331,14 @@ class RestaurantTable < ApplicationRecord
     transaction do
       # 按照當前的排序獲取所有桌位，保持相對順序
       tables = restaurant.restaurant_tables
-                        .where(active: true)
-                        .order(:sort_order, :id)
-      
+        .where(active: true)
+        .order(:sort_order, :id)
+
       # 重新分配連續的排序號碼
       tables.each_with_index do |table, index|
         table.update_column(:sort_order, index + 1)
       end
-      
+
       Rails.logger.info "Recalculated sort_order for #{tables.count} tables in restaurant #{restaurant.name}"
     end
   end

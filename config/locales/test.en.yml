@@ -1,0 +1,66 @@
+en:
+  activerecord:
+    errors:
+      messages:
+        blank: "can't be blank"
+        invalid: "is invalid"
+        too_short: "is too short"
+        too_long: "is too long"
+      models:
+        reservation:
+          attributes:
+            customer_name:
+              blank: "Customer name can't be blank"
+            customer_phone:
+              blank: "Phone number can't be blank"
+              invalid: "Phone number is invalid"
+            customer_email:
+              invalid: "Email is invalid"
+            party_size:
+              blank: "Party size can't be blank"
+              invalid: "Party size must be a number"
+  
+  reservation:
+    title: "Make a Reservation"
+    customer_name: "Customer Name"
+    customer_phone: "Phone Number"
+    customer_email: "Email Address"
+    party_size: "Party Size"
+    special_requests: "Special Requests"
+    submit: "Submit Reservation"
+    success: "Reservation created successfully"
+    failure: "Reservation failed, please contact restaurant"
+    
+  time:
+    formats:
+      default: "%Y-%m-%d"
+      short: "%m/%d"
+      long: "%B %d, %Y"
+      
+  date:
+    formats:
+      default: "%Y-%m-%d"
+      short: "%m/%d"
+      long: "%B %d, %Y"
+    day_names:
+      - Sunday
+      - Monday
+      - Tuesday
+      - Wednesday
+      - Thursday
+      - Friday
+      - Saturday
+    month_names:
+      - ~
+      - January
+      - February
+      - March
+      - April
+      - May
+      - June
+      - July
+      - August
+      - September
+      - October
+      - November
+      - December

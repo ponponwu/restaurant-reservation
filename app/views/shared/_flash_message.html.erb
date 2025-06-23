@@ -39,7 +39,7 @@
           when 'info', 'notice' then 'text-blue-800'
           else 'text-gray-800'
           end %>">
-          <%= message %>
+          <%= sanitize(message) %>
         </p>
       </div>
     </div>

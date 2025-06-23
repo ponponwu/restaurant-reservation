@@ -1,4 +1,4 @@
-<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" data-controller="modal">
   <!-- 頁面標題 -->
   <div class="lg:flex lg:items-center lg:justify-between mb-8">
     <div class="min-w-0 flex-1">
@@ -6,37 +6,53 @@
         <%= @restaurant.name %> - 訂位管理
       </h2>
       <div class="mt-1 flex flex-col sm:mt-0 sm:flex-row sm:flex-wrap sm:space-x-6">
-        <div class="mt-2 flex items-center text-sm text-gray-500">
-          總共 <%= @reservations.count %> 筆訂位記錄
+        <div class="mt-2 flex items-center text-sm text-gray-500" id="reservation-count">
+          <% if @show_all %>
+            全部訂位記錄 - 總共 <%= @reservations.count %> 筆
+          <% else %>
+            <%= @filter_date.strftime('%Y年%m月%d日') %> - 總共 <%= @reservations.count %> 筆訂位記錄
+          <% end %>
         </div>
       </div>
     </div>
     <div class="mt-5 flex lg:mt-0 lg:ml-4 space-x-3">
-      <%= link_to calendar_admin_restaurant_reservations_path(@restaurant),
-          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
-        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
-        </svg>
-        行事曆檢視
-      <% end %>
-      <%= link_to admin_restaurant_path(@restaurant),
-          class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
-        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-        </svg>
-        回到餐廳
-      <% end %>
+      <!-- 快速操作按鈕組 -->
+      <div class="flex items-center space-x-2">
+        <%= link_to new_admin_restaurant_reservation_path(@restaurant),
+            class: "inline-flex items-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-sm hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          新增訂位
+        <% end %>
+        
+        <% unless @show_all %>
+          <%= link_to admin_restaurant_reservations_path(@restaurant, show_all: true),
+              class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"></path>
+            </svg>
+            顯示全部訂單
+          <% end %>
+        <% else %>
+          <%= link_to admin_restaurant_reservations_path(@restaurant),
+              class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+            </svg>
+            回到今日訂位
+          <% end %>
+        <% end %>
+        
+        <%= link_to admin_restaurant_path(@restaurant),
+            class: "inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50" do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          回到餐廳
+        <% end %>
+      </div>
     </div>
-  </div>
-
-  <!-- Flash 訊息 -->
-  <div id="flash">
-    <%= render 'shared/flash' %>
-  </div>
-
-  <!-- Flash 訊息 -->
-  <div id="flash">
-    <%= render 'shared/flash' %>
   </div>
 
   <!-- 主要內容區域 - 使用側邊欄佈局 -->
@@ -224,7 +240,23 @@
     <div class="w-full lg:flex-1 lg:min-w-0">
       <!-- 訂位列表 -->
       <div class="bg-white shadow overflow-hidden sm:rounded-lg reservation-list" id="reservations-container">
-        <%= render 'reservations_table', reservations: @reservations %>
+        <%= render 'reservations_table', reservations: @reservations, reservations_by_period: @reservations_by_period %>
+      </div>
+    </div> 
+  </div>
+
+  <!-- Modal 容器 -->
+  <div id="modal-container" class="fixed inset-0 z-50 hidden overflow-y-auto" data-modal-target="container">
+    <div class="flex min-h-screen items-center justify-center px-4 pb-20 pt-4 text-center sm:block sm:p-0">
+      <!-- 背景遮罩 -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" data-action="click->modal#close"></div>
+      
+      <!-- Modal 內容 -->
+      <div class="relative inline-block transform overflow-hidden rounded-lg bg-white px-4 pb-4 pt-5 text-left shadow-xl transition-all sm:my-8 sm:w-full sm:max-w-lg sm:p-6" data-modal-target="content">
+        <div id="modal-content">
+          <!-- 動態載入的內容 -->
+        </div>
+      </div>
     </div>
   </div>
 </div> 

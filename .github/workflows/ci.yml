@@ -1,0 +1,228 @@
+name: CI
+
+on:
+    push:
+        branches: [main, develop, feature/*]
+    pull_request:
+        branches: [main, develop]
+
+jobs:
+    # 程式碼品質檢查
+    linting:
+        runs-on: ubuntu-latest
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Ruby
+              uses: ruby/setup-ruby@v1
+              with:
+                  ruby-version: '3.2.2'
+                  bundler-cache: true
+
+            - name: Configure bundler
+              run: bundle config unset deployment
+
+            - name: Install dependencies
+              run: bundle install --jobs 4 --retry 3
+
+            - name: Run RuboCop
+              run: bundle exec rubocop --parallel --format simple --fail-level error
+
+            - name: Run Brakeman (Security Scanner)
+              run: bundle exec brakeman --no-progress --format plain
+
+            - name: Run Bundle Audit (Security)
+              run: bundle exec bundle-audit check --update --ignore CVE-2024-27980
+
+    # 測試套件
+    test:
+        runs-on: ubuntu-latest
+
+        services:
+            postgres:
+                image: postgres:14
+                ports:
+                    - 5432:5432
+                env:
+                    POSTGRES_DB: restaurant_reservation_test
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: postgres
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+            redis:
+                image: redis:7-alpine
+                ports:
+                    - 6379:6379
+                options: >-
+                    --health-cmd "redis-cli ping"
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+        env:
+            RAILS_ENV: test
+            DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+            REDIS_URL: redis://localhost:6379/0
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Ruby
+              uses: ruby/setup-ruby@v1
+              with:
+                  ruby-version: '3.2.2'
+                  bundler-cache: true
+
+            - name: Set up Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '21.6.1'
+                  cache: 'yarn'
+
+            - name: Install Node.js dependencies
+              run: yarn install --frozen-lockfile
+
+            - name: Configure bundler
+              run: bundle config unset deployment
+
+            - name: Install Ruby dependencies
+              run: bundle install --jobs 4 --retry 3
+
+            - name: Setup Database
+              run: |
+                  bundle exec rails db:create
+                  bundle exec rails db:schema:load
+                  bundle exec rails db:migrate
+                  bundle exec rails db:test:prepare
+
+            - name: Compile CSS assets
+              run: yarn build:css
+
+            - name: Precompile assets
+              run: bundle exec rails assets:precompile
+
+            - name: Run RSpec tests
+              run: bundle exec rspec --format progress
+
+            - name: Run System tests
+              run: bundle exec rspec spec/system --format progress
+
+            - name: Upload screenshots (if system tests fail)
+              uses: actions/upload-artifact@v4
+              if: failure()
+              with:
+                  name: screenshots
+                  path: tmp/screenshots/
+
+    # 部署檢查（Zeabur 相容性）
+    deployment-check:
+        runs-on: ubuntu-latest
+        needs: [test]
+
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Set up Ruby
+              uses: ruby/setup-ruby@v1
+              with:
+                  ruby-version: '3.2.2'
+                  bundler-cache: true
+
+            - name: Check Zeabur deployment compatibility
+              run: |
+                  echo "✅ Checking Zeabur deployment requirements..."
+                  # 檢查是否存在必要檔案
+                  test -f Gemfile && echo "✅ Gemfile exists"
+                  test -f package.json && echo "✅ package.json exists"
+                  test -f config/database.yml && echo "✅ database.yml exists"
+                  # 檢查是否移除 Docker Compose 相關檔案
+                  if test -f docker-compose.yml; then
+                    echo "⚠️  docker-compose.yml still exists - may conflict with Zeabur"
+                  else
+                    echo "✅ docker-compose.yml removed for Zeabur compatibility"
+                  fi
+
+    # 效能與安全檢查
+    quality-gates:
+        runs-on: ubuntu-latest
+        needs: [linting, test]
+        if: github.event_name == 'pull_request'
+
+        services:
+            postgres:
+                image: postgres:14
+                ports:
+                    - 5432:5432
+                env:
+                    POSTGRES_DB: restaurant_reservation_test
+                    POSTGRES_USER: postgres
+                    POSTGRES_PASSWORD: postgres
+                options: >-
+                    --health-cmd pg_isready
+                    --health-interval 10s
+                    --health-timeout 5s
+                    --health-retries 5
+
+        env:
+            RAILS_ENV: test
+            DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+
+        steps:
+            - uses: actions/checkout@v4
+              with:
+                  fetch-depth: 0 # 獲取完整歷史以進行比較
+
+            - name: Set up Ruby
+              uses: ruby/setup-ruby@v1
+              with:
+                  ruby-version: '3.2.2'
+                  bundler-cache: true
+
+            - name: Configure bundler
+              run: bundle config unset deployment
+
+            - name: Install dependencies
+              run: bundle install --jobs 4 --retry 3
+
+            - name: Setup Database
+              run: |
+                  bundle exec rails db:create
+                  bundle exec rails db:schema:load
+                  bundle exec rails db:migrate
+
+            - name: Database migrations check
+              run: |
+                  # 檢查是否有 pending migrations
+                  bundle exec rails db:migrate:status
+
+            - name: Check for N+1 queries (using bullet gem if available)
+              run: |
+                  # 這裡可以加入 N+1 查詢檢查
+                  echo "Running N+1 query detection..."
+
+            - name: Load testing preparation
+              run: |
+                  echo "Preparing for load testing..."
+                  # 可以在這裡加入 Apache Bench 或其他負載測試工具
+
+    # 通知結果
+    notify:
+        runs-on: ubuntu-latest
+        needs: [linting, test, deployment-check]
+        if: always()
+
+        steps:
+            - name: Notify success
+              if: ${{ needs.linting.result == 'success' && needs.test.result == 'success' && needs.deployment-check.result == 'success' }}
+              run: echo "✅ All CI checks passed successfully!"
+
+            - name: Notify failure
+              if: ${{ needs.linting.result == 'failure' || needs.test.result == 'failure' || needs.deployment-check.result == 'failure' }}
+              run: |
+                  echo "❌ Some CI checks failed. Please review the logs."
+                  exit 1

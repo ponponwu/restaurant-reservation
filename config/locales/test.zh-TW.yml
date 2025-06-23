@@ -1,0 +1,66 @@
+zh-TW:
+  activerecord:
+    errors:
+      messages:
+        blank: "不能為空白"
+        invalid: "格式錯誤"
+        too_short: "太短"
+        too_long: "太長"
+      models:
+        reservation:
+          attributes:
+            customer_name:
+              blank: "客戶姓名不能為空白"
+            customer_phone:
+              blank: "電話號碼不能為空白"
+              invalid: "電話號碼格式錯誤"
+            customer_email:
+              invalid: "電子郵件格式錯誤"
+            party_size:
+              blank: "人數不能為空白"
+              invalid: "人數必須是數字"
+  
+  reservation:
+    title: "線上訂位"
+    customer_name: "聯絡人姓名"
+    customer_phone: "聯絡電話"
+    customer_email: "電子郵件"
+    party_size: "用餐人數"
+    special_requests: "特殊需求"
+    submit: "送出預約申請"
+    success: "訂位建立成功"
+    failure: "訂位失敗，請聯繫餐廳"
+    
+  time:
+    formats:
+      default: "%Y年%m月%d日"
+      short: "%m/%d"
+      long: "%Y年%m月%d日"
+      
+  date:
+    formats:
+      default: "%Y年%m月%d日"
+      short: "%m/%d"
+      long: "%Y年%m月%d日"
+    day_names:
+      - 星期日
+      - 星期一
+      - 星期二
+      - 星期三
+      - 星期四
+      - 星期五
+      - 星期六
+    month_names:
+      - ~
+      - 一月
+      - 二月
+      - 三月
+      - 四月
+      - 五月
+      - 六月
+      - 七月
+      - 八月
+      - 九月
+      - 十月
+      - 十一月
+      - 十二月

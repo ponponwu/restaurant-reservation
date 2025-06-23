@@ -34,34 +34,34 @@
       
       <div class="flex justify-between text-xs text-gray-500">
         <span>添加者：<%= blacklist.added_by_name.presence || '系統' %></span>
-        <span><%= blacklist.created_at.strftime('%m/%d %H:%M') %></span>
+        <span><%= blacklist.created_at.in_time_zone.strftime('%m/%d %H:%M') %></span>
       </div>
     </div>
     
     <!-- 第三列：操作按鈕 -->
     <div class="flex justify-end space-x-2 pt-2 border-t border-gray-100">
-      <%= button_to toggle_active_admin_blacklist_path(blacklist), 
+      <%= button_to toggle_active_admin_restaurant_blacklist_path(@restaurant, blacklist), 
                     method: :patch,
-                    local: false,
+                    
                     form_class: "inline",
                     class: "text-xs px-3 py-1 rounded transition-colors #{blacklist.active? ? 'bg-gray-100 hover:bg-gray-200 text-gray-700' : 'bg-green-100 hover:bg-green-200 text-green-700'}" do %>
         <%= blacklist.active? ? '停用' : '啟用' %>
       <% end %>
       
-      <%= link_to edit_admin_blacklist_path(blacklist), 
+      <%= link_to edit_admin_restaurant_blacklist_path(@restaurant, blacklist), 
                   class: "text-xs px-3 py-1 bg-blue-100 hover:bg-blue-200 text-blue-700 rounded transition-colors",
-                  data: { turbo_frame: "blacklist_form" } do %>
+                  data: { confirm: "確定要刪除這筆黑名單記錄嗎？此操作無法復原。" } do %>
         編輯
       <% end %>
       
-      <%= button_to admin_blacklist_path(blacklist), 
-                    method: :delete,
-                    local: false,
+      <%= button_to admin_restaurant_blacklist_path(@restaurant, blacklist), 
+                    method: :delete, local: true,
+                    
                     form_class: "inline",
                     class: "text-xs px-3 py-1 bg-red-100 hover:bg-red-200 text-red-700 rounded transition-colors",
                     data: { 
-                      confirm: "確定要刪除這筆黑名單記錄嗎？",
-                      turbo_method: :delete 
+                      confirm: "確定要刪除這筆黑名單記錄嗎？此操作無法復原。"
+                       
                     } do %>
         刪除
       <% end %>

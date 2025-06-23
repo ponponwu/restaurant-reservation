@@ -2,31 +2,52 @@
 // Run that command whenever you add a new controller or create them with
 // ./bin/rails generate stimulus controllerName
 
-import { application } from './application'
+import { application } from "./application"
 
-import CalendarController from './calendar_controller'
-application.register('calendar', CalendarController)
+import AdminReservationController from "./admin_reservation_controller"
+application.register("admin-reservation", AdminReservationController)
 
-import ClosureDatesController from './closure_dates_controller'
-application.register('closure-dates', ClosureDatesController)
+import CalendarController from "./calendar_controller"
+application.register("calendar", CalendarController)
 
-import ConfirmationController from './confirmation_controller'
-application.register('confirmation', ConfirmationController)
+import ClosureDatesController from "./closure_dates_controller"
+application.register("closure-dates", ClosureDatesController)
 
-import HelloController from './hello_controller'
-application.register('hello', HelloController)
+import ConfirmationController from "./confirmation_controller"
+application.register("confirmation", ConfirmationController)
 
-import ModalController from './modal_controller'
-application.register('modal', ModalController)
+import DiningSettingsController from "./dining_settings_controller"
+application.register("dining-settings", DiningSettingsController)
 
-import ReservationCalendarController from './reservation_calendar_controller'
-application.register('reservation-calendar', ReservationCalendarController)
+import DropdownController from "./dropdown_controller"
+application.register("dropdown", DropdownController)
 
-import ReservationController from './reservation_controller'
-application.register('reservation', ReservationController)
+import FlashController from "./flash_controller"
+application.register("flash", FlashController)
 
-import RestaurantManagementController from './restaurant_management_controller'
-application.register('restaurant-management', RestaurantManagementController)
+import HelloController from "./hello_controller"
+application.register("hello", HelloController)
 
-import SortableController from './sortable_controller'
-application.register('sortable', SortableController)
+import ModalController from "./modal_controller"
+application.register("modal", ModalController)
+
+import ReservationCalendarController from "./reservation_calendar_controller"
+application.register("reservation-calendar", ReservationCalendarController)
+
+import ReservationController from "./reservation_controller"
+application.register("reservation", ReservationController)
+
+import ReservationFormController from "./reservation_form_controller"
+application.register("reservation-form", ReservationFormController)
+
+import ReservationPolicyController from "./reservation_policy_controller"
+application.register("reservation-policy", ReservationPolicyController)
+
+import RestaurantInfoController from "./restaurant_info_controller"
+application.register("restaurant-info", RestaurantInfoController)
+
+import RestaurantManagementController from "./restaurant_management_controller"
+application.register("restaurant-management", RestaurantManagementController)
+
+import SortableController from "./sortable_controller"
+application.register("sortable", SortableController)

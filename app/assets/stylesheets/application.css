@@ -1,0 +1,62 @@
+/* Flatpickr 日曆自定義樣式 */
+.flatpickr-calendar {
+    font-family: 'Arial', sans-serif !important;
+}
+
+/* 禁用日期樣式 */
+.flatpickr-calendar .flatpickr-disabled,
+.flatpickr-calendar .disabled-date {
+    opacity: 0.3 !important;
+    cursor: not-allowed !important;
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+    text-decoration: line-through !important;
+}
+
+.flatpickr-calendar .flatpickr-disabled:hover,
+.flatpickr-calendar .disabled-date:hover {
+    background-color: #f3f4f6 !important;
+    color: #9ca3af !important;
+}
+
+/* 當前日期和之前日期的特殊標示 */
+.flatpickr-calendar .flatpickr-day.flatpickr-disabled {
+    position: relative;
+}
+
+.flatpickr-calendar .flatpickr-day.flatpickr-disabled::after {
+    content: '✕';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    color: #ef4444;
+    font-size: 10px;
+    font-weight: bold;
+}
+
+/* 可用日期樣式 */
+.flatpickr-calendar .flatpickr-day:not(.flatpickr-disabled):hover {
+    background-color: #dbeafe !important;
+    border-color: #3b82f6 !important;
+}
+
+.flatpickr-calendar .flatpickr-day.selected {
+    background-color: #3b82f6 !important;
+    border-color: #3b82f6 !important;
+    color: white !important;
+}
+
+/* 今天的日期樣式 */
+.flatpickr-calendar .flatpickr-day.today:not(.flatpickr-disabled) {
+    border-color: #10b981;
+    color: #10b981;
+}
+
+.flatpickr-calendar .flatpickr-day.today.flatpickr-disabled {
+    border-color: #ef4444;
+    color: #ef4444;
+}
+
+/* Flatpickr theme overrides are no longer needed as themes are imported conditionally */
+

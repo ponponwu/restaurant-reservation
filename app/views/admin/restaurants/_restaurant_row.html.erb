@@ -24,7 +24,9 @@
   </td>
   <td class="whitespace-nowrap px-6 py-4 text-sm text-gray-500">
     <%= button_to toggle_status_admin_restaurant_path(restaurant),
-        method: :patch, remote: true,
+        method: :patch,
+        remote: true,
+        data: { turbo_frame: "_top" },
         class: "inline-flex px-2 py-1 text-xs font-semibold rounded-full border-0
                 #{restaurant.active? ? 'bg-green-100 text-green-800 hover:bg-green-200' : 'bg-red-100 text-red-800 hover:bg-red-200'}" do %>
       <%= restaurant.active? ? '營業中' : '已停業' %>

@@ -7,7 +7,7 @@
     paginator:     the paginator that renders the pagination tags inside
 -%>
 <%= paginator.render do -%>
-  <nav class="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="分頁">
+  <nav class="pagination relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="<%= t('views.pagination.aria_label', default: '分頁') %>">
     <%= first_page_tag unless current_page.first? %>
     <%= prev_page_tag unless current_page.first? %>
     <% each_page do |page| -%>

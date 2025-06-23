@@ -1,12 +1,12 @@
 FactoryBot.define do
   factory :reservation do
-    association :restaurant
-    association :business_period
-    
+    restaurant
+    business_period
+
     sequence(:customer_name) { |n| "顧客#{n}" }
-    sequence(:customer_phone) { |n| "0912#{sprintf('%06d', n)}" }
+    sequence(:customer_phone) { |n| "0912#{format('%06d', n)}" }
     sequence(:customer_email) { |n| "customer#{n}@example.com" }
-    
+
     party_size { 2 }
     adults_count { 2 }
     children_count { 0 }
@@ -16,7 +16,7 @@ FactoryBot.define do
     notes { '' }
 
     trait :with_table do
-      association :table, factory: :table
+      table
     end
 
     trait :confirmed do

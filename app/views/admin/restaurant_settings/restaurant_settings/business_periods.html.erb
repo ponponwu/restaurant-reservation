@@ -6,13 +6,30 @@
         <h1 class="text-3xl font-bold text-gray-900">營業時段管理</h1>
         <p class="mt-2 text-sm text-gray-600">設定餐廳的營業時間和預約時段</p>
       </div>
-      <div>
+      <div class="flex space-x-3">
+        <%= link_to admin_restaurant_path(@restaurant),
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50",
+            data: { turbo_prefetch: false } do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
+          </svg>
+          回到餐廳
+        <% end %>
         <%= link_to admin_restaurant_settings_restaurant_index_path(@restaurant),
-            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50",
+            data: { turbo_prefetch: false } do %>
           <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
           </svg>
           返回設定首頁
+        <% end %>
+        <%= link_to new_admin_restaurant_business_period_path(@restaurant),
+            class: "inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700",
+            data: { turbo_prefetch: false } do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          新增營業時段
         <% end %>
       </div>
     </div>
@@ -25,15 +42,10 @@
   <div class="bg-white shadow rounded-lg">
     <div class="px-4 py-5 sm:p-6">
       <div class="flex items-center justify-between mb-6">
-        <h3 class="text-lg leading-6 font-medium text-gray-900">營業時段</h3>
-        <button type="button" 
-                class="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                onclick="openModal('newPeriodModal')">
-          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
-          </svg>
-          新增營業時段
-        </button>
+        <h3 class="text-lg leading-6 font-medium text-gray-900">營業時段概覽</h3>
+        <div class="text-sm text-gray-500">
+          如需新增營業時段，請使用右上角的「新增營業時段」按鈕
+        </div>
       </div>
 
       <% if @business_periods.any? %>
@@ -76,19 +88,20 @@
                 </div>
                 
                 <div class="flex items-center space-x-2">
-                  <%= link_to admin_restaurant_business_period_path(@restaurant, period),
-                      class: "text-blue-600 hover:text-blue-900 text-sm font-medium" do %>
-                    查看詳情
-                  <% end %>
+                  <%= link_to "查看詳情",
+                      admin_restaurant_business_period_path(@restaurant, period),
+                      class: "text-blue-600 hover:text-blue-900 text-sm font-medium",
+                      data: { turbo_prefetch: false } %>
                   
-                  <%= link_to edit_admin_restaurant_business_period_path(@restaurant, period),
-                      class: "text-gray-600 hover:text-gray-900 text-sm font-medium" do %>
-                    編輯
-                  <% end %>
+                  <%= link_to "編輯",
+                      edit_admin_restaurant_business_period_path(@restaurant, period),
+                      class: "text-gray-600 hover:text-gray-900 text-sm font-medium",
+                      data: { turbo_prefetch: false } %>
                   
                   <%= link_to toggle_active_admin_restaurant_business_period_path(@restaurant, period),
                       method: :patch,
-                      class: "text-sm font-medium #{period.active? ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}" do %>
+                      class: "text-sm font-medium #{period.active? ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}",
+                      data: { turbo_prefetch: false } do %>
                     <%= period.active? ? '停用' : '啟用' %>
                   <% end %>
                 </div>
@@ -104,89 +117,17 @@
           <h3 class="mt-2 text-sm font-medium text-gray-900">尚未設定營業時段</h3>
           <p class="mt-1 text-sm text-gray-500">開始建立您的第一個營業時段</p>
           <div class="mt-6">
-            <button type="button" 
-                    class="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700"
-                    onclick="openModal('newPeriodModal')">
+            <%= link_to new_admin_restaurant_business_period_path(@restaurant),
+                class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+                data: { turbo_prefetch: false } do %>
               <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m-6 0h6m-6 0H6"></path>
               </svg>
               新增營業時段
-            </button>
-          </div>
-        </div>
-      <% end %>
-    </div>
-  </div>
-</div>
-
-<!-- 新增營業時段 Modal -->
-<div id="newPeriodModal" class="fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full hidden">
-  <div class="relative top-20 mx-auto p-5 border w-96 shadow-lg rounded-md bg-white">
-    <div class="mt-3">
-      <h3 class="text-lg font-medium text-gray-900 mb-4">新增營業時段</h3>
-      
-      <%= form_with model: [@restaurant, @business_period], local: false, class: "space-y-4" do |f| %>
-        <div>
-          <%= f.label :name, "時段名稱", class: "block text-sm font-medium text-gray-700" %>
-          <%= f.text_field :name, placeholder: "例如：午餐、晚餐", 
-              class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
-        </div>
-        
-        <div>
-          <%= f.label :display_name, "顯示名稱", class: "block text-sm font-medium text-gray-700" %>
-          <%= f.text_field :display_name, placeholder: "例如：午餐時段", 
-              class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
-        </div>
-        
-        <div class="grid grid-cols-2 gap-4">
-          <div>
-            <%= f.label :start_time, "開始時間", class: "block text-sm font-medium text-gray-700" %>
-            <%= f.time_field :start_time, 
-                class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
-          </div>
-          
-          <div>
-            <%= f.label :end_time, "結束時間", class: "block text-sm font-medium text-gray-700" %>
-            <%= f.time_field :end_time, 
-                class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
-          </div>
-        </div>
-        
-        <div>
-          <label class="block text-sm font-medium text-gray-700 mb-2">營業日</label>
-          <div class="grid grid-cols-4 gap-2">
-            <% %w[monday tuesday wednesday thursday friday saturday sunday].each do |day| %>
-              <label class="flex items-center">
-                <%= check_box_tag "business_period[days_of_week][]", day, false, 
-                    class: "rounded border-gray-300 text-blue-600 shadow-sm focus:border-blue-300 focus:ring focus:ring-blue-200 focus:ring-opacity-50" %>
-                <span class="ml-1 text-xs text-gray-600">
-                  <%= { 'monday' => '一', 'tuesday' => '二', 'wednesday' => '三', 'thursday' => '四', 'friday' => '五', 'saturday' => '六', 'sunday' => '日' }[day] %>
-                </span>
-              </label>
             <% end %>
           </div>
         </div>
-        
-        <div class="flex justify-end space-x-3 pt-4">
-          <button type="button" 
-                  onclick="closeModal('newPeriodModal')"
-                  class="px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 hover:bg-gray-50">
-            取消
-          </button>
-          <%= f.submit "建立時段", 
-              class: "px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700" %>
-        </div>
       <% end %>
     </div>
   </div>
 </div>
-
-<script>
-function openModal(modalId) {
-  document.getElementById(modalId).classList.remove('hidden');
-}
-
-function closeModal(modalId) {
-  document.getElementById(modalId).classList.add('hidden');
-}
-</script>

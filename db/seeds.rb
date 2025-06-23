@@ -8,7 +8,7 @@
 #     MovieGenre.find_or_create_by!(name: genre_name)
 #   end
 
-puts "建立測試資料..."
+Rails.logger.debug '建立測試資料...'
 
 # 創建超級管理員
 super_admin = User.find_or_create_by(email: 'admin@example.com') do |user|
@@ -20,7 +20,7 @@ super_admin = User.find_or_create_by(email: 'admin@example.com') do |user|
   user.active = true
 end
 
-puts "超級管理員已創建: #{super_admin.email} (#{super_admin.role_display_name})"
+Rails.logger.debug { "超級管理員已創建: #{super_admin.email} (#{super_admin.role_display_name})" }
 
 # 創建測試餐廳
 restaurant = Restaurant.find_or_create_by(name: '測試餐廳') do |r|
@@ -30,7 +30,7 @@ restaurant = Restaurant.find_or_create_by(name: '測試餐廳') do |r|
   r.active = true
 end
 
-puts "測試餐廳已創建: #{restaurant.name}"
+Rails.logger.debug { "測試餐廳已創建: #{restaurant.name}" }
 
 # 創建餐廳管理員
 restaurant_manager = User.find_or_create_by(email: 'manager@example.com') do |user|
@@ -43,7 +43,7 @@ restaurant_manager = User.find_or_create_by(email: 'manager@example.com') do |us
   user.active = true
 end
 
-puts "餐廳管理員已創建: #{restaurant_manager.email} (#{restaurant_manager.role_display_name})"
+Rails.logger.debug { "餐廳管理員已創建: #{restaurant_manager.email} (#{restaurant_manager.role_display_name})" }
 
 # 創建餐廳員工
 restaurant_employee = User.find_or_create_by(email: 'employee@example.com') do |user|
@@ -56,7 +56,7 @@ restaurant_employee = User.find_or_create_by(email: 'employee@example.com') do |
   user.active = true
 end
 
-puts "餐廳員工已創建: #{restaurant_employee.email} (#{restaurant_employee.role_display_name})"
+Rails.logger.debug { "餐廳員工已創建: #{restaurant_employee.email} (#{restaurant_employee.role_display_name})" }
 
 # 創建桌位群組
 table_group = restaurant.table_groups.find_or_create_by(name: '大廳區') do |tg|
@@ -65,7 +65,7 @@ table_group = restaurant.table_groups.find_or_create_by(name: '大廳區') do |t
   tg.active = true
 end
 
-puts "桌位群組已創建: #{table_group.name}"
+Rails.logger.debug { "桌位群組已創建: #{table_group.name}" }
 
 # 創建一些測試桌位
 (1..6).each do |i|
@@ -74,13 +74,13 @@ puts "桌位群組已創建: #{table_group.name}"
     t.capacity = [2, 4, 6].sample
     t.max_capacity = t.capacity + 2
     t.min_capacity = 1
-    t.table_type = ['regular', 'round', 'square'].sample
+    t.table_type = %w[regular round square].sample
     t.status = 'available'
     t.sort_order = i
     t.active = true
   end
-  
-  puts "桌位已創建: #{table.table_number} (#{table.capacity}人)" if table.persisted?
+
+  Rails.logger.debug { "桌位已創建: #{table.table_number} (#{table.capacity}人)" } if table.persisted?
 end
 
 # 建立營業時段
@@ -100,11 +100,11 @@ dinner_period = restaurant.business_periods.find_or_create_by(name: 'dinner') do
   bp.status = 'active'
 end
 
-puts "營業時段已創建: #{lunch_period.display_name}, #{dinner_period.display_name}"
+Rails.logger.debug { "營業時段已創建: #{lunch_period.display_name}, #{dinner_period.display_name}" }
 
 # 建立預約政策
 unless restaurant.reservation_policy
-  policy = restaurant.create_reservation_policy!(
+  restaurant.create_reservation_policy!(
     advance_booking_days: 30,
     minimum_advance_hours: 2,
     max_party_size: 8,
@@ -115,11 +115,11 @@ unless restaurant.reservation_policy
     deposit_amount: 0.0,
     deposit_per_person: false
   )
-  puts "預約政策已創建"
+  Rails.logger.debug '預約政策已創建'
 end
 
-puts "\n種子資料創建完成！"
-puts "\n登入資訊："
-puts "超級管理員 - Email: admin@example.com, Password: password"
-puts "餐廳管理員 - Email: manager@example.com, Password: password"
-puts "餐廳員工   - Email: employee@example.com, Password: password"
+Rails.logger.debug "\n種子資料創建完成！"
+Rails.logger.debug "\n登入資訊："
+Rails.logger.debug '超級管理員 - Email: admin@example.com, Password: password'
+Rails.logger.debug '餐廳管理員 - Email: manager@example.com, Password: password'
+Rails.logger.debug '餐廳員工   - Email: employee@example.com, Password: password'

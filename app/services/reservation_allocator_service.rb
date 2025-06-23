@@ -4,13 +4,15 @@ class ReservationAllocatorService
     if params.is_a?(Reservation)
       @reservation = params
       @restaurant = params.restaurant
+      @business_period_id = params.business_period_id
+      @reservation_datetime = params.reservation_datetime
     else
       @restaurant = params[:restaurant]
       @party_size = params[:party_size] || params[:guest_count]
       @adults = params[:adults] || 0
       @children = params[:children] || params[:child_count] || 0
-      @reservation_datetime = params[:reservation_datetime] || 
-                             DateTime.parse("#{params[:date]} #{params[:time]}")
+      @reservation_datetime = params[:reservation_datetime] ||
+                              Time.zone.parse("#{params[:date]} #{params[:time]}")
       @business_period_id = params[:business_period_id]
       @table_group_id = params[:table_group_id]
     end
@@ -21,13 +23,18 @@ class ReservationAllocatorService
     return nil if exceeds_restaurant_capacity?
 
     # 先嘗試找單一桌位
-    if table = find_suitable_table
+    if (table = find_suitable_table)
       return table
     end
 
-    # 如果找不到單一桌位，檢查是否可以併桌
-    if @restaurant.allow_table_combinations && (tables = find_combinable_tables)
-      return create_table_combination(tables)
+    # 如果找不到單一桌位，檢查是否可以併桌（僅限同群組）
+    if @restaurant.can_combine_tables?
+      tables = find_combinable_tables
+
+      if tables
+        # 直接返回桌位陣列，讓控制器處理併桌組合的創建
+        return tables
+      end
     end
 
     nil
@@ -38,11 +45,19 @@ class ReservationAllocatorService
   end
 
   def check_availability
+    # 分別檢查單一桌位和併桌可用性
+    suitable_table = find_single_suitable_table
+    combinable_tables = find_combinable_tables
+
+    # 有可用性的條件：有適合的單一桌位 OR 有可併桌的組合
+    has_availability = suitable_table.present? || combinable_tables.present?
+
     {
-      has_availability: find_suitable_table.present?,
+      has_availability: has_availability,
       available_tables: find_available_tables,
+      suitable_table: suitable_table,
       can_combine: can_combine_tables?,
-      combinable_tables: find_combinable_tables || []
+      combinable_tables: combinable_tables || []
     }
   end
 
@@ -51,19 +66,43 @@ class ReservationAllocatorService
 
     party_size = total_party_size
     combinable_tables = available_tables.select { |table| can_table_combine?(table) }
-    
+
     return nil if combinable_tables.empty?
-    
-    # 按桌位群組分組，確保併桌的桌位來自同一群組
+
+    # 只在同群組內尋找組合
     tables_by_group = combinable_tables.group_by(&:table_group_id)
-    
-    # 嘗試每個群組，找到最佳的桌位組合
-    tables_by_group.each do |group_id, group_tables|
+
+    tables_by_group.each_value do |group_tables|
       combination = find_best_combination_in_group(group_tables, party_size)
       return combination if combination
     end
-    
+
+    # 不允許跨群組併桌
     nil
+  end
+
+  # 簡化：檢查桌位在指定餐期的預訂狀況（不限時模式下每餐期每桌只有一個訂位）
+  def check_table_booking_in_period(table, target_datetime)
+    return { has_booking: false, existing_booking: nil } unless @business_period_id
+
+    target_date = target_datetime.to_date
+    business_period = BusinessPeriod.find(@business_period_id)
+
+    # 查找該桌位在同一餐期的預訂
+    existing_booking = Reservation.where(restaurant: @restaurant)
+      .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) = ?', target_date)
+      .where(business_period: business_period)
+      .where(
+        '(table_id = ?) OR (id IN (SELECT reservation_id FROM table_combinations tc JOIN table_combination_tables tct ON tc.id = tct.table_combination_id WHERE tct.restaurant_table_id = ?))',
+        table.id, table.id
+      )
+      .first
+
+    {
+      has_booking: existing_booking.present?,
+      existing_booking: existing_booking
+    }
   end
 
   private
@@ -74,169 +113,215 @@ class ReservationAllocatorService
 
   def available_tables
     base_query = @restaurant.restaurant_tables.active.available_for_booking
-    
+
     # 過濾已被預約的桌位
     reservation_datetime = @reservation&.reservation_datetime || @reservation_datetime
     reserved_table_ids = get_reserved_table_ids(reservation_datetime)
-    
+
     base_query = base_query.where.not(id: reserved_table_ids) if reserved_table_ids.any?
 
     # 如果有兒童，排除吧台座位
     children_count = @children || @reservation&.children_count || 0
-    base_query = base_query.where.not(table_type: 'bar') if children_count > 0
+    base_query = base_query.where.not(table_type: 'bar') if children_count.positive?
 
     # 如果指定了桌位群組，只查詢該群組的桌位
-    if @table_group_id.present?
-      base_query = base_query.where(table_group_id: @table_group_id)
-    end
+    base_query = base_query.where(table_group_id: @table_group_id) if @table_group_id.present?
 
     base_query.ordered
   end
 
   def find_suitable_table
+    # 這個方法保持原有邏輯，用於 allocate_table
+    find_single_suitable_table
+  end
+
+  def find_single_suitable_table
     party_size = total_party_size
     suitable_tables = available_tables.select { |table| table.suitable_for?(party_size) }
-    
+
     return nil if suitable_tables.empty?
-    
-    # 按照優先級排序：窗邊圓桌 > 方桌 > 吧檯
-    prioritized_tables = prioritize_tables(suitable_tables, party_size)
-    
-    # 直接選擇第一個桌位（已經按照 sort_order 排序）
-    prioritized_tables.first
+
+    # 優先考慮桌位群組的排序，然後是容量匹配
+    # 按照桌位群組優先級和桌位排序來選擇最適合的桌位
+    suitable_tables.min_by do |table|
+      # 優先級排序：
+      # 1. 桌位群組的排序 (table_group.sort_order)
+      # 2. 桌位的排序 (table.sort_order)
+      # 3. 容量差異（優先選擇容量接近需求的桌位）
+      capacity_diff = (table.capacity - party_size).abs
+      max_capacity_diff = ((table.max_capacity || table.capacity) - party_size).abs
+
+      [
+        table.table_group.sort_order,
+        table.sort_order,
+        [capacity_diff, max_capacity_diff].min
+      ]
+    end
   end
 
   def get_reserved_table_ids(datetime)
     return [] unless datetime
 
-    # 計算訂位時段（假設每個訂位佔用2小時）
-    duration_hours = 2
-    start_time = datetime
-    end_time = datetime + duration_hours.hours
+    reserved_table_ids = []
 
-    Reservation.joins(:table)
-               .where(restaurant: @restaurant)
-               .where(status: ['pending', 'confirmed', 'seated'])
-               .where(
-                 "(reservation_datetime <= ? AND reservation_datetime + INTERVAL '2 hours' > ?) OR " +
-                 "(reservation_datetime < ? AND reservation_datetime + INTERVAL '2 hours' >= ?)",
-                 start_time, start_time,
-                 end_time, end_time
-               )
-               .pluck(:table_id)
-               .compact
+    # 如果是無限時模式，檢查同一餐期的衝突（每餐期每桌只有一個訂位）
+    if @restaurant.policy.unlimited_dining_time?
+      return [] unless @business_period_id # 如果沒有餐期ID，不檢查衝突
+
+      target_date = datetime.to_date
+      business_period = BusinessPeriod.find(@business_period_id)
+
+      conflicting_reservations = Reservation.where(restaurant: @restaurant)
+        .where(status: %w[pending confirmed])
+        .where('DATE(reservation_datetime) = ?', target_date)
+        .where(business_period: business_period)
+        .includes(:table, table_combination: :restaurant_tables)
+    else
+      # 使用餐廳設定的用餐時間
+      duration_minutes = @restaurant.dining_duration_with_buffer
+      return [] unless duration_minutes # 如果沒有設定時間，不檢查衝突
+
+      # 計算新訂位的時間範圍
+      new_start_time = datetime
+      new_end_time = datetime + duration_minutes.minutes
+
+      # 查詢與此時間範圍重疊的預訂
+      # 先查詢可能重疊的預訂，然後在 Ruby 中計算時間重疊
+      potential_conflicts = Reservation.where(restaurant: @restaurant)
+        .where(status: %w[pending confirmed])
+        .where('reservation_datetime BETWEEN ? AND ?', new_start_time - duration_minutes.minutes, new_end_time)
+        .includes(:table, table_combination: :restaurant_tables)
+
+      # 在 Ruby 中過濾真正重疊的預訂
+      conflicting_reservations = potential_conflicts.select do |reservation|
+        existing_start = reservation.reservation_datetime
+        existing_end = existing_start + duration_minutes.minutes
+
+        # 檢查時間重疊：existing_start < new_end AND new_start < existing_end
+        existing_start < new_end_time && new_start_time < existing_end
+      end
+    end
+
+    # 收集所有被佔用的桌位
+    conflicting_reservations.each do |reservation|
+      # 收集單一桌位
+      reserved_table_ids << reservation.table_id if reservation.table_id.present?
+
+      # 收集併桌中的所有桌位
+      if reservation.table_combination.present?
+        combination_table_ids = reservation.table_combination.restaurant_tables.pluck(:id)
+        reserved_table_ids.concat(combination_table_ids)
+      end
+    end
+
+    reserved_table_ids.uniq.compact
   end
 
   def can_combine_tables?
-    # 檢查餐廳是否允許併桌
-    return false unless @restaurant.respond_to?(:allow_table_combinations) && @restaurant.allow_table_combinations
-    
-    # 暫時簡化：如果餐廳允許併桌，就允許（之後可以加入更詳細的群組設定）
-    true
+    # 檢查餐廳是否有支援併桌的桌位
+    @restaurant.can_combine_tables?
   end
 
   def can_table_combine?(table)
-    # 暫時簡化：如果桌位有 can_combine 屬性且為 true，就允許
-    return table.can_combine if table.respond_to?(:can_combine)
-    
-    # 如果沒有 can_combine 屬性，預設允許
-    true
-  end
-
-  def prioritize_tables(tables, party_size)
-    # 保持 available_tables.ordered 的排序，只優先選擇在容量區間內的桌位
-    # available_tables 已經按照 table_groups.sort_order 和 restaurant_tables.sort_order 排序
-    
-    # 將桌位分成兩組：在容量區間內的 vs 不在區間內的
-    in_range_tables = []
-    out_of_range_tables = []
-    
-    tables.each do |table|
-      min_cap = table.min_capacity || 1
-      max_cap = table.max_capacity || table.capacity
-      is_in_range = party_size >= min_cap && party_size <= max_cap
-      
-      if is_in_range
-        in_range_tables << table
-      else
-        out_of_range_tables << table
-      end
-    end
-    
-    # 優先返回在容量區間內的桌位，保持原始排序
-    # 如果沒有在區間內的桌位，再考慮區間外的桌位
-    in_range_tables + out_of_range_tables
+    # 檢查桌位是否支援併桌
+    table.can_combine?
   end
 
   def find_best_combination_in_group(group_tables, party_size)
-    # 按照容量從小到大排序，優先使用小桌位
-    sorted_tables = group_tables.sort_by(&:capacity)
-    
-    # 嘗試兩張桌位的組合
-    sorted_tables.combination(2).each do |table_pair|
-      total_capacity = table_pair.sum(&:capacity)
-      if total_capacity >= party_size && total_capacity <= party_size + 2 # 避免浪費太多容量
-        return table_pair
-      end
-    end
-    
-    # 如果兩張不夠，嘗試三張桌位的組合
-    if sorted_tables.count >= 3
-      sorted_tables.combination(3).each do |table_trio|
-        total_capacity = table_trio.sum(&:capacity)
-        if total_capacity >= party_size && total_capacity <= party_size + 3
-          return table_trio
+    # 簡化：按 sort_order 排序，嘗試最少桌位的組合
+    sorted_tables = group_tables.sort_by(&:sort_order)
+
+    max_tables = @restaurant.max_tables_per_combination
+
+    # 嘗試不同的組合大小（從2桌開始到最大允許桌數）
+    (2..max_tables).each do |combination_size|
+      sorted_tables.combination(combination_size) do |table_combination|
+        total_capacity = table_combination.sum(&:capacity)
+
+        # 檢查容量是否足夠
+        next unless total_capacity >= party_size
+
+        # 檢查是否所有桌位都可以併桌
+        next unless table_combination.all? { |table| can_table_combine?(table) }
+
+        # 不限時模式下，檢查同餐期是否有衝突
+        if @restaurant.policy.unlimited_dining_time?
+          has_conflict = table_combination.any? do |table|
+            booking_check = check_table_booking_in_period(table, @reservation_datetime)
+            booking_check[:has_booking]
+          end
+          next if has_conflict
         end
+
+        return table_combination
       end
     end
-    
+
     nil
   end
 
   def exceeds_restaurant_capacity?
     return false unless @restaurant.respond_to?(:total_capacity)
-    
+
     party_size = total_party_size
     datetime = @reservation&.reservation_datetime || @reservation_datetime
-    
+
     return false unless datetime
-    
-    # 計算該時段已預約的總人數
-    reserved_capacity = Reservation.where(restaurant: @restaurant)
-                                  .where(status: ['pending', 'confirmed', 'seated'])
-                                  .where(
-                                    "reservation_datetime <= ? AND reservation_datetime + INTERVAL '2 hours' > ?",
-                                    datetime, datetime
-                                  )
-                                  .sum(:party_size)
 
-    # 計算剩餘容量
-    total_capacity = @restaurant.total_capacity || @restaurant.restaurant_tables.sum { |t| t.max_capacity || t.capacity }
-    remaining_capacity = total_capacity - reserved_capacity
+    # 如果是無限時模式，檢查同一餐期的容量
+    if @restaurant.policy.unlimited_dining_time?
+      return false unless @business_period_id # 如果沒有餐期ID，不檢查容量限制
 
-    # 如果剩餘容量小於所需容量，則超過餐廳容量
-    party_size > remaining_capacity
+      target_date = datetime.to_date
+      business_period = BusinessPeriod.find(@business_period_id)
+
+      query = Reservation.where(restaurant: @restaurant)
+        .where(status: %w[pending confirmed])
+        .where('DATE(reservation_datetime) = ?', target_date)
+        .where(business_period: business_period)
+
+      # 排除當前正在處理的預訂（如果有的話）
+      query = query.where.not(id: @reservation.id) if @reservation&.persisted?
+
+    else
+      # 計算該時段已預約的總人數
+      duration_minutes = @restaurant.dining_duration_with_buffer
+      return false unless duration_minutes # 如果沒有設定時間，不檢查容量限制
+
+      # 計算結束時間以避免 SQL 注入
+      end_time = datetime + duration_minutes.minutes
+
+      query = Reservation.where(restaurant: @restaurant)
+        .where(status: %w[pending confirmed])
+        .where(
+          'reservation_datetime <= ? AND ? > ?',
+          datetime, end_time, datetime
+        )
+
+      # 排除當前正在處理的預訂（如果有的話）
+      query = query.where.not(id: @reservation.id) if @reservation&.persisted?
+
+    end
+    reserved_capacity = query.sum(:party_size)
+
+    # 計算總容量
+    total_capacity = @restaurant.total_capacity || @restaurant.restaurant_tables.sum do |t|
+      t.max_capacity || t.capacity
+    end
+
+    # 如果總人數（包含當前預訂）超過餐廳容量，則超過限制
+    reserved_capacity + party_size > total_capacity
   end
 
   def create_table_combination(tables)
     return nil unless @reservation
-    
-    # 創建併桌組合
-    combination = TableCombination.new(
-      reservation: @reservation,
-      name: "併桌 #{tables.map(&:table_number).join('+')}"
+    return nil if tables.count < 2
+
+    combination_name = "併桌 #{tables.map(&:table_number).join(', ')}"
+
+    @reservation.build_table_combination(
+      name: combination_name,
+      restaurant_tables: tables
     )
-    
-    # 建立桌位關聯
-    tables.each do |table|
-      combination.table_combination_tables.build(restaurant_table: table)
-    end
-    
-    if combination.save
-      # 返回第一個桌位作為主桌位（用於相容性）
-      tables.first
-    else
-      nil
-    end
   end
-end 
+end

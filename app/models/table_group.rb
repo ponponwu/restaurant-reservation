@@ -17,24 +17,24 @@ class TableGroup < ApplicationRecord
   before_validation :sanitize_inputs
 
   # Ransack 搜索屬性白名單
-  def self.ransackable_attributes(auth_object = nil)
-    [
-      "active", 
-      "created_at", 
-      "description", 
-      "id", 
-      "name", 
-      "restaurant_id", 
-      "sort_order", 
-      "updated_at"
+  def self.ransackable_attributes(_auth_object = nil)
+    %w[
+      active
+      created_at
+      description
+      id
+      name
+      restaurant_id
+      sort_order
+      updated_at
     ]
   end
 
   # Ransack 搜索關聯白名單
-  def self.ransackable_associations(auth_object = nil)
-    [
-      "restaurant",
-      "restaurant_tables"
+  def self.ransackable_associations(_auth_object = nil)
+    %w[
+      restaurant
+      restaurant_tables
     ]
   end
 
@@ -78,17 +78,17 @@ class TableGroup < ApplicationRecord
     # 透過訂位記錄計算已佔用桌位，而非使用狀態
     current_time = Time.current
     restaurant_tables.active
-                     .joins(:reservations)
-                     .where(
-                       reservations: { 
-                         status: ['confirmed', 'seated'],
-                         restaurant: restaurant
-                       }
-                     )
-                     .where("reservations.reservation_datetime <= ? AND reservations.reservation_datetime + INTERVAL '120 minutes' > ?",
-                            current_time, current_time)
-                     .distinct
-                     .count
+      .joins(:reservations)
+      .where(
+        reservations: {
+          status: %w[confirmed seated],
+          restaurant: restaurant
+        }
+      )
+      .where("reservations.reservation_datetime <= ? AND reservations.reservation_datetime + INTERVAL '120 minutes' > ?",
+             current_time, current_time)
+      .distinct
+      .count
   end
 
   # 為了向後相容，保留 tables 方法

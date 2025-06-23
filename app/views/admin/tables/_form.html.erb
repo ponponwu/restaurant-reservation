@@ -18,7 +18,7 @@
             <div class="mt-2 text-sm text-red-700">
               <ul class="list-disc space-y-1 pl-5">
                 <% table.errors.full_messages.each do |message| %>
-                  <li><%= message %></li>
+                  <li><%= sanitize(message) %></li>
                 <% end %>
               </ul>
             </div>
@@ -93,12 +93,24 @@
             { class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if table.errors[:status].any?}" } %>
       </div>
 
-      <!-- 排序順序 -->
+      <!-- 排序順序（自動產生，僅顯示） -->
       <div class="col-span-6 sm:col-span-3">
         <%= f.label :sort_order, "排序順序", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.number_field :sort_order, min: 0,
-            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if table.errors[:sort_order].any?}" %>
-        <p class="mt-2 text-sm text-gray-500">數字越小優先級越高</p>
+        <div class="mt-1 block w-full rounded-md border-gray-300 bg-gray-50 px-3 py-2 text-sm text-gray-900">
+          <% if table.persisted? %>
+            第 <%= table.sort_order %> 順位
+          <% else %>
+            第 <%= table.sort_order || 'N/A' %> 順位（自動產生）
+          <% end %>
+        </div>
+        
+        <p class="mt-2 text-sm text-gray-500">
+          <% if table.persisted? %>
+            可在桌位列表中拖曳調整順序
+          <% else %>
+            系統將自動分配下一個可用順序
+          <% end %>
+        </p>
       </div>
 
       <!-- 是否可併桌 -->
@@ -123,6 +135,7 @@
     <!-- 按鈕區域 -->
     <div class="flex justify-end space-x-3">
       <%= link_to admin_restaurant_table_groups_path(@restaurant),
+          data: { turbo_frame: "_top" },
           class: "rounded-md border border-gray-300 bg-white py-2 px-4 text-sm font-medium text-gray-700 shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2" do %>
         取消
       <% end %>

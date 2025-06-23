@@ -1,0 +1,198 @@
+# RuboCop 配置檔案
+require:
+    - rubocop-rspec
+    - rubocop-rspec_rails
+
+plugins:
+    - rubocop-rails
+    - rubocop-performance
+    - rubocop-capybara
+    - rubocop-factory_bot
+
+AllCops:
+    NewCops: enable
+    TargetRubyVersion: 3.2
+    SuggestExtensions: false
+    Exclude:
+        - 'db/schema.rb'
+        - 'db/migrate/*'
+        - 'bin/*'
+        - 'config/boot.rb'
+        - 'config/environment.rb'
+        - 'config/initializers/*'
+        - 'vendor/**/*'
+        - 'node_modules/**/*'
+        - 'tmp/**/*'
+        - 'log/**/*'
+        - 'public/**/*'
+        - 'test/**/*'
+
+# Layout
+Layout/LineLength:
+    Max: 120
+    Exclude:
+        - 'spec/**/*'
+        - 'config/routes.rb'
+
+Layout/MultilineMethodCallIndentation:
+    EnforcedStyle: indented
+
+# Style
+Style/Documentation:
+    Enabled: false
+
+Style/StringLiterals:
+    EnforcedStyle: single_quotes
+
+Style/ClassAndModuleChildren:
+    Enabled: false
+
+Style/FrozenStringLiteralComment:
+    Enabled: false
+
+# Metrics
+Metrics/ClassLength:
+    Max: 150
+    Exclude:
+        - 'app/controllers/**/*'
+        - 'app/models/**/*'
+
+Metrics/MethodLength:
+    Max: 20
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+Metrics/BlockLength:
+    Max: 30
+    Exclude:
+        - 'spec/**/*'
+        - 'config/routes.rb'
+        - 'db/seeds.rb'
+
+Metrics/AbcSize:
+    Max: 30
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+Metrics/CyclomaticComplexity:
+    Max: 15
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+Metrics/PerceivedComplexity:
+    Max: 15
+    Exclude:
+        - 'spec/**/*'
+        - 'app/controllers/**/*'
+
+# Rails specific
+Rails/FilePath:
+    Enabled: false
+
+Rails/BulkChangeTable:
+    Enabled: false
+
+Rails/UnknownEnv:
+    Environments:
+        - production
+        - development
+        - test
+        - staging
+
+# 禁用中文專案不適用的規則
+Rails/I18nLocaleTexts:
+    Enabled: false
+
+# RSpec specific
+RSpec/ExampleLength:
+    Max: 40
+
+RSpec/MultipleExpectations:
+    Max: 15
+
+RSpec/MultipleMemoizedHelpers:
+    Max: 15
+
+RSpec/DescribeClass:
+    Exclude:
+        - 'spec/system/**/*'
+        - 'spec/requests/**/*'
+        - 'spec/views/**/*'
+
+# Performance
+Performance/UnfreezeString:
+    Enabled: true
+
+# Rails Time Zone
+Rails/TimeZoneAssignment:
+    Enabled: false
+
+# 排除一些過於嚴格的規則
+Style/NumericLiterals:
+    Enabled: false
+
+Style/CommentAnnotation:
+    Enabled: false
+
+# 允許長的 spec 描述
+RSpec/ContextWording:
+    Enabled: false
+
+RSpec/DescribedClass:
+    Enabled: false
+
+# 更多 RSpec 規則調整
+RSpec/NestedGroups:
+    Max: 5
+
+
+RSpec/LetSetup:
+    Enabled: false
+
+RSpec/InstanceVariable:
+    Enabled: false
+
+# 禁用嚴格的 RSpec 規則
+RSpec/ExpectActual:
+    Enabled: false
+
+RSpec/AnyInstance:
+    Enabled: false
+
+RSpec/MessageSpies:
+    Enabled: false
+
+RSpec/IndexedLet:
+    Enabled: false
+
+# 命名規則放寬
+Naming/PredicatePrefix:
+    Enabled: false
+
+Naming/VariableNumber:
+    Enabled: false
+
+# 更多寬鬆規則
+Style/SafeNavigationChainLength:
+    Enabled: false
+
+Performance/CollectionLiteralInLoop:
+    Enabled: false
+
+Rails/SkipsModelValidations:
+    Enabled: false
+
+Lint/Debugger:
+    Enabled: false
+
+Naming/PredicateMethod:
+    Enabled: false
+
+# 允許較長的測試檔案
+Metrics/ModuleLength:
+    Exclude:
+        - 'spec/**/*'
+

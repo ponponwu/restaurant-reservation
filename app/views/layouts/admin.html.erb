@@ -16,35 +16,66 @@
       <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div class="flex justify-between h-16">
           <div class="flex">
+            <!-- Logo -->
             <div class="flex-shrink-0 flex items-center">
               <%= link_to admin_root_path, class: "text-xl font-bold text-gray-900" do %>
-                餐廳管理系統
+                餐廳訂位系統
               <% end %>
             </div>
+            
+            <!-- 主要導航 -->
             <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
               <%= link_to admin_root_path, 
-                  class: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" do %>
-                儀表板
+                  class: "#{request.path == admin_root_path ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" do %>
+                首頁
               <% end %>
-              <%= link_to admin_users_path, 
-                  class: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" do %>
-                管理員管理
-              <% end %>
-              <%= link_to admin_restaurants_path, 
-                  class: "border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm" do %>
-                餐廳管理
+              
+              <% if current_user&.super_admin? %>
+                <%= link_to admin_users_path,
+                    class: "#{request.path.start_with?('/admin/users') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" do %>
+                  管理員
+                <% end %>
+                
+                <%= link_to admin_restaurants_path,
+                    class: "#{request.path.start_with?('/admin/restaurants') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" do %>
+                  餐廳
+                <% end %>
               <% end %>
             </div>
           </div>
-          <div class="flex items-center">
+          
+          <!-- 右側選單 -->
+          <div class="hidden sm:ml-6 sm:flex sm:items-center">
+            <!-- 用戶選單 -->
             <div class="ml-3 relative">
-              <div class="flex items-center space-x-4">
-                <%= link_to root_path,
-                    class: "text-gray-500 hover:text-gray-700 text-sm" do %>
-                  回到首頁
-                <% end %>
+              <div class="flex items-center text-sm text-gray-700">
+                <span class="mr-2">歡迎，<%= current_user&.full_name || '管理員' %></span>
+                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
+                           <%= current_user&.super_admin? ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' %>">
+                  <%= current_user&.role_display_name || '管理員' %>
+                </span>
               </div>
             </div>
+            
+            <!-- 登出按鈕 -->
+            <div class="ml-4">
+              <%= link_to destroy_user_session_path, method: :delete,
+                  class: "inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150" do %>
+                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+                </svg>
+                登出
+              <% end %>
+            </div>
+          </div>
+          
+          <!-- 手機版選單按鈕 -->
+          <div class="-mr-2 flex items-center sm:hidden">
+            <button type="button" class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
+              <svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            </button>
           </div>
         </div>
       </div>
