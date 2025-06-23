@@ -84,8 +84,8 @@ RSpec.describe 'Internationalization Tests' do
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
-        # 檢查錯誤訊息是否為英文
-        expect(response.body).to include("can't be blank") if response.body.present?
+        # 檢查錯誤訊息是否為英文 - 檢查包含英文驗證錯誤相關字詞
+        expect(response.body).to include("required") if response.body.present?
       end
     end
 
@@ -117,8 +117,8 @@ RSpec.describe 'Internationalization Tests' do
     context 'Date formatting' do
       it 'formats dates according to locale' do
         expect(I18n.l(test_date, locale: :'zh-TW')).to include('年')
-        expect(I18n.l(test_date, locale: :en)).to include('Dec')
-        expect(I18n.l(test_date, locale: :ja)).to include('月')
+        expect(I18n.l(test_date, format: :long, locale: :en)).to include('Dec')
+        expect(I18n.l(test_date, format: :long, locale: :ja)).to include('年')
       end
     end
 

@@ -116,6 +116,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
                restaurant: restaurant,
                table_group: table_group,
                capacity: 8,
+               max_capacity: 8,
                table_number: "Large-#{i + 1}")
       end
     end

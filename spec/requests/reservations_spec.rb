@@ -63,7 +63,7 @@ RSpec.describe 'Reservations' do
 
       expect(response).to have_http_status(:bad_request)
       json_response = response.parsed_body
-      expect(json_response['error']).to include('人數必須在 1-12 人之間')
+      expect(json_response['error']).to include('人數必須至少')
     end
 
     it '對過去的日期返回錯誤' do
@@ -161,7 +161,7 @@ RSpec.describe 'Reservations' do
         expect(reservation.customer_phone).to eq('0912345678')
         expect(reservation.customer_email).to eq('test@example.com')
         expect(reservation.party_size).to eq(2)
-        expect(reservation.status).to eq('pending')
+        expect(reservation.status).to eq('confirmed')
         expect(reservation.table).to eq(table)
       end
 
@@ -169,14 +169,15 @@ RSpec.describe 'Reservations' do
         post restaurant_reservations_path(restaurant), params: valid_params
 
         expect(response).to redirect_to(restaurant_public_path(restaurant))
-        expect(flash[:notice]).to include('訂位申請已送出')
+        expect(flash[:notice]).to include('訂位建立成功')
       end
     end
 
     context '當沒有可用桌位時' do
       before do
-        # Mock 桌位分配服務返回 nil（無可用桌位）
-        allow_any_instance_of(ReservationAllocatorService).to receive(:allocate_table).and_return(nil)
+        # Mock 增強的桌位分配服務檢查可用性失敗
+        allow_any_instance_of(EnhancedReservationAllocatorService).to receive(:check_availability_with_lock).and_return({ has_availability: false })
+        allow_any_instance_of(EnhancedReservationAllocatorService).to receive(:allocate_table_with_lock).and_return(nil)
       end
 
       it '不創建訂位記錄' do

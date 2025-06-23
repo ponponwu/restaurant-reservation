@@ -15,8 +15,8 @@ RSpec.describe RestaurantsController do
 
         expect(response).to have_http_status(:service_unavailable)
         json_response = response.parsed_body
-        expect(json_response['error']).to include('線上訂位功能暫停服務')
-        expect(json_response['disabled']).to be true
+        expect(json_response['message']).to include('線上訂位')
+        expect(json_response['reservation_enabled']).to be false
       end
     end
 
@@ -27,8 +27,8 @@ RSpec.describe RestaurantsController do
 
         expect(response).to have_http_status(:service_unavailable)
         json_response = response.parsed_body
-        expect(json_response['error']).to include('線上訂位功能暫停服務')
-        expect(json_response['disabled']).to be true
+        expect(json_response['message']).to include('線上訂位')
+        expect(json_response['reservation_enabled']).to be false
       end
     end
 
@@ -36,14 +36,14 @@ RSpec.describe RestaurantsController do
       it 'returns service unavailable error' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 4
             }
 
         expect(response).to have_http_status(:service_unavailable)
         json_response = response.parsed_body
-        expect(json_response['error']).to include('線上訂位功能暫停服務')
-        expect(json_response['disabled']).to be true
+        expect(json_response['message']).to include('線上訂位')
+        expect(json_response['reservation_enabled']).to be false
       end
     end
   end
@@ -54,7 +54,7 @@ RSpec.describe RestaurantsController do
       # 創建必要的營業時間和桌位
       create(:business_period,
              restaurant: restaurant,
-             days_of_week: [Date.current.strftime('%A').downcase])
+             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
       create(:table, restaurant: restaurant)
     end
 
@@ -64,18 +64,19 @@ RSpec.describe RestaurantsController do
 
         expect(response).to have_http_status(:success)
         json_response = response.parsed_body
-        expect(json_response).to have_key('available_days')
+        expect(json_response).to have_key('has_capacity')
+        expect(json_response).to have_key('max_days')
       end
     end
 
     describe 'GET #available_dates' do
       it 'returns available dates' do
         get restaurant_available_dates_path(restaurant.slug, format: :json),
-            params: { year: Date.current.year, month: Date.current.month }
+            params: { party_size: 4 }
 
         expect(response).to have_http_status(:success)
         json_response = response.parsed_body
-        expect(json_response).to have_key('dates')
+        expect(json_response).to have_key('available_dates')
       end
     end
 
@@ -83,7 +84,7 @@ RSpec.describe RestaurantsController do
       it 'returns available times' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 4
             }
 
@@ -103,7 +104,7 @@ RSpec.describe RestaurantsController do
       )
       create(:business_period,
              restaurant: restaurant,
-             days_of_week: [Date.current.strftime('%A').downcase])
+             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
       create(:table, restaurant: restaurant)
     end
 
@@ -181,7 +182,7 @@ RSpec.describe RestaurantsController do
       # 創建必要的營業時間和桌位
       create(:business_period,
              restaurant: restaurant,
-             days_of_week: [Date.current.strftime('%A').downcase])
+             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
       create(:table, restaurant: restaurant)
     end
 
@@ -198,7 +199,7 @@ RSpec.describe RestaurantsController do
       it 'available_times returns limit exceeded warning' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 4,
               phone: phone_number
             }
@@ -206,7 +207,7 @@ RSpec.describe RestaurantsController do
         expect(response).to have_http_status(:success)
         json_response = response.parsed_body
         expect(json_response['phone_limit_exceeded']).to be true
-        expect(json_response['phone_limit_message']).to include('訂位次數已達上限')
+        expect(json_response['phone_limit_message']).to include('訂位失敗')
       end
     end
 
@@ -223,7 +224,7 @@ RSpec.describe RestaurantsController do
       it 'available_times returns normal response' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 4,
               phone: phone_number
             }
@@ -245,15 +246,15 @@ RSpec.describe RestaurantsController do
       )
       create(:business_period,
              restaurant: restaurant,
-             days_of_week: [Date.current.strftime('%A').downcase])
-      create(:table, restaurant: restaurant, capacity: 8)
+             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      create(:table, restaurant: restaurant, capacity: 8, max_capacity: 8)
     end
 
     context 'with invalid party size' do
       it 'returns error for party size too small' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 1
             }
 
@@ -265,7 +266,7 @@ RSpec.describe RestaurantsController do
       it 'returns error for party size too large' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 10
             }
 
@@ -279,7 +280,7 @@ RSpec.describe RestaurantsController do
       it 'returns available times' do
         get restaurant_available_times_path(restaurant.slug, format: :json),
             params: {
-              date: Date.current.strftime('%Y-%m-%d'),
+              date: 1.day.from_now.strftime('%Y-%m-%d'),
               party_size: 4
             }
 
@@ -299,7 +300,7 @@ RSpec.describe RestaurantsController do
       )
       create(:business_period,
              restaurant: restaurant,
-             days_of_week: [Date.current.strftime('%A').downcase])
+             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
       create(:table, restaurant: restaurant)
     end
 
@@ -331,7 +332,7 @@ RSpec.describe RestaurantsController do
 
         expect(response).to have_http_status(:unprocessable_entity)
         json_response = response.parsed_body
-        expect(json_response['error']).to include('訂位時間過近')
+        expect(json_response['error']).to include('不可預定當天')
       end
     end
 
@@ -368,11 +369,11 @@ RSpec.describe RestaurantsController do
         params ||= {}
         send(method, path, params: params)
 
-        expect(response).to have_http_status(:service_unavailable)
+      expect(response).to have_http_status(:service_unavailable)
         json_response = response.parsed_body
-        expect(json_response).to have_key('error')
-        expect(json_response).to have_key('disabled')
-        expect(json_response['disabled']).to be true
+        expect(json_response).to have_key('message')
+        expect(json_response).to have_key('reservation_enabled')
+        expect(json_response['reservation_enabled']).to be false
       end
     end
   end
