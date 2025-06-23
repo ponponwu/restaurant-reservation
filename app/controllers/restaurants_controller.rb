@@ -132,9 +132,14 @@ class RestaurantsController < ApplicationController
 
     Rails.logger.info "Available times request: date=#{date}, party_size=#{party_size}, adults=#{adults}, children=#{children}, phone=#{phone_number}"
 
-    if party_size <= 0 || party_size > 12
-      Rails.logger.info "Rejected party_size #{party_size} (out of range)"
-      render json: { error: '人數必須在 1-12 人之間' }, status: :bad_request
+    # 檢查餐廳設定的人數限制
+    reservation_policy = @restaurant.reservation_policy
+    min_party_size = reservation_policy&.min_party_size || 1
+    max_party_size = reservation_policy&.max_party_size || 12
+
+    if party_size <= 0 || party_size < min_party_size || party_size > max_party_size
+      Rails.logger.info "Rejected party_size #{party_size} (out of range #{min_party_size}-#{max_party_size})"
+      render json: { error: '人數超出限制' }, status: :unprocessable_entity
       return
     end
 
@@ -149,8 +154,19 @@ class RestaurantsController < ApplicationController
 
     Rails.logger.info 'Date check passed'
 
+    # 檢查預約天數限制
+    advance_booking_days = reservation_policy&.advance_booking_days || 30
+    max_booking_date = Date.current + advance_booking_days.days
+    
+    if date > max_booking_date
+      Rails.logger.info "Rejected date #{date} because it's beyond advance booking limit of #{advance_booking_days} days"
+      render json: { error: '超出預約範圍' }, status: :unprocessable_entity
+      return
+    end
+
+    Rails.logger.info 'Advance booking check passed'
+
     # 檢查手機號碼訂位限制
-    reservation_policy = @restaurant.reservation_policy
     phone_limit_exceeded = false
     phone_limit_message = nil
     remaining_bookings = nil

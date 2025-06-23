@@ -124,7 +124,11 @@ class ReservationsController < ApplicationController
       Date.current
     end
 
-    # 檢查選擇的日期是否可訂位
+    # 只對 new 動作進行基本的營業日檢查
+    # create 動作的驗證交給模型層處理
+    return unless action_name == 'new'
+
+    # 檢查選擇的日期是否可訂位（基本檢查：營業日、公休日）
     return if @restaurant.open_on?(@selected_date)
 
     redirect_to restaurant_public_path(@restaurant.slug),
@@ -132,10 +136,33 @@ class ReservationsController < ApplicationController
   end
 
   def reservation_params
-    params.require(:reservation).permit(
+    permitted_params = params.require(:reservation).permit(
       :customer_name, :customer_phone, :customer_email,
       :party_size, :special_requests
     )
+
+    # Sanitize input to prevent XSS attacks
+    if permitted_params[:customer_name].present?
+      sanitized = ActionController::Base.helpers.strip_tags(permitted_params[:customer_name])
+      sanitized = sanitized.gsub(/javascript:/i, '')
+        .gsub(/on\w+=/i, '')
+        .gsub(/alert\s*\(/i, '')
+        .gsub(/<script[^>]*>/i, '')
+        .gsub(%r{</script>}i, '')
+      permitted_params[:customer_name] = sanitized
+    end
+
+    if permitted_params[:special_requests].present?
+      sanitized = ActionController::Base.helpers.strip_tags(permitted_params[:special_requests])
+      sanitized = sanitized.gsub(/javascript:/i, '')
+        .gsub(/on\w+=/i, '')
+        .gsub(/alert\s*\(/i, '')
+        .gsub(/<script[^>]*>/i, '')
+        .gsub(%r{</script>}i, '')
+      permitted_params[:special_requests] = sanitized
+    end
+
+    permitted_params
   end
 
   def format_selected_datetime(date, time)
