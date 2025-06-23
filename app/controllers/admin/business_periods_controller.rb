@@ -109,7 +109,7 @@ class Admin::BusinessPeriodsController < AdminController
   end
 
   def toggle_active
-    @business_period.update!(status: @business_period.active? ? :inactive : :active)
+    @business_period.update!(active: !@business_period.active?)
 
     respond_to do |format|
       format.turbo_stream do

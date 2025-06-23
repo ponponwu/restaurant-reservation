@@ -100,8 +100,13 @@ class Restaurant < ApplicationRecord
   end
 
   def total_capacity
-    # 使用緩存欄位，如果不存在則計算並更新
-    self[:total_capacity] || calculate_and_cache_capacity
+    # 使用緩存欄位，如果為0（未計算）則計算並更新
+    cached_capacity = self[:total_capacity]
+    if cached_capacity.nil? || cached_capacity == 0
+      calculate_and_cache_capacity
+    else
+      cached_capacity
+    end
   end
 
   def available_tables_count

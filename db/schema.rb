@@ -141,7 +141,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_20_000001) do
     t.index ["restaurant_id", "customer_phone", "status", "reservation_datetime"], name: "index_reservations_on_restaurant_phone_status_datetime"
     t.index ["restaurant_id", "reservation_datetime", "status"], name: "index_reservations_on_restaurant_datetime_status"
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"
-    t.index ["table_id", "reservation_datetime", "restaurant_id"], name: "index_reservations_on_table_datetime_restaurant_active", unique: true, where: "((status)::text <> ALL ((ARRAY['cancelled'::character varying, 'no_show'::character varying])::text[]))"
+    t.index ["table_id", "reservation_datetime", "restaurant_id"], name: "index_reservations_on_table_datetime_restaurant_active", unique: true, where: "((status)::text <> ALL (ARRAY[('cancelled'::character varying)::text, ('no_show'::character varying)::text]))"
     t.index ["table_id"], name: "index_reservations_on_table_id"
   end
 

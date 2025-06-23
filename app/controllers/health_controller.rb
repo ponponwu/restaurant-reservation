@@ -47,6 +47,8 @@ class HealthController < ApplicationController
   end
 
   def redis_check
+    return { status: 'unavailable', error: 'Redis not configured' } unless defined?(Redis.current)
+
     start_time = Time.current
     Redis.current.ping
     response_time = ((Time.current - start_time) * 1000).round(2)

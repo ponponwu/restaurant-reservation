@@ -82,7 +82,8 @@ class EnhancedReservationLockService
     def acquire_lock(lock_key, lock_value)
       # 使用 SET key value NX EX timeout 原子操作
       result = redis.set(lock_key, lock_value, nx: true, ex: LOCK_TIMEOUT)
-      result == 'OK'
+      Rails.logger.debug { "Lock acquisition for #{lock_key}: #{result.inspect}" } if Rails.env.test?
+      result
     rescue Redis::BaseError => e
       Rails.logger.error "Redis 鎖定獲取失敗: #{e.message}"
       false
@@ -115,28 +116,36 @@ class EnhancedReservationLockService
 
     # Redis 連接
     def redis
-      # 在測試環境中，優先使用記憶體快取
-      @redis ||= if Rails.env.test?
-                   # 使用簡單的記憶體實現
-                   @test_redis ||= TestRedis.new
-                 elsif defined?(Redis) && Redis.current
-                   Redis.current
-                 elsif defined?(Sidekiq)
-                   # 如果有 Sidekiq，使用其 Redis 配置
-                   Sidekiq.redis_pool.with { |conn| conn }
-                 else
-                   # 建立新的 Redis 連接
-                   Redis.new(
-                     url: ENV.fetch('REDIS_URL', 'redis://localhost:6379/0'),
-                     timeout: 1,
-                     reconnect_attempts: 3
-                   )
-                 end
-    rescue StandardError => e
-      Rails.logger.error "Redis 連接失敗: #{e.message}"
-      # 在測試環境中使用替代實現
-      raise RedisConnectionError, '無法連接到 Redis 服務器' unless Rails.env.test?
+      # 優先使用全域 Redis.current（由初始化檔案設定）
+      if defined?(Redis.current) && Redis.current.respond_to?(:ping)
+        begin
+          Redis.current.ping
+          return Redis.current
+        rescue Redis::BaseError => e
+          Rails.logger.warn "Redis.current 連接失敗: #{e.message}"
+        end
+      end
 
+      # 後備方案：建立自己的連接
+      return @redis if defined?(@redis) && @redis&.ping == 'PONG' # 檢查現有連線是否有效
+
+      @redis = if Rails.env.test?
+                 Rails.logger.debug 'Using TestRedis for test environment'
+                 @test_redis ||= TestRedis.new
+               else
+                 redis_url = ENV.fetch('REDIS_URL', 'redis://localhost:6379/0')
+                 Rails.logger.info "Connecting to Redis with URL: #{redis_url}"
+                 Redis.new(
+                   url: redis_url,
+                   timeout: 1,
+                   reconnect_attempts: 3
+                 )
+               end
+    rescue Redis::CannotConnectError, Redis::TimeoutError => e
+      Rails.logger.error "Failed to connect to Redis: #{e.message}, URL: #{redis_url || 'redis://localhost:6379/0'}"
+      raise RedisConnectionError, "Cannot connect to Redis server: #{e.message}" unless Rails.env.test?
+
+      Rails.logger.warn 'Falling back to TestRedis due to Redis connection failure'
       @test_redis ||= TestRedis.new
     end
   end
@@ -147,62 +156,88 @@ class TestRedis
   def initialize
     @data = {}
     @expires = {}
+    @mutex = Mutex.new
   end
 
   def set(key, value, options = {})
-    if options[:nx] && @data.key?(key) && !expired?(key)
-      # NX 選項：只有鍵不存在時才設定
-      return nil
-    end
+    @mutex.synchronize do
+      # 清理已過期的鍵
+      cleanup_expired(key)
 
-    @data[key] = value
-    @expires[key] = Time.current + options[:ex].seconds if options[:ex]
-    'OK'
+      if options[:nx] && @data.key?(key)
+        # NX 選項：只有鍵不存在時才設定
+        return nil
+      end
+
+      @data[key] = value
+      @expires[key] = Time.current + options[:ex].seconds if options[:ex]
+      true
+    end
   end
 
   def get(key)
-    return nil if expired?(key)
+    @mutex.synchronize do
+      return nil if expired?(key)
 
-    @data[key]
+      @data[key]
+    end
   end
 
   def del(key)
-    @expires.delete(key)
-    @data.delete(key) ? 1 : 0
+    @mutex.synchronize do
+      @expires.delete(key)
+      @data.delete(key) ? 1 : 0
+    end
   end
 
   def exists?(key)
-    return 0 if expired?(key)
+    @mutex.synchronize do
+      return 0 if expired?(key)
 
-    @data.key?(key) ? 1 : 0
+      @data.key?(key) ? 1 : 0
+    end
   end
 
   def keys(pattern)
-    regex = pattern.gsub('*', '.*')
-    @data.keys.select { |k| k.match(/#{regex}/) && !expired?(k) }
+    @mutex.synchronize do
+      regex = pattern.gsub('*', '.*')
+      @data.keys.select { |k| k.match(/#{regex}/) && !expired?(k) }
+    end
   end
 
   def ttl(key)
-    return -1 unless @expires[key]
-    return -2 if expired?(key)
+    @mutex.synchronize do
+      return -1 unless @expires[key]
+      return -2 if expired?(key)
 
-    (@expires[key] - Time.current).to_i
+      (@expires[key] - Time.current).to_i
+    end
   end
 
   def eval(script, keys:, argv:)
-    # 簡單的 Lua 腳本模擬
-    key = keys.first
-    value = argv.first
-    if script.include?('redis.call("get", KEYS[1]) == ARGV[1]')
-      @data[key] == value ? del(key) : 0
-    else
-      0
+    @mutex.synchronize do
+      # 簡單的 Lua 腳本模擬
+      key = keys.first
+      value = argv.first
+      if script.include?('redis.call("get", KEYS[1]) == ARGV[1]')
+        if @data[key] == value
+          @expires.delete(key)
+          @data.delete(key) ? 1 : 0
+        else
+          0
+        end
+      else
+        0
+      end
     end
   end
 
   def flushdb
-    @data.clear
-    @expires.clear
+    @mutex.synchronize do
+      @data.clear
+      @expires.clear
+    end
+    'OK'
   end
 
   def ping
@@ -221,6 +256,10 @@ class TestRedis
     else
       false
     end
+  end
+
+  def cleanup_expired(key)
+    expired?(key)
   end
 end
 

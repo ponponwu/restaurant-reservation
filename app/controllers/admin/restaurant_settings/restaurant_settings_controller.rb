@@ -168,7 +168,7 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
                                                    partial: 'shared/flash',
                                                    locals: {
                                                      message: @reservation_policy.errors.full_messages.join(', '), type: 'error'
-                                                   })
+                                                   }), status: :unprocessable_entity
         end
         format.html { render :reservation_policies, status: :unprocessable_entity }
       end

@@ -119,12 +119,12 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     # 計算結束時間以避免 SQL 注入
     reservation_end_time = start_time + duration_minutes.minutes
     conflict_end_time = end_time + duration_minutes.minutes
-    
+
     conflicting_reservations = Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
       .where(
-        "(reservation_datetime <= ? AND ? > ?) OR " \
-        "(reservation_datetime < ? AND ? >= ?)",
+        '(reservation_datetime <= ? AND ? > ?) OR ' \
+        '(reservation_datetime < ? AND ? >= ?)',
         start_time, reservation_end_time, start_time,
         end_time, conflict_end_time, end_time
       )
@@ -241,12 +241,12 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     # 計算結束時間以避免 SQL 注入
     reservation_end_time = start_time + duration_minutes.minutes
     conflict_end_time = end_time + duration_minutes.minutes
-    
+
     !Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
       .where(
-        "(reservation_datetime <= ? AND ? > ?) OR " \
-        "(reservation_datetime < ? AND ? >= ?)",
+        '(reservation_datetime <= ? AND ? > ?) OR ' \
+        '(reservation_datetime < ? AND ? >= ?)',
         start_time, reservation_end_time, start_time,
         end_time, conflict_end_time, end_time
       )
@@ -270,5 +270,63 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     end
 
     nil
+  end
+
+  # 重寫父類方法以使用鎖定版本
+  def total_party_size
+    @party_size || @reservation&.party_size || ((@adults || 0) + (@children || 0))
+  end
+
+  def exceeds_restaurant_capacity?
+    return false unless @restaurant.respond_to?(:total_capacity)
+
+    party_size = total_party_size
+    datetime = @reservation&.reservation_datetime || @reservation_datetime
+
+    return false unless datetime
+
+    # 計算已預約的總人數（不使用 FOR UPDATE 避免與 aggregate 函數衝突）
+    reserved_capacity = if @restaurant.policy.unlimited_dining_time?
+                          return false unless @business_period_id # 如果沒有餐期ID，不檢查容量限制
+
+                          target_date = datetime.to_date
+                          business_period = BusinessPeriod.find(@business_period_id)
+
+                          query = Reservation.where(restaurant: @restaurant)
+                            .where(status: %w[pending confirmed])
+                            .where('DATE(reservation_datetime) = ?', target_date)
+                            .where(business_period: business_period)
+
+                          # 排除當前正在處理的預訂（如果有的話）
+                          query = query.where.not(id: @reservation.id) if @reservation&.persisted?
+                          query.sum(:party_size)
+                        else
+                          # 計算該時段已預約的總人數
+                          duration_minutes = @restaurant.dining_duration_with_buffer
+                          return false unless duration_minutes # 如果沒有設定時間，不檢查容量限制
+
+                          # 計算結束時間以避免 SQL 注入
+                          end_time = datetime + duration_minutes.minutes
+
+                          query = Reservation.where(restaurant: @restaurant)
+                            .where(status: %w[pending confirmed])
+                            .where(
+                              'reservation_datetime <= ? AND ? > ?',
+                              datetime, end_time, datetime
+                            )
+
+                          # 排除當前正在處理的預訂（如果有的話）
+                          query = query.where.not(id: @reservation.id) if @reservation&.persisted?
+                          query.sum(:party_size)
+                        end
+
+    # 計算剩餘容量
+    total_capacity = @restaurant.total_capacity || @restaurant.restaurant_tables.sum do |t|
+      t.max_capacity || t.capacity
+    end
+    remaining_capacity = total_capacity - reserved_capacity
+
+    # 如果剩餘容量小於所需容量，則超過餐廳容量
+    party_size > remaining_capacity
   end
 end

@@ -1,7 +1,6 @@
 class ReservationSlot < ApplicationRecord
   # 1. 關聯定義
   belongs_to :business_period
-  has_many :reservations, dependent: :nullify
 
   # 2. 驗證規則
   validates :slot_time, presence: true
@@ -30,8 +29,14 @@ class ReservationSlot < ApplicationRecord
   def available_capacity_for_date(date)
     return 0 unless max_capacity.positive?
 
-    used_capacity = reservations
-      .where(reservation_datetime: date.all_day)
+    # Since reservations don't directly belong to slots, we calculate based on time
+    slot_start = Time.zone.parse("#{date.strftime('%Y-%m-%d')} #{slot_time.strftime('%H:%M')}")
+    slot_end = slot_start + interval_minutes.minutes
+
+    used_capacity = Reservation
+      .joins(:business_period)
+      .where(business_period: business_period)
+      .where(reservation_datetime: slot_start..slot_end)
       .where(status: 'confirmed')
       .sum(:party_size)
 

@@ -89,6 +89,7 @@ group :development, :test do
   # 測試框架
   gem 'capybara', '~> 3.40'
   gem 'factory_bot_rails', '~> 6.2'
+  gem 'rails-controller-testing'
   gem 'rspec-rails', '~> 6.0'
   gem 'selenium-webdriver', '>= 4.9.0'
   gem 'webdrivers'
@@ -114,3 +115,5 @@ group :development do
   # Speed up commands on slow machines / big apps [https://github.com/rails/spring]
   # gem "spring"
 end
+
+gem 'shoulda-matchers', '~> 6.5', group: :test

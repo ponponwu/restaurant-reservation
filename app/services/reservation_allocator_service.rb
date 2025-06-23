@@ -141,21 +141,21 @@ class ReservationAllocatorService
 
     return nil if suitable_tables.empty?
 
-    # 智慧選擇：優先選擇容量最接近需求的桌位，避免資源浪費
-    # 1. 先找容量剛好等於需求的桌位
-    exact_match = suitable_tables.find { |table| table.capacity == party_size }
-    return exact_match if exact_match
-
-    # 2. 找容量略大於需求的桌位，按容量升序排列
-    larger_tables = suitable_tables.select { |table| table.capacity > party_size }
-      .sort_by { |table| [table.capacity, table.sort_order] }
-    return larger_tables.first if larger_tables.any?
-
-    # 3. 如果沒有找到，選擇 max_capacity 能容納需求的桌位
-    # 按 max_capacity 升序，再按 sort_order 排序
+    # 優先考慮桌位群組的排序，然後是容量匹配
+    # 按照桌位群組優先級和桌位排序來選擇最適合的桌位
     suitable_tables.min_by do |table|
-      max_cap = table.max_capacity.presence || table.capacity
-      [max_cap, table.sort_order]
+      # 優先級排序：
+      # 1. 桌位群組的排序 (table_group.sort_order)
+      # 2. 桌位的排序 (table.sort_order)
+      # 3. 容量差異（優先選擇容量接近需求的桌位）
+      capacity_diff = (table.capacity - party_size).abs
+      max_capacity_diff = ((table.max_capacity || table.capacity) - party_size).abs
+
+      [
+        table.table_group.sort_order,
+        table.sort_order,
+        [capacity_diff, max_capacity_diff].min
+      ]
     end
   end
 
@@ -181,22 +181,25 @@ class ReservationAllocatorService
       duration_minutes = @restaurant.dining_duration_with_buffer
       return [] unless duration_minutes # 如果沒有設定時間，不檢查衝突
 
-      start_time = datetime
-      end_time = datetime + duration_minutes.minutes
+      # 計算新訂位的時間範圍
+      new_start_time = datetime
+      new_end_time = datetime + duration_minutes.minutes
 
-      # 計算結束時間以避免 SQL 注入
-      reservation_end_time = start_time + duration_minutes.minutes
-      conflict_end_time = end_time + duration_minutes.minutes
-      
-      conflicting_reservations = Reservation.where(restaurant: @restaurant)
+      # 查詢與此時間範圍重疊的預訂
+      # 先查詢可能重疊的預訂，然後在 Ruby 中計算時間重疊
+      potential_conflicts = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
-        .where(
-          "(reservation_datetime <= ? AND ? > ?) OR " \
-          "(reservation_datetime < ? AND ? >= ?)",
-          start_time, reservation_end_time, start_time,
-          end_time, conflict_end_time, end_time
-        )
+        .where('reservation_datetime BETWEEN ? AND ?', new_start_time - duration_minutes.minutes, new_end_time)
         .includes(:table, table_combination: :restaurant_tables)
+
+      # 在 Ruby 中過濾真正重疊的預訂
+      conflicting_reservations = potential_conflicts.select do |reservation|
+        existing_start = reservation.reservation_datetime
+        existing_end = existing_start + duration_minutes.minutes
+
+        # 檢查時間重疊：existing_start < new_end AND new_start < existing_end
+        existing_start < new_end_time && new_start_time < existing_end
+      end
     end
 
     # 收集所有被佔用的桌位
@@ -278,6 +281,7 @@ class ReservationAllocatorService
         .where(business_period: business_period)
 
       # 排除當前正在處理的預訂（如果有的話）
+      query = query.where.not(id: @reservation.id) if @reservation&.persisted?
 
     else
       # 計算該時段已預約的總人數
@@ -286,28 +290,27 @@ class ReservationAllocatorService
 
       # 計算結束時間以避免 SQL 注入
       end_time = datetime + duration_minutes.minutes
-      
+
       query = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
         .where(
-          "reservation_datetime <= ? AND ? > ?",
+          'reservation_datetime <= ? AND ? > ?',
           datetime, end_time, datetime
         )
 
       # 排除當前正在處理的預訂（如果有的話）
+      query = query.where.not(id: @reservation.id) if @reservation&.persisted?
 
     end
-    query = query.where.not(id: @reservation.id) if @reservation&.persisted?
     reserved_capacity = query.sum(:party_size)
 
-    # 計算剩餘容量
+    # 計算總容量
     total_capacity = @restaurant.total_capacity || @restaurant.restaurant_tables.sum do |t|
       t.max_capacity || t.capacity
     end
-    remaining_capacity = total_capacity - reserved_capacity
 
-    # 如果剩餘容量小於所需容量，則超過餐廳容量
-    party_size > remaining_capacity
+    # 如果總人數（包含當前預訂）超過餐廳容量，則超過限制
+    reserved_capacity + party_size > total_capacity
   end
 
   def create_table_combination(tables)

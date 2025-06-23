@@ -7,8 +7,8 @@ require_dependency Rails.root.join('app', 'services', 'enhanced_reservation_lock
 class ReservationLockService
   class << self
     # 將所有方法委派給 EnhancedReservationLockService
-    def with_lock(restaurant_id, datetime, party_size, &block)
-      EnhancedReservationLockService.with_lock(restaurant_id, datetime, party_size, &block)
+    def with_lock(restaurant_id, datetime, party_size, &)
+      EnhancedReservationLockService.with_lock(restaurant_id, datetime, party_size, &)
     end
 
     delegate :locked?, to: :EnhancedReservationLockService
@@ -50,7 +50,15 @@ class ConcurrentReservationError < StandardError; end
 class RedisConnectionError < StandardError; end
 
 # 記錄升級訊息（僅在第一次載入時）
-unless defined?(@@upgrade_logged)
-  @@upgrade_logged = true
-  Rails.logger.info 'ReservationLockService 已成功升級為使用 Redis 後端'
+module ReservationLockServiceUpgradeLogger
+  @upgrade_logged = false
+
+  def self.log_upgrade_once
+    return if @upgrade_logged
+
+    @upgrade_logged = true
+    Rails.logger.info 'ReservationLockService 已成功升級為使用 Redis 後端'
+  end
 end
+
+ReservationLockServiceUpgradeLogger.log_upgrade_once

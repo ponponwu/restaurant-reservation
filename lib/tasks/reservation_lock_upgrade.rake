@@ -22,7 +22,7 @@ namespace :reservation_lock do
           begin
             puts "   Redis 版本: #{Redis.current.info['redis_version']}"
           rescue StandardError
-            '無法獲取版本'
+            puts '   無法獲取版本'
           end
         else
           puts '⚠️  Redis 連接異常，但系統仍可正常運行'
@@ -194,7 +194,7 @@ namespace :reservation_lock do
   private
 
   def redis_healthy?
-    return false unless defined?(Redis)
+    return false unless defined?(Redis.current)
 
     Redis.current&.ping == 'PONG'
   rescue StandardError

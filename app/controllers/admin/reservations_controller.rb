@@ -335,47 +335,38 @@ class Admin::ReservationsController < Admin::BaseController
 
     # 確保使用台北時區的時間來比較
     taipei_time = datetime.in_time_zone('Asia/Taipei')
-    reservation_time = taipei_time.strftime('%H:%M:%S')
 
-    Rails.logger.info "🔧 Determining business period for time: #{reservation_time} (taipei: #{taipei_time})"
+    # 檢查是否在營業時段內 - 直接使用Ruby邏輯避免時區問題
+    time_minutes = (taipei_time.hour * 60) + taipei_time.min
 
-    # 查找匹配的營業時段 - 使用 EXTRACT 函數處理 time 類型比較
-    business_period = @restaurant.business_periods.active
-      .where('EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?',
-             (taipei_time.hour * 3600) + (taipei_time.min * 60),
-             (taipei_time.hour * 3600) + (taipei_time.min * 60))
-      .first
-
-    Rails.logger.info "🔧 Found exact match: #{business_period&.name} (ID: #{business_period&.id})"
-
-    # 如果找不到完全匹配的時段，找最接近的時段
-    if business_period.blank?
-      hour = taipei_time.hour
-      minute = taipei_time.min
-      time_decimal = hour + (minute / 60.0)
-
-      Rails.logger.info "🔧 No exact match, time_decimal: #{time_decimal}, finding closest period..."
-
-      # 根據時間智能選擇最合適的時段
-      periods = @restaurant.business_periods.active.order(:start_time)
-
-      # 計算每個時段的時間範圍中點，選擇最接近的
-      closest_period = periods.min_by do |period|
-        start_hour = period.start_time.hour + (period.start_time.min / 60.0)
-        end_hour = period.end_time.hour + (period.end_time.min / 60.0)
-        mid_point = (start_hour + end_hour) / 2.0
-
-        distance = (time_decimal - mid_point).abs
-        Rails.logger.info "  📍 Period #{period.name}: range #{start_hour}-#{end_hour}, mid_point #{mid_point}, distance #{distance}"
-
-        distance
-      end
-
-      business_period = closest_period
-      Rails.logger.info "🔧 Selected closest period: #{business_period&.name} (ID: #{business_period&.id})"
+    matching_period = @restaurant.business_periods.active.find do |period|
+      start_minutes = (period.start_time.hour * 60) + period.start_time.min
+      end_minutes = (period.end_time.hour * 60) + period.end_time.min
+      time_minutes >= start_minutes && time_minutes <= end_minutes
     end
 
-    business_period&.id
+    # 如果找不到完全匹配的時段，找最接近即將開始的時段
+    if matching_period.blank?
+      periods = @restaurant.business_periods.active.order(:start_time)
+
+      matching_period = periods.min_by do |period|
+        start_minutes = (period.start_time.hour * 60) + period.start_time.min
+        end_minutes = (period.end_time.hour * 60) + period.end_time.min
+
+        if time_minutes < start_minutes
+          # 時間在時段開始前，計算距離開始的時間
+          start_minutes - time_minutes
+        elsif time_minutes > end_minutes
+          # 時間在時段結束後，給一個較大的距離值，優先選擇即將開始的時段
+          (time_minutes - end_minutes) + 180 # 加3小時懲罰
+        else
+          # 理論上不會走到這裡
+          0
+        end
+      end
+    end
+
+    matching_period&.id
   end
 
   def set_reservation

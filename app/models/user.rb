@@ -13,7 +13,7 @@ class User < ApplicationRecord
   validates :role, presence: true
 
   # 3. 枚舉定義
-  enum role: {
+  enum :role, {
     super_admin: 0,  # 系統超級管理員，可管理所有餐廳
     manager: 1,      # 餐廳管理員，可管理特定餐廳
     employee: 2      # 餐廳員工，有限權限

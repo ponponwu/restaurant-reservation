@@ -44,7 +44,7 @@ class Reservation < ApplicationRecord
   scope :by_datetime, -> { order(:reservation_datetime) }
 
   # 4. 枚舉定義
-  enum status: {
+  enum :status, {
     pending: 'pending',
     confirmed: 'confirmed',
     cancelled: 'cancelled',
@@ -326,23 +326,32 @@ class Reservation < ApplicationRecord
   def reservation_datetime_in_future
     return unless reservation_datetime
 
-    min_advance_hours = 1 # 暫時使用固定值
+    policy = restaurant&.reservation_policy
+    min_advance_hours = policy&.minimum_advance_hours || 1
+    max_advance_days = policy&.advance_booking_days || 30
+
     min_datetime = Time.current + min_advance_hours.hours
+    max_datetime = Date.current + max_advance_days.days
 
-    return unless reservation_datetime < min_datetime
-
-    errors.add(:reservation_datetime, "訂位時間必須至少提前 #{min_advance_hours} 小時")
+    if reservation_datetime < min_datetime
+      errors.add(:reservation_datetime, "訂位時間必須至少提前 #{min_advance_hours} 小時")
+    elsif reservation_datetime.to_date > max_datetime
+      errors.add(:reservation_datetime, "最多只能提前 #{max_advance_days} 天預約")
+    end
   end
 
   def party_size_within_restaurant_limits
     return unless restaurant && party_size
 
     policy = restaurant.reservation_policy
+    min_party_size = policy&.min_party_size || 1
     max_party_size = policy&.max_party_size || 12
 
-    return unless party_size > max_party_size
-
-    errors.add(:party_size, "人數不能超過 #{max_party_size} 人")
+    if party_size < min_party_size
+      errors.add(:party_size, "人數不能少於 #{min_party_size} 人")
+    elsif party_size > max_party_size
+      errors.add(:party_size, "人數不能超過 #{max_party_size} 人")
+    end
   end
 
   def party_size_matches_adults_and_children
@@ -403,6 +412,6 @@ class Reservation < ApplicationRecord
   end
 
   def generate_cancellation_token
-    self.cancellation_token = SecureRandom.uuid
+    self.cancellation_token = SecureRandom.hex(16)
   end
 end

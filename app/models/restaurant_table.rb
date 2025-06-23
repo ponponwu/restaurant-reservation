@@ -27,23 +27,23 @@ class RestaurantTable < ApplicationRecord
   scope :in_group, ->(group_id) { where(table_group_id: group_id) }
 
   # 重新命名舊的 status enum 以避免衝突，保留向後相容性
-  enum status: {
+  enum :status, {
     available: 'available',
     occupied: 'occupied',
     reserved: 'reserved',
     maintenance: 'maintenance',
     cleaning: 'cleaning'
-  }, _prefix: :legacy
+  }, prefix: :legacy
 
   # 新的 operational_status - 簡化且有意義的狀態
-  enum operational_status: {
+  enum :operational_status, {
     normal: 'normal',              # 正常狀態（取代 available/occupied/reserved）
     maintenance: 'maintenance',    # 維修中
     cleaning: 'cleaning',          # 清潔中
     out_of_service: 'out_of_service' # 停止服務
   }
 
-  enum table_type: {
+  enum :table_type, {
     regular: 'regular',
     round: 'round',
     square: 'square',
