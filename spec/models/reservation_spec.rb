@@ -8,7 +8,7 @@ RSpec.describe Reservation do
     it 'automatically generates cancellation_token on creation' do
       new_reservation = create(:reservation, restaurant: restaurant)
       expect(new_reservation.cancellation_token).to be_present
-      expect(new_reservation.cancellation_token).to match(/\A[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\z/i)
+      expect(new_reservation.cancellation_token).to match(/\A[0-9a-f]{32}\z/i)
     end
 
     it 'ensures cancellation_token uniqueness' do
