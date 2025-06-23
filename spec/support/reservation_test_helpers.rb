@@ -272,8 +272,8 @@ module ReservationTestHelpers
     end_time - start_time
   end
 
-  def expect_fast_response(max_seconds = 1, &block)
-    response_time = measure_response_time(&block)
+  def expect_fast_response(max_seconds = 1, &)
+    response_time = measure_response_time(&)
     expect(response_time).to be < max_seconds.seconds
   end
 end

@@ -8,7 +8,7 @@ RSpec.describe 'ReservationLockService 升級測試', type: :service do
   before do
     # 清除所有測試鎖定
 
-    Redis.current&.flushdb
+    EnhancedReservationLockService.send(:redis).flushdb
   rescue StandardError
     # 忽略 Redis 連接錯誤（測試環境可能沒有 Redis）
   end
@@ -16,7 +16,7 @@ RSpec.describe 'ReservationLockService 升級測試', type: :service do
   after do
     # 清理測試數據
 
-    Redis.current&.flushdb
+    EnhancedReservationLockService.send(:redis).flushdb
   rescue StandardError
     # 忽略 Redis 連接錯誤
   end
@@ -125,12 +125,13 @@ RSpec.describe 'ReservationLockService 升級測試', type: :service do
   end
 
   describe 'Redis 後端驗證' do
-    it '使用 Redis 作為後端存儲', :skip_without_redis do
-      # 這個測試只在 Redis 可用時執行
-      skip 'Redis 不可用' unless redis_available?
-
-      # 檢查是否真的使用 Redis
-      expect(EnhancedReservationLockService.send(:redis)).to be_a(Redis)
+    it '使用 Redis 或 TestRedis 作為後端存儲' do
+      # 在測試環境中會使用 TestRedis，在其他環境中使用 Redis
+      redis_instance = EnhancedReservationLockService.send(:redis)
+      expect(redis_instance).to respond_to(:ping)
+      expect(redis_instance).to respond_to(:set)
+      expect(redis_instance).to respond_to(:get)
+      expect(redis_instance).to respond_to(:del)
     end
   end
 

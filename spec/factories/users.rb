@@ -5,18 +5,19 @@ FactoryBot.define do
     password_confirmation { 'password123' }
     first_name { '測試' }
     last_name { '使用者' }
+    password_changed_at { 1.day.ago }
 
     trait :admin do
       first_name { '系統' }
       last_name { '管理員' }
-      email { 'admin@example.com' }
+      sequence(:email) { |n| "admin#{n}@example.com" }
       role { :super_admin }
     end
 
     trait :manager do
       first_name { '餐廳' }
       last_name { '經理' }
-      email { 'manager@example.com' }
+      sequence(:email) { |n| "manager#{n}@example.com" }
       role { :manager }
     end
   end

@@ -30,14 +30,14 @@ RSpec.describe 'Business Period Determination' do
     context 'exact time matches' do
       it 'matches 19:00 to dinner period' do
         time_19_00 = Time.zone.parse('2025-06-19 19:00:00')
-        time_19_00.strftime('%H:%M:%S')
+        time_minutes = (time_19_00.hour * 60) + time_19_00.min
 
-        # 使用 EXTRACT 函數來比較時間部分
-        period = restaurant.business_periods.active
-          .where('EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?',
-                 (time_19_00.hour * 3600) + (time_19_00.min * 60),
-                 (time_19_00.hour * 3600) + (time_19_00.min * 60))
-          .first
+        # 使用與控制器相同的邏輯
+        period = restaurant.business_periods.active.find do |p|
+          start_minutes = (p.start_time.hour * 60) + p.start_time.min
+          end_minutes = (p.end_time.hour * 60) + p.end_time.min
+          time_minutes >= start_minutes && time_minutes <= end_minutes
+        end
 
         expect(period).to eq(@dinner_period)
         expect(period.name).to eq('dinner')
@@ -45,13 +45,14 @@ RSpec.describe 'Business Period Determination' do
 
       it 'matches 13:00 to lunch period' do
         time_13_00 = Time.zone.parse('2025-06-19 13:00:00')
+        time_minutes = (time_13_00.hour * 60) + time_13_00.min
 
-        # 使用 EXTRACT 函數來比較時間部分
-        period = restaurant.business_periods.active
-          .where('EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?',
-                 (time_13_00.hour * 3600) + (time_13_00.min * 60),
-                 (time_13_00.hour * 3600) + (time_13_00.min * 60))
-          .first
+        # 使用與控制器相同的邏輯
+        period = restaurant.business_periods.active.find do |p|
+          start_minutes = (p.start_time.hour * 60) + p.start_time.min
+          end_minutes = (p.end_time.hour * 60) + p.end_time.min
+          time_minutes >= start_minutes && time_minutes <= end_minutes
+        end
 
         expect(period).to eq(@lunch_period)
         expect(period.name).to eq('lunch')
@@ -61,24 +62,26 @@ RSpec.describe 'Business Period Determination' do
     context 'boundary times' do
       it 'matches exact start time 17:30 to dinner' do
         time_17_30 = Time.zone.parse('2025-06-19 17:30:00')
+        time_minutes = (time_17_30.hour * 60) + time_17_30.min
 
-        period = restaurant.business_periods.active
-          .where('EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?',
-                 (time_17_30.hour * 3600) + (time_17_30.min * 60),
-                 (time_17_30.hour * 3600) + (time_17_30.min * 60))
-          .first
+        period = restaurant.business_periods.active.find do |p|
+          start_minutes = (p.start_time.hour * 60) + p.start_time.min
+          end_minutes = (p.end_time.hour * 60) + p.end_time.min
+          time_minutes >= start_minutes && time_minutes <= end_minutes
+        end
 
         expect(period).to eq(@dinner_period)
       end
 
       it 'matches exact end time 21:30 to dinner' do
         time_21_30 = Time.zone.parse('2025-06-19 21:30:00')
+        time_minutes = (time_21_30.hour * 60) + time_21_30.min
 
-        period = restaurant.business_periods.active
-          .where('EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?',
-                 (time_21_30.hour * 3600) + (time_21_30.min * 60),
-                 (time_21_30.hour * 3600) + (time_21_30.min * 60))
-          .first
+        period = restaurant.business_periods.active.find do |p|
+          start_minutes = (p.start_time.hour * 60) + p.start_time.min
+          end_minutes = (p.end_time.hour * 60) + p.end_time.min
+          time_minutes >= start_minutes && time_minutes <= end_minutes
+        end
 
         expect(period).to eq(@dinner_period)
       end
@@ -92,11 +95,13 @@ RSpec.describe 'Business Period Determination' do
 
         expect(taipei_time.strftime('%H:%M:%S')).to eq('19:00:00')
 
-        period = restaurant.business_periods.active
-          .where('EXTRACT(hour FROM start_time) * 3600 + EXTRACT(minute FROM start_time) * 60 <= ? AND EXTRACT(hour FROM end_time) * 3600 + EXTRACT(minute FROM end_time) * 60 >= ?',
-                 (taipei_time.hour * 3600) + (taipei_time.min * 60),
-                 (taipei_time.hour * 3600) + (taipei_time.min * 60))
-          .first
+        time_minutes = (taipei_time.hour * 60) + taipei_time.min
+
+        period = restaurant.business_periods.active.find do |p|
+          start_minutes = (p.start_time.hour * 60) + p.start_time.min
+          end_minutes = (p.end_time.hour * 60) + p.end_time.min
+          time_minutes >= start_minutes && time_minutes <= end_minutes
+        end
 
         expect(period).to eq(@dinner_period)
         expect(period.name).to eq('dinner')

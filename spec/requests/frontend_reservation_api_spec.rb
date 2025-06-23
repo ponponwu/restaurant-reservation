@@ -142,6 +142,8 @@ RSpec.describe 'Frontend Reservation API' do
 
     context 'with party size validation' do
       before do
+        # 創建一個大桌位確保餐廳有足夠容量
+        create(:table, :large_table, restaurant: restaurant, table_group: table_group)
         restaurant.reservation_policy.update!(
           min_party_size: 2,
           max_party_size: 8
@@ -222,6 +224,11 @@ RSpec.describe 'Frontend Reservation API' do
   end
 
   describe 'GET /restaurant/:slug/reservation' do
+    before do
+      # 創建一個大桌位確保餐廳有足夠容量
+      create(:table, :large_table, restaurant: restaurant, table_group: table_group)
+    end
+
     let(:reservation_params) do
       {
         date: Date.tomorrow.strftime('%Y-%m-%d'),
@@ -230,6 +237,11 @@ RSpec.describe 'Frontend Reservation API' do
         time: '18:00',
         period_id: business_period.id
       }
+    end
+
+    before do
+      # 創建一個大桌位確保餐廳有足夠容量
+      create(:table, :large_table, restaurant: restaurant, table_group: table_group)
     end
 
     context 'when reservation is enabled' do

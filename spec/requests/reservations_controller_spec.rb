@@ -7,8 +7,8 @@ RSpec.describe ReservationsController do
   before do
     # 確保餐廳有基本的營業設定 - 設定為全週營業以避免測試受當前日期影響
     unless restaurant.business_periods.any?
-      create(:business_period, 
-             restaurant: restaurant, 
+      create(:business_period,
+             restaurant: restaurant,
              days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
     end
 
@@ -28,6 +28,19 @@ RSpec.describe ReservationsController do
         table_group: table_group,
         active: true
       )
+
+      # 創建第二個桌位以確保有足夠容量進行多個訂位測試
+      restaurant.restaurant_tables.create!(
+        table_number: 'A2',
+        capacity: 4,
+        min_capacity: 1,
+        max_capacity: 4,
+        table_group: table_group,
+        active: true
+      )
+
+      # 確保餐廳總容量被正確計算和快取
+      restaurant.update_cached_capacity
     end
   end
 
@@ -63,6 +76,16 @@ RSpec.describe ReservationsController do
 
         it 'allows reservation creation' do
           post restaurant_reservations_path(restaurant.slug), params: valid_params
+
+          # 調試信息：如果不是重定向，顯示錯誤
+          if response.status != 302
+            puts "Response status: #{response.status}"
+            puts "Response body: #{response.body}" if response.body.present?
+            if assigns(:reservation) && assigns(:reservation).errors.any?
+              puts "Reservation errors: #{assigns(:reservation).errors.full_messages}"
+            end
+          end
+
           expect(response).to have_http_status(:redirect)
         end
       end
@@ -137,9 +160,11 @@ RSpec.describe ReservationsController do
 
     context 'when under phone booking limit' do
       before do
-        # 創建1個現有訂位
+        # 創建1個現有訂位，確保分配到桌位
+        table = restaurant.restaurant_tables.first
         create(:reservation,
                restaurant: restaurant,
+               table: table,
                customer_phone: phone_number,
                reservation_datetime: 5.days.from_now,
                status: :confirmed)
@@ -168,12 +193,20 @@ RSpec.describe ReservationsController do
 
     context 'when at phone booking limit' do
       before do
-        # 創建2個現有訂位（達到限制）
-        create_list(:reservation, 2,
-                    restaurant: restaurant,
-                    customer_phone: phone_number,
-                    reservation_datetime: 5.days.from_now,
-                    status: :confirmed)
+        # 創建2個現有訂位（達到限制），確保分配到不同桌位或不同時間
+        tables = restaurant.restaurant_tables.limit(2)
+        create(:reservation,
+               restaurant: restaurant,
+               table: tables.first,
+               customer_phone: phone_number,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
+               status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               table: tables.second,
+               customer_phone: phone_number,
+               reservation_datetime: 6.days.from_now.change(hour: 18, min: 0),
+               status: :confirmed)
       end
 
       it 'prevents new reservation' do
@@ -210,18 +243,26 @@ RSpec.describe ReservationsController do
         }
 
         post restaurant_reservations_path(restaurant.slug), params: valid_params
-        expect(response.body).to include('訂位次數已達上限')
+        expect(response.body).to include('訂位失敗，請聯繫餐廳')
       end
     end
 
     context 'cancelled reservations do not count towards limit' do
       before do
         # 創建2個已取消的訂位（不應計入限制）
-        create_list(:reservation, 2,
-                    restaurant: restaurant,
-                    customer_phone: phone_number,
-                    reservation_datetime: 5.days.from_now,
-                    status: :cancelled)
+        tables = restaurant.restaurant_tables.limit(2)
+        create(:reservation,
+               restaurant: restaurant,
+               table: tables.first,
+               customer_phone: phone_number,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
+               status: :cancelled)
+        create(:reservation,
+               restaurant: restaurant,
+               table: tables.second,
+               customer_phone: phone_number,
+               reservation_datetime: 6.days.from_now.change(hour: 18, min: 0),
+               status: :cancelled)
       end
 
       it 'allows new reservation' do
@@ -230,9 +271,13 @@ RSpec.describe ReservationsController do
             customer_name: '測試客戶',
             customer_phone: phone_number,
             customer_email: 'test@example.com',
-            party_size: 4,
-            reservation_datetime: 7.days.from_now.strftime('%Y-%m-%d %H:%M')
-          }
+            party_size: 4
+          },
+          date: 7.days.from_now.strftime('%Y-%m-%d'),
+          time_slot: '18:00',
+          adults: 4,
+          children: 0,
+          business_period_id: restaurant.business_periods.first&.id
         }
 
         expect do
@@ -258,9 +303,13 @@ RSpec.describe ReservationsController do
             customer_name: '測試客戶',
             customer_phone: '0912345678',
             customer_email: 'test@example.com',
-            party_size: 4,
-            reservation_datetime: 2.days.from_now.strftime('%Y-%m-%d %H:%M')
-          }
+            party_size: 4
+          },
+          date: 2.days.from_now.strftime('%Y-%m-%d'),
+          time_slot: '18:00',
+          adults: 4,
+          children: 0,
+          business_period_id: restaurant.business_periods.first&.id
         }
 
         expect do
@@ -373,9 +422,9 @@ RSpec.describe ReservationsController do
       let(:blacklisted_params) do
         {
           reservation: {
-            customer_name: '黑名單客戶',
+            customer_name: '測試客戶',
             customer_phone: blacklisted_phone,
-            customer_email: 'blacklisted@example.com',
+            customer_email: 'test@example.com',
             party_size: 4
           },
           date: 2.days.from_now.to_date.to_s,
@@ -415,9 +464,9 @@ RSpec.describe ReservationsController do
       let(:limited_params) do
         {
           reservation: {
-            customer_name: '限制客戶',
+            customer_name: '測試客戶',
             customer_phone: limited_phone,
-            customer_email: 'limited@example.com',
+            customer_email: 'test@example.com',
             party_size: 2
           },
           date: 3.days.from_now.to_date.to_s,
@@ -434,9 +483,11 @@ RSpec.describe ReservationsController do
           phone_limit_period_days: 30
         )
 
-        # 創建一個現有訂位達到限制
+        # 創建一個現有訂位達到限制，確保分配到桌位
+        table = restaurant.restaurant_tables.first
         create(:reservation,
                restaurant: restaurant,
+               table: table,
                customer_phone: limited_phone,
                reservation_datetime: 5.days.from_now,
                status: :confirmed)

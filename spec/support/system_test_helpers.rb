@@ -15,9 +15,9 @@ module SystemTestHelpers
   end
 
   # 條件性系統測試執行
-  def run_if_browser_available(description, &block)
+  def run_if_browser_available(description, &)
     if browser_available?
-      it description, &block
+      it(description, &)
     else
       pending "#{description} (browser not available)"
     end
@@ -81,8 +81,8 @@ module SystemTestHelpers
   end
 
   # 安全等待元素
-  def safe_find(selector, **options)
-    find(selector, **options)
+  def safe_find(selector, **)
+    find(selector, **)
   rescue Capybara::ElementNotFound
     skip_system_test_with_message("Element not found: #{selector}")
   rescue Selenium::WebDriver::Error::TimeoutError

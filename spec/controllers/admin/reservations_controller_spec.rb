@@ -5,13 +5,14 @@ RSpec.describe Admin::ReservationsController do
   let(:user) { create(:user, :admin, restaurant: restaurant) }
 
   before do
+    Time.zone = 'Asia/Taipei'
     sign_in user
 
     # 創建正確的營業時段
     @lunch_period = restaurant.business_periods.create!(
       name: 'lunch',
       display_name: '午餐',
-      start_time: '11:30',
+      start_time: '11:00',
       end_time: '14:30',
       days_of_week_mask: 127,
       active: true
@@ -126,6 +127,8 @@ RSpec.describe Admin::ReservationsController do
     end
 
     let(:reservation_params) do
+      # 選擇明天晚上7點，確保在晚餐時段(17:30-21:30)內且滿足提前預訂需求
+      dinner_time = 1.day.from_now.change(hour: 19, min: 0)
       {
         customer_name: 'Test Customer',
         customer_phone: '0912345678',
@@ -133,29 +136,14 @@ RSpec.describe Admin::ReservationsController do
         party_size: 2,
         adults_count: 2,
         children_count: 0,
-        reservation_datetime: '2025-06-19T19:00',
+        reservation_datetime: dinner_time.strftime('%Y-%m-%dT%H:%M'),
         table_id: table.id,
         admin_override: false
       }
     end
 
     it 'correctly assigns dinner period for 19:00 reservation' do
-      puts "Before reservation count: #{Reservation.count}"
-      puts "Reservation params: #{reservation_params}"
-      puts "Restaurant ID: #{restaurant.id}, slug: #{restaurant.slug}"
-
       post :create, params: { restaurant_id: restaurant.slug, reservation: reservation_params }
-
-      puts "After reservation count: #{Reservation.count}"
-      puts "Response status: #{response.status}"
-      puts "Response location: #{response.location}"
-
-      if assigns(:reservation)
-        puts "Reservation object: #{assigns(:reservation).inspect}"
-        puts "Reservation errors: #{assigns(:reservation).errors.full_messages}" if assigns(:reservation).errors.any?
-      else
-        puts 'No reservation object assigned'
-      end
 
       expect(Reservation.count).to eq(1)
 
@@ -165,7 +153,9 @@ RSpec.describe Admin::ReservationsController do
     end
 
     it 'correctly assigns lunch period for 12:00 reservation' do
-      lunch_params = reservation_params.merge(reservation_datetime: '2025-06-19T12:00')
+      # 選擇明天中午12點，確保在午餐時段(11:00-14:30)內
+      lunch_time = 1.day.from_now.change(hour: 12, min: 0)
+      lunch_params = reservation_params.merge(reservation_datetime: lunch_time.strftime('%Y-%m-%dT%H:%M'))
 
       expect do
         post :create, params: { restaurant_id: restaurant.slug, reservation: lunch_params }
@@ -281,7 +271,7 @@ RSpec.describe Admin::ReservationsController do
           party_size: 4,
           adults_count: 4,
           children_count: 0,
-          reservation_datetime: Time.zone.parse('2025-06-25T19:00'),
+          reservation_datetime: Time.zone.parse('2025-06-25T18:00'), # 使用不同時間避免衝突
           business_period: @dinner_period,
           table: big_table,
           status: :confirmed,
