@@ -7,7 +7,7 @@ class Admin::UsersController < AdminController
     # 簡單搜尋功能
     @users = @users.search_by_name_or_email(params[:search]) if params[:search].present?
 
-    @users = @users.page(params[:page]).per(10)
+    @pagy, @users = pagy(@users, items: 10)
 
     respond_to do |format|
       format.html

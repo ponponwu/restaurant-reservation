@@ -1,6 +1,9 @@
 class ApplicationController < ActionController::Base
   # 防止 CSRF 攻擊
   protect_from_forgery with: :exception
+  
+  # 加入 Pagy helper
+  include Pagy::Backend
 
   # 移除強制登入要求，讓系統可以不登入使用
   # before_action :authenticate_user!, except: [:index, :show, :new, :create]

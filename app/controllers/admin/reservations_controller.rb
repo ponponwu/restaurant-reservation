@@ -45,9 +45,7 @@ class Admin::ReservationsController < Admin::BaseController
       .sort_by { |period, _| period&.start_time || Time.zone.parse('00:00') }
 
     # 為了保持分頁功能，也保留原本的 @reservations
-    @reservations = reservations_query.order(reservation_datetime: :desc)
-      .page(params[:page])
-      .per(20)
+    @pagy, @reservations = pagy(reservations_query.order(reservation_datetime: :desc), items: 20)
 
     respond_to do |format|
       format.html
