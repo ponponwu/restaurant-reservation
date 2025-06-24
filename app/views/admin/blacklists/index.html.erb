@@ -149,9 +149,9 @@
       </div>
 
       <!-- 分頁 -->
-      <% if @blacklists.any? %>
+      <% if defined?(@pagy) && @pagy.pages > 1 %>
         <div class="px-4 py-3 bg-gray-50 border-t border-gray-200">
-          <%= paginate @blacklists %>
+          <%= custom_pagy_nav(@pagy) %>
         </div>
       <% end %>
     </div>
