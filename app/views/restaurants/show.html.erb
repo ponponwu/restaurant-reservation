@@ -6,36 +6,79 @@
     </div>
   <% end %>
 
-  <!-- 主要內容 -->
-  <div class="w-full max-w-md mx-auto bg-gray-900 min-h-screen md:max-w-lg lg:max-w-xl"
+  <!-- 主要內容容器 - 居中固定寬度 -->
+  <div class="w-full max-w-2xl mx-auto bg-gray-900 min-h-screen"
        data-controller="reservation restaurant-info"
        data-reservation-restaurant-slug-value="<%= @restaurant.slug %>"
        data-reservation-max-party-size-value="<%= @max_party_size %>"
        data-reservation-min-party-size-value="<%= @min_party_size %>">
-    
-    <!-- 餐廳標題區域 -->
-    <div class="flex items-center justify-between p-4 border-b border-gray-700 bg-gray-800">
-      <div class="flex items-center space-x-3">
-        <!-- 餐廳 Logo/圖示 -->
-        <div class="w-12 h-12 bg-gray-600 rounded-lg flex items-center justify-center">
-          <svg class="w-6 h-6 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
-          </svg>
-        </div>
-        <div>
+
+    <!-- 頂部導航列 -->
+    <div class="w-full bg-gray-800 border-b border-gray-700 relative z-20">
+      <div class="flex items-center justify-between p-4">
+        <div class="flex items-center space-x-3">
           <h1 class="text-lg font-bold text-white"><%= @restaurant.name %></h1>
-          <p class="text-sm text-gray-400">線上訂位</p>
+        </div>
+        
+        <div class="flex space-x-2">
+          <!-- 登入按鈕 -->
+          <a href="/admin" class="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center hover:bg-gray-500 transition-colors">
+            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path>
+            </svg>
+          </a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 餐廳圖片區域 -->
+    <% if @restaurant.hero_image.attached? %>
+      <div class="w-full h-48 relative">
+        <%= image_tag @restaurant.hero_image, 
+            class: "w-full h-full object-cover",
+            alt: @restaurant.name %>
+      </div>
+    <% end %>
+
+    <!-- 餐廳名稱和 Info 區域 -->
+    <div class="bg-gray-800 border-b border-gray-700 p-4">
+      <div class="flex items-start justify-between">
+        <!-- 餐廳名稱 -->
+        <div class="flex-1">
+          <h2 class="text-xl font-bold text-white mb-1"><%= @restaurant.name %></h2>
+        </div>
+        
+        <!-- Info 按鈕 -->
+        <div class="ml-4">
+          <button data-restaurant-info-target="infoButton" 
+                  data-action="click->restaurant-info#toggleInfo"
+                  class="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center hover:bg-gray-500 transition-colors">
+            <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+          </button>
         </div>
       </div>
       
-      <!-- Info Icon -->
-      <button data-restaurant-info-target="infoButton" 
-              data-action="click->restaurant-info#toggleInfo"
-              class="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center hover:bg-gray-500 transition-colors">
-        <svg class="w-5 h-5 text-gray-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-      </button>
+      <!-- 提醒事項內容 - 直接顯示在下方 -->
+      <% if @restaurant.formatted_reminder_notes.any? %>
+        <div class="mt-3 pt-3 border-t border-gray-700">
+          <h3 class="text-orange-400 font-semibold text-sm mb-3 flex items-center">
+            <svg class="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 20 20">
+              <path fill-rule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clip-rule="evenodd"></path>
+            </svg>
+            提醒事項
+          </h3>
+          <div class="space-y-2">
+            <% @restaurant.formatted_reminder_notes.each do |note| %>
+              <div class="flex items-start space-x-2">
+                
+                <p class="text-sm text-gray-300 leading-relaxed"><%= sanitize(note) %></p>
+              </div>
+            <% end %>
+          </div>
+        </div>
+      <% end %>
     </div>
 
     <!-- 餐廳資訊彈出層 -->
@@ -81,18 +124,6 @@
             <% end %>
           </div>
         </div>
-        
-        <!-- 提醒事項 -->
-        <% if @restaurant.formatted_reminder_notes.any? %>
-          <div>
-            <h3 class="text-sm font-medium text-gray-300 mb-2">提醒事項</h3>
-            <div class="space-y-1 text-sm text-gray-400">
-              <% @restaurant.formatted_reminder_notes.each do |note| %>
-                <p><%= sanitize(note) %></p>
-              <% end %>
-            </div>
-          </div>
-        <% end %>
         
         <!-- 營業人名稱 -->
         <% if @restaurant.has_business_info? %>
@@ -143,19 +174,22 @@
         </div>
       </div>
 
+      <!-- 完全訂滿提示訊息 -->
+      <div data-reservation-target="fullBookingNotice" class="hidden p-4 bg-gray-900">
+        <!-- 訊息內容會由 JavaScript 動態產生 -->
+      </div>
+
       <!-- 日期選擇 -->
-      <div class="bg-gray-900 py-6 flex justify-center">
+      <div data-reservation-target="datePickerContainer" class="bg-gray-900 py-6 flex justify-center">
         <!-- 隱藏的輸入欄位用於存儲選擇的日期 -->
         <input type="hidden" 
                name="reservation[reservation_date]"
                data-reservation-target="date"
                id="selected_date">
         
-        <!-- 日曆容器 - 置中且變大 -->
-        <div class="w-full max-w-lg px-4">
-          <div data-reservation-target="calendar">
-            <!-- flatpickr 日曆會直接渲染在這裡 -->
-          </div>
+        <!-- 日曆容器 - 在畫面中間 -->
+        <div data-reservation-target="calendar">
+          <!-- flatpickr 日曆會直接渲染在這裡 -->
         </div>
       </div>
 
@@ -185,163 +219,3 @@
   </div>
 </div>
 
-<% content_for :stylesheets do %>
-  <style>
-    /* 確保整個頁面都是深色背景 */
-    body {
-      background-color: #111827 !important;
-      color: #ffffff !important;
-    }
-    
-    /* 手機優先的響應式設計 */
-    @media (max-width: 768px) {
-      .w-full {
-        width: 100% !important;
-      }
-    }
-    
-    /* 滑動動畫 */
-    @keyframes slideDown {
-      from {
-        opacity: 0;
-        transform: translateY(-10px);
-      }
-      to {
-        opacity: 1;
-        transform: translateY(0);
-      }
-    }
-    
-    .animate-slideDown {
-      animation: slideDown 0.3s ease-out;
-    }
-    
-    /* 確保日曆占滿容器且置中 */
-    .flatpickr-calendar.inline {
-      position: relative !important;
-      top: auto !important;
-      left: auto !important;
-      display: block !important;
-      margin: 0 auto !important;
-      width: 100% !important;
-      max-width: 400px !important;
-      background: #1f2937 !important;
-      border-radius: 0.75rem !important;
-      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
-      padding: 1rem !important;
-    }
-    
-    /* 強制日曆容器置中 */
-    [data-reservation-target="calendar"] {
-      display: flex !important;
-      justify-content: center !important;
-      align-items: center !important;
-    }
-    
-    /* 確保日曆在容器內置中 */
-    [data-reservation-target="calendar"] .flatpickr-calendar {
-      margin-left: auto !important;
-      margin-right: auto !important;
-    }
-    
-    /* 確保日期容器占滿寬度 */
-    .dayContainer {
-      width: 100% !important;
-      min-width: 100% !important;
-      max-width: 100% !important;
-    }
-    
-    .flatpickr-days {
-      width: 100% !important;
-    }
-    
-    .flatpickr-innerContainer {
-      width: 100% !important;
-    }
-    
-    .flatpickr-rContainer {
-      width: 100% !important;
-    }
-    
-    /* Dark 主題可見度改善 */
-    .flatpickr-day {
-      color: #e2e8f0 !important;
-      background: transparent !important;
-    }
-    
-    .flatpickr-day:hover:not(.flatpickr-disabled):not(.selected) {
-      background: #4a5568 !important;
-      color: #ffffff !important;
-    }
-    
-    .flatpickr-day.today:not(.flatpickr-disabled) {
-      background: #3182ce !important;
-      color: #ffffff !important;
-      font-weight: 600 !important;
-      border: 2px solid #63b3ed !important;
-    }
-    
-    .flatpickr-day.selected {
-      background: #2d3748 !important;
-      color: #ffffff !important;
-      font-weight: 700 !important;
-      border: 2px solid #4299e1 !important;
-    }
-    
-    .flatpickr-day.flatpickr-disabled {
-      color: #718096 !important;
-      background: #2d3748 !important;
-      opacity: 0.5 !important;
-    }
-    
-    .flatpickr-day.prevMonthDay,
-    .flatpickr-day.nextMonthDay {
-      color: #718096 !important;
-      opacity: 0.6 !important;
-    }
-    
-    /* 改善上個月和下個月日期的可見度，避免與disabled日期混淆 */
-    .flatpickr-day.prevMonthDay:not(.flatpickr-disabled):hover,
-    .flatpickr-day.nextMonthDay:not(.flatpickr-disabled):hover {
-      color: #ffffff !important;
-      background: #374151 !important;
-      opacity: 1 !important;
-    }
-    
-    /* 確保真正disabled的日期有明顯的禁用樣式 */
-    .flatpickr-day.flatpickr-disabled:hover {
-      background: #1f2937 !important;
-      color: #6b7280 !important;
-      opacity: 0.4 !important;
-    }
-    
-    /* 月份導航改善 */
-    .flatpickr-current-month {
-      color: #e2e8f0 !important;
-    }
-    
-    .flatpickr-prev-month,
-    .flatpickr-next-month {
-      color: #e2e8f0 !important;
-      fill: #e2e8f0 !important;
-    }
-    
-    .flatpickr-prev-month:hover,
-    .flatpickr-next-month:hover {
-      color: #ffffff !important;
-      fill: #ffffff !important;
-    }
-    
-    /* 星期標題改善 */
-    .flatpickr-weekday {
-      color: #a0aec0 !important;
-    }
-    
-    /* 響應式調整 */
-    @media (max-width: 640px) {
-      .flatpickr-calendar.inline {
-        width: 100% !important;
-      }
-    }
-  </style>
-<% end %> 
