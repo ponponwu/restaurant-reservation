@@ -253,16 +253,27 @@ export default class extends Controller {
             // 隱藏完全訂滿訊息，顯示日曆
             this.hideFullyBookedMessage()
 
-            // 計算不可用日期 - 使用新的 API 回應格式
+            // 計算不可用日期 - 使用新的 API 回應格式，並傳入實際可預約日期
             const disabledDates = this.calculateDisabledDates(
                 data.weekly_closures || [],
                 data.special_closures || [],
-                data.has_capacity
+                data.has_capacity,
+                availableDatesData.available_dates || []
             )
+
+            // 決定日曆的預設日期和顯示月份
+            let defaultDate = null
+            let defaultViewDate = null
+            
+            if (availableDatesData.available_dates && availableDatesData.available_dates.length > 0) {
+                // 使用第一個可預約日期作為預設日期
+                defaultDate = availableDatesData.available_dates[0]
+                defaultViewDate = new Date(defaultDate)
+            }
 
 
             // 初始化 flatpickr
-            this.datePicker = flatpickr(this.calendarTarget, {
+            const flatpickrConfig = {
                 inline: true,
                 static: true,
                 // 移除 appendTo，讓 flatpickr 使用預設行為
@@ -271,11 +282,21 @@ export default class extends Controller {
                 minDate: 'today',
                 maxDate: new Date().fp_incr(this.maxReservationDays),
                 disable: disabledDates,
+                // 如果有可預約日期，設定預設日期和視圖月份
+                ...(defaultDate && { defaultDate: defaultDate }),
+                ...(defaultViewDate && { defaultViewDate: defaultViewDate }),
                 onChange: (selectedDates, dateStr) => {
                     this.selectedDate = dateStr
 
+                    // 更新 JavaScript target 欄位
                     if (this.hasDateTarget) {
                         this.dateTarget.value = dateStr
+                    }
+                    
+                    // 同時更新表單提交的隱藏欄位
+                    const reservationDateField = document.getElementById('reservation_date')
+                    if (reservationDateField) {
+                        reservationDateField.value = dateStr
                     }
 
                     // 更新 URL，移除 show_all 參數並設定 date_filter
@@ -283,8 +304,29 @@ export default class extends Controller {
 
                     this.loadAllTimeSlots(dateStr)
                 },
-                onReady: () => {
+                onReady: (selectedDates, dateStr, instance) => {
                     setTimeout(() => this.styleFlatpickr(), 100)
+                    
+                    // 在 onReady 中，instance 就是 flatpickr 實例
+                    if (defaultDate && instance) {
+                        setTimeout(() => {
+                            // 使用 instance.setDate 而不是 this.datePicker.setDate
+                            instance.setDate(defaultDate, true)
+                            
+                            // 備份機制：如果 onChange 沒有正常觸發，手動載入時段
+                            setTimeout(() => {
+                                if (this.hasTimeSlotsTarget) {
+                                    const currentTimeSlots = this.timeSlotsTarget.innerHTML.trim()
+                                    if (!currentTimeSlots || 
+                                        currentTimeSlots.includes('請先選擇日期') || 
+                                        currentTimeSlots === '') {
+                                        this.selectedDate = defaultDate // 手動設定
+                                        this.loadAllTimeSlots(defaultDate)
+                                    }
+                                }
+                            }, 100)
+                        }, 300) // 增加延遲確保 DOM 準備完成
+                    }
                 },
                 onOpen: () => {
                     // 確保在日曆打開時也應用樣式（雖然我們使用 inline 模式，但保險起見）
@@ -298,7 +340,9 @@ export default class extends Controller {
                     // 確保在年份切換時也重新應用樣式
                     setTimeout(() => this.styleFlatpickr(), 50)
                 },
-            })
+            }
+            
+            this.datePicker = flatpickr(this.calendarTarget, flatpickrConfig)
 
         } catch (error) {
             console.error('Error initializing date picker:', error)
@@ -649,7 +693,7 @@ export default class extends Controller {
         }
     }
 
-    calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+    calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true, availableDates = []) {
         const disabledDates = []
 
         // 如果沒有容量，禁用所有日期
@@ -683,6 +727,21 @@ export default class extends Controller {
                         date.getDate() === closureDate.getDate()
                     )
                 })
+            })
+        }
+
+        // 如果有提供可預約日期列表，只允許該列表中的日期可點擊
+        if (availableDates && availableDates.length > 0) {
+            // 將可預約日期字串轉換為 Date 物件集合
+            const availableDateSet = new Set(availableDates.map(dateStr => {
+                const date = new Date(dateStr)
+                return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+            }))
+            
+            // 添加函數來禁用不在可預約列表中的日期
+            disabledDates.push((date) => {
+                const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+                return !availableDateSet.has(dateStr)
             })
         }
 
@@ -789,7 +848,8 @@ export default class extends Controller {
             const disabledDates = this.calculateDisabledDates(
                 data.weekly_closures || [],
                 data.special_closures || [],
-                data.has_capacity
+                data.has_capacity,
+                availableDatesData.available_dates || []
             )
 
             // 更新 flatpickr 的禁用日期設定
@@ -809,6 +869,12 @@ export default class extends Controller {
                 this.selectedDate = null
                 if (this.hasDateTarget) {
                     this.dateTarget.value = ''
+                }
+                
+                // 同時清除表單提交的隱藏欄位
+                const reservationDateField = document.getElementById('reservation_date')
+                if (reservationDateField) {
+                    reservationDateField.value = ''
                 }
 
                 // 清除時段選擇

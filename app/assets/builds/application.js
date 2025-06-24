@@ -12766,9 +12766,16 @@ var reservation_controller_default = class extends Controller {
       const disabledDates = this.calculateDisabledDates(
         data.weekly_closures || [],
         data.special_closures || [],
-        data.has_capacity
+        data.has_capacity,
+        availableDatesData.available_dates || []
       );
-      this.datePicker = esm_default(this.calendarTarget, {
+      let defaultDate = null;
+      let defaultViewDate = null;
+      if (availableDatesData.available_dates && availableDatesData.available_dates.length > 0) {
+        defaultDate = availableDatesData.available_dates[0];
+        defaultViewDate = new Date(defaultDate);
+      }
+      const flatpickrConfig = {
         inline: true,
         static: true,
         // 移除 appendTo，讓 flatpickr 使用預設行為
@@ -12777,16 +12784,37 @@ var reservation_controller_default = class extends Controller {
         minDate: "today",
         maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
         disable: disabledDates,
+        // 如果有可預約日期，設定預設日期和視圖月份
+        ...defaultDate && { defaultDate },
+        ...defaultViewDate && { defaultViewDate },
         onChange: (selectedDates, dateStr) => {
           this.selectedDate = dateStr;
           if (this.hasDateTarget) {
             this.dateTarget.value = dateStr;
           }
+          const reservationDateField = document.getElementById("reservation_date");
+          if (reservationDateField) {
+            reservationDateField.value = dateStr;
+          }
           this.updateUrlWithDate(dateStr);
           this.loadAllTimeSlots(dateStr);
         },
-        onReady: () => {
+        onReady: (selectedDates, dateStr, instance) => {
           setTimeout(() => this.styleFlatpickr(), 100);
+          if (defaultDate && instance) {
+            setTimeout(() => {
+              instance.setDate(defaultDate, true);
+              setTimeout(() => {
+                if (this.hasTimeSlotsTarget) {
+                  const currentTimeSlots = this.timeSlotsTarget.innerHTML.trim();
+                  if (!currentTimeSlots || currentTimeSlots.includes("\u8ACB\u5148\u9078\u64C7\u65E5\u671F") || currentTimeSlots === "") {
+                    this.selectedDate = defaultDate;
+                    this.loadAllTimeSlots(defaultDate);
+                  }
+                }
+              }, 100);
+            }, 300);
+          }
         },
         onOpen: () => {
           setTimeout(() => this.styleFlatpickr(), 100);
@@ -12797,7 +12825,8 @@ var reservation_controller_default = class extends Controller {
         onYearChange: () => {
           setTimeout(() => this.styleFlatpickr(), 50);
         }
-      });
+      };
+      this.datePicker = esm_default(this.calendarTarget, flatpickrConfig);
     } catch (error2) {
       console.error("Error initializing date picker:", error2);
       this.showError("\u8F09\u5165\u65E5\u671F\u9078\u64C7\u5668\u6642\u767C\u751F\u932F\u8AA4");
@@ -13063,7 +13092,7 @@ var reservation_controller_default = class extends Controller {
             `;
     }
   }
-  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true, availableDates = []) {
     const disabledDates = [];
     if (!hasCapacity) {
       const today = /* @__PURE__ */ new Date();
@@ -13086,6 +13115,16 @@ var reservation_controller_default = class extends Controller {
         disabledDates.push((date) => {
           return date.getFullYear() === closureDate.getFullYear() && date.getMonth() === closureDate.getMonth() && date.getDate() === closureDate.getDate();
         });
+      });
+    }
+    if (availableDates && availableDates.length > 0) {
+      const availableDateSet = new Set(availableDates.map((dateStr) => {
+        const date = new Date(dateStr);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      }));
+      disabledDates.push((date) => {
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        return !availableDateSet.has(dateStr);
       });
     }
     return disabledDates;
@@ -13151,7 +13190,8 @@ var reservation_controller_default = class extends Controller {
       const disabledDates = this.calculateDisabledDates(
         data.weekly_closures || [],
         data.special_closures || [],
-        data.has_capacity
+        data.has_capacity,
+        availableDatesData.available_dates || []
       );
       if (this.datePicker) {
         this.datePicker.set("disable", disabledDates);
@@ -13165,6 +13205,10 @@ var reservation_controller_default = class extends Controller {
         this.selectedDate = null;
         if (this.hasDateTarget) {
           this.dateTarget.value = "";
+        }
+        const reservationDateField = document.getElementById("reservation_date");
+        if (reservationDateField) {
+          reservationDateField.value = "";
         }
         if (this.hasTimeSlotsTarget) {
           this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u5148\u9078\u64C7\u65E5\u671F</p>';
