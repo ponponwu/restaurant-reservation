@@ -60,3 +60,10 @@
 
 /* Flatpickr theme overrides are no longer needed as themes are imported conditionally */
 
+/*
+ *= require_tree .
+ *= require_self
+ */
+
+/* 響應式日曆樣式已移至 application.tailwind.css */
+
