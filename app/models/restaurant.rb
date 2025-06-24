@@ -5,6 +5,9 @@ class Restaurant < ApplicationRecord
     'friday' => 5, 'saturday' => 6, 'sunday' => 0
   }.freeze
 
+  # 1. Active Storage 附件
+  has_one_attached :hero_image
+
   # 1. 關聯定義
   # belongs_to :user, optional: true # 餐廳擁有者 - 暫時註解，等建立 user_id 欄位後再啟用
   has_many :users, dependent: :nullify
@@ -33,6 +36,29 @@ class Restaurant < ApplicationRecord
   validates :business_name, length: { maximum: 100 }
   validates :tax_id, length: { maximum: 20 }
   validates :reminder_notes, length: { maximum: 2000 }
+  
+  # 圖片驗證
+  validate :hero_image_format, if: :hero_image_attached?
+
+  private
+
+  def hero_image_format
+    return unless hero_image.attached?
+
+    if hero_image.blob.byte_size > 5.megabytes
+      errors.add(:hero_image, '圖片大小不能超過 5MB')
+    end
+
+    unless hero_image.blob.content_type.in?(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+      errors.add(:hero_image, '只支援 JPEG、PNG 或 WebP 格式的圖片')
+    end
+  end
+
+  def hero_image_attached?
+    hero_image.attached?
+  end
+
+  public
 
   # 3. Scope 定義
   scope :active, -> { where(active: true, deleted_at: nil) }
