@@ -269,18 +269,27 @@ class AvailabilityService
   def get_reserved_table_ids_for_period_optimized(period_reservations, datetime, business_period_id)
     reserved_table_ids = []
 
-    period_reservations.each do |reservation|
-      # 檢查時間衝突
-      next unless has_time_conflict_optimized?(reservation, datetime, business_period_id)
+    # 先篩選出有時間衝突的 reservations
+    conflicting_reservations = period_reservations.select do |reservation|
+      has_time_conflict_optimized?(reservation, datetime, business_period_id)
+    end
 
-      # 添加直接預訂的桌位
+    # 收集直接預訂的桌位
+    conflicting_reservations.each do |reservation|
       reserved_table_ids << reservation.table_id if reservation.table_id
+    end
 
-      # 添加併桌組合中的桌位
-      next unless reservation.table_combination
+    # 批次處理 table_combinations：只查詢有衝突的 reservations
+    conflicting_reservation_ids = conflicting_reservations.map(&:id)
+    if conflicting_reservation_ids.any?
+      table_combinations = TableCombination
+        .where(reservation_id: conflicting_reservation_ids)
+        .includes(table_combination_tables: :restaurant_table)
 
-      reservation.table_combination.restaurant_tables.each do |table|
-        reserved_table_ids << table.id
+      table_combinations.each do |table_combination|
+        table_combination.restaurant_tables.each do |table|
+          reserved_table_ids << table.id
+        end
       end
     end
 
@@ -335,18 +344,27 @@ class AvailabilityService
   def get_reserved_table_ids_for_period(period_reservations, datetime, business_period_id)
     reserved_table_ids = []
 
-    period_reservations.each do |reservation|
-      # 檢查時間衝突
-      next unless has_time_conflict?(reservation, datetime, business_period_id)
+    # 先篩選出有時間衝突的 reservations
+    conflicting_reservations = period_reservations.select do |reservation|
+      has_time_conflict?(reservation, datetime, business_period_id)
+    end
 
-      # 添加直接預訂的桌位
+    # 收集直接預訂的桌位
+    conflicting_reservations.each do |reservation|
       reserved_table_ids << reservation.table_id if reservation.table_id
+    end
 
-      # 添加併桌組合中的桌位
-      next unless reservation.table_combination
+    # 批次處理 table_combinations：只查詢有衝突的 reservations
+    conflicting_reservation_ids = conflicting_reservations.map(&:id)
+    if conflicting_reservation_ids.any?
+      table_combinations = TableCombination
+        .where(reservation_id: conflicting_reservation_ids)
+        .includes(table_combination_tables: :restaurant_table)
 
-      reservation.table_combination.restaurant_tables.each do |table|
-        reserved_table_ids << table.id
+      table_combinations.each do |table_combination|
+        table_combination.restaurant_tables.each do |table|
+          reserved_table_ids << table.id
+        end
       end
     end
 

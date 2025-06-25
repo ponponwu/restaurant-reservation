@@ -82,7 +82,7 @@ class RestaurantsController < ApplicationController
     # 檢查餐廳是否有足夠容量的桌位
     has_capacity = @restaurant.has_capacity_for_party_size?(party_size)
 
-    # 獲取接下來 60 天的可預約日期
+    # 獲取接下來 餐廳可預訂天數 的可預約日期
     available_dates = if has_capacity
                         get_available_dates_with_allocator(party_size, adults, children)
                       else
@@ -215,12 +215,78 @@ class RestaurantsController < ApplicationController
 
   private
 
+  # 快取查詢結果以避免重複資料庫查詢
+  def cached_reservations_for_date_range(start_date, end_date)
+    cache_key = "#{start_date}_#{end_date}"
+    @reservations_cache ||= {}
+    
+    return @reservations_cache[cache_key] if @reservations_cache[cache_key]
+    
+    # 簡化策略：只在需要時才載入table_combinations
+    # 大部分reservation都沒有table_combination，所以先不載入
+    @reservations_cache[cache_key] = @restaurant.reservations
+      .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
+      .includes(:business_period, :table)
+      .to_a
+  end
+
+  def cached_reservations_for_date(date)
+    # 如果已經有包含該日期的範圍查詢快取，則從中過濾
+    @reservations_cache&.each do |cache_key, reservations|
+      start_date_str, end_date_str = cache_key.split('_')
+      start_date = Date.parse(start_date_str)
+      end_date = Date.parse(end_date_str)
+      
+      if date >= start_date && date <= end_date
+        return reservations.select { |r| r.reservation_datetime.to_date == date }
+      end
+    end
+    
+    # 如果沒有範圍快取，則建立單日快取
+    cache_key = date.to_s
+    @reservations_cache ||= {}
+    
+    return @reservations_cache[cache_key] if @reservations_cache[cache_key]
+    
+    @reservations_cache[cache_key] = @restaurant.reservations
+      .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) = ?', date)
+      .includes(:business_period, :table)
+      .to_a
+  end
+
+  # 懶載入table_combinations：只在需要時才查詢
+  def ensure_table_combinations_loaded(reservations)
+    return if @table_combinations_loaded
+    
+    reservation_ids = reservations.map(&:id)
+    return if reservation_ids.empty?
+    
+    # 批次載入所有table_combinations
+    table_combinations = TableCombination
+      .where(reservation_id: reservation_ids)
+      .includes(table_combination_tables: :restaurant_table)
+      .index_by(&:reservation_id)
+    
+    # 手動設定關聯以避免額外查詢
+    reservations.each do |reservation|
+      if table_combinations[reservation.id]
+        reservation.association(:table_combination).target = table_combinations[reservation.id]
+        reservation.association(:table_combination).set_inverse_instance(table_combinations[reservation.id])
+      end
+    end
+    
+    @table_combinations_loaded = true
+  end
+
   def set_restaurant
     @restaurant = Restaurant.includes(
       :business_periods,
       :restaurant_tables,
       :table_groups,
-      :closure_dates
+      :closure_dates,
+      :reservation_policy
     ).find_by!(slug: params[:slug])
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: '找不到指定的餐廳'
@@ -228,18 +294,15 @@ class RestaurantsController < ApplicationController
 
   def get_available_dates_with_allocator(party_size, _adults, _children)
     available_dates = []
-    start_date = Date.current + 1.day
-    end_date = start_date + 30.days
+    start_date = Date.current
+    advance_booking_days = @restaurant.reservation_policy&.advance_booking_days || 30
+    end_date = start_date + advance_booking_days.days
 
     # 在迴圈外初始化，避免重複建立和查詢
     availability_service = AvailabilityService.new(@restaurant)
 
-    # 預載入所有日期範圍內的訂位資料（只查詢一次）
-    all_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
+    # 使用快取避免重複查詢
+    all_reservations = cached_reservations_for_date_range(start_date, end_date)
 
     # 預載入餐廳桌位資料（只查詢一次）
     restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
@@ -250,6 +313,9 @@ class RestaurantsController < ApplicationController
     business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
 
     (start_date..end_date).each do |date|
+      # 跳過今天，不允許當天預訂
+      next if date <= Date.current
+      
       # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
       day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
 
@@ -280,12 +346,8 @@ class RestaurantsController < ApplicationController
     # 在迴圈外初始化，避免重複建立和查詢
     availability_service = AvailabilityService.new(@restaurant)
 
-    # 預載入當天的訂位資料（只查詢一次）
-    day_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) = ?', target_date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
+    # 使用快取避免重複查詢
+    day_reservations = cached_reservations_for_date(target_date)
 
     # 預載入餐廳桌位資料（只查詢一次）
     restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
@@ -327,12 +389,8 @@ class RestaurantsController < ApplicationController
     # 使用 AvailabilityService 檢查可用性
     availability_service = AvailabilityService.new(@restaurant)
 
-    # 預載入當天的訂位資料
-    day_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) = ?', date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
+    # 使用快取避免重複查詢
+    day_reservations = cached_reservations_for_date(date)
 
     # 預載入餐廳桌位資料
     restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
@@ -353,19 +411,18 @@ class RestaurantsController < ApplicationController
   end
 
   def calculate_full_booked_until(party_size, _adults, _children)
-    # 檢查接下來 90 天內第一個有空位的日期
+    # 檢查接下來可預約天數內第一個有空位的日期
     start_date = Date.current
-    end_date = start_date + 90.days
+    advance_booking_days = @restaurant.reservation_policy&.advance_booking_days || 30
+    end_date = start_date + advance_booking_days.days
+
+    Rails.logger.info "🔍 calculate_full_booked_until: party_size=#{party_size}, start_date=#{start_date}, end_date=#{end_date}, advance_booking_days=#{advance_booking_days}"
 
     # 在迴圈外初始化，避免重複建立和查詢
     availability_service = AvailabilityService.new(@restaurant)
 
-    # 預載入所有日期範圍內的訂位資料（只查詢一次）
-    all_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
+    # 使用快取避免重複查詢
+    all_reservations = cached_reservations_for_date_range(start_date, end_date)
 
     # 預載入餐廳桌位資料（只查詢一次）
     restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
@@ -376,6 +433,9 @@ class RestaurantsController < ApplicationController
     business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
 
     (start_date..end_date).each do |date|
+      # 跳過今天，不允許當天預訂
+      next if date <= Date.current
+      
       # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
       day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
 
@@ -387,11 +447,12 @@ class RestaurantsController < ApplicationController
         business_periods_cache,
         party_size
       )
+        Rails.logger.info "🔍 Found first available date: #{date}"
         return date
       end
     end
 
-    # 如果 90 天內都沒有空位，回傳 90 天後
+    # 如果可預約天數內都沒有空位，回傳最後一天
     end_date
   end
 

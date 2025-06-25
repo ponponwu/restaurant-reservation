@@ -257,16 +257,16 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
 
   # 尋找桌位組合的演算法
   def find_table_combination(tables, target_capacity)
-    # 簡化版本：嘗試兩桌併桌
-    tables.combination(2).each do |table_pair|
-      total_capacity = table_pair.sum(&:capacity)
-      return table_pair if total_capacity >= target_capacity
-    end
+    # 獲取餐廳允許的最大併桌數量
+    max_tables = @restaurant.max_tables_per_combination || 3
+    max_tables = [max_tables, tables.size].min
 
-    # 如果兩桌不夠，嘗試三桌（較少見）
-    tables.combination(3).each do |table_trio|
-      total_capacity = table_trio.sum(&:capacity)
-      return table_trio if total_capacity >= target_capacity
+    # 從2桌開始，逐步增加桌數直到滿足需求或達到上限
+    (2..max_tables).each do |table_count|
+      tables.combination(table_count).each do |table_combination|
+        total_capacity = table_combination.sum(&:capacity)
+        return table_combination if total_capacity >= target_capacity
+      end
     end
 
     nil
