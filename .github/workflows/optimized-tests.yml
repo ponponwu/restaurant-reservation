@@ -69,7 +69,7 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
       run: |
         echo "執行快速測試 - 預計執行時間: ~30秒"
-        time bin/rspec-fast --format documentation
+        time bin/rspec-fast
 
   # 階段 2: 中速測試 - 業務邏輯驗證 (~2分鐘)
   medium_tests:
@@ -142,7 +142,7 @@ jobs:
         REDIS_URL: redis://localhost:6379/0
       run: |
         echo "執行中速測試 - 預計執行時間: ~2分鐘"
-        time bin/rspec-fast medium --format documentation
+        time bin/rspec-fast medium
 
   # 階段 3: 系統測試 - 僅在需要時執行 (~3-5分鐘)
   system_tests:
@@ -238,7 +238,7 @@ jobs:
         CHROME_BIN: /opt/hostedtoolcache/chromium/*/x64/chrome
       run: |
         echo "執行系統測試 - 預計執行時間: ~3-5分鐘"
-        time bin/rspec-fast slow --format documentation
+        time bin/rspec-fast slow
     
     - name: Upload screenshots on failure 📸
       if: failure()
