@@ -2,6 +2,12 @@ require 'capybara/rails'
 require 'capybara/rspec'
 require 'selenium/webdriver'
 
+# 確保 SystemTestHelpers 被載入以使用 configure_chrome_binary 方法
+require_relative 'system_test_helpers'
+
+# 包含 SystemTestHelpers 以便使用 configure_chrome_binary 方法
+include SystemTestHelpers
+
 # 配置 Capybara
 Capybara.register_driver :headless_chrome do |app|
   options = Selenium::WebDriver::Chrome::Options.new
@@ -29,9 +35,8 @@ Capybara.register_driver :headless_chrome do |app|
   options.add_argument('--disable-features=TranslateUI')
   options.add_argument('--disable-ipc-flooding-protection')
 
-  # 嘗試設定 Chrome 二進位路徑（如果需要特定版本）
-  chrome_bin = ENV.fetch('CHROME_BIN', nil)
-  options.binary = chrome_bin if chrome_bin && File.exist?(chrome_bin)
+  # 配置 Chrome 二進位路徑
+  configure_chrome_binary(options)
 
   Capybara::Selenium::Driver.new(
     app,
@@ -47,8 +52,8 @@ Capybara.register_driver :chrome do |app|
   options.add_argument('--disable-web-security')
   options.add_argument('--allow-running-insecure-content')
 
-  chrome_bin = ENV.fetch('CHROME_BIN', nil)
-  options.binary = chrome_bin if chrome_bin && File.exist?(chrome_bin)
+  # 配置 Chrome 二進位路徑
+  configure_chrome_binary(options)
 
   Capybara::Selenium::Driver.new(
     app,
@@ -63,8 +68,9 @@ Capybara.javascript_driver = :headless_chrome
 
 # 基本配置
 Capybara.default_max_wait_time = 10
-Capybara.server_port = 3001
-Capybara.app_host = 'http://localhost:3001'
+# 使用隨機端口避免衝突
+Capybara.server_port = nil  # 讓 Capybara 自動選擇可用端口
+Capybara.app_host = nil     # 讓 Capybara 自動設定
 
 # 伺服器配置
 Capybara.server = :puma, { Silent: true }
@@ -137,6 +143,21 @@ rescue Selenium::WebDriver::Error::WebDriverError => e
   driven_by :rack_test
 end
 
+# 瀏覽器路徑配置輔助方法
+def configure_chrome_binary(options)
+  chrome_bin = ENV.fetch('CHROME_BIN', nil)
+  if chrome_bin.nil?
+    # 優先使用正常的 Google Chrome（版本較新）
+    regular_chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+    if File.exist?(regular_chrome)
+      options.binary = regular_chrome
+    end
+    # 如果找不到正常版本，讓 Selenium 使用預設路徑
+  elsif File.exist?(chrome_bin)
+    options.binary = chrome_bin
+  end
+end
+
 # 輔助方法：檢查瀏覽器是否可用
 def browser_available?
   # 嘗試創建一個簡單的 WebDriver 實例
@@ -144,18 +165,33 @@ def browser_available?
   options.add_argument('--headless')
   options.add_argument('--no-sandbox')
   options.add_argument('--disable-dev-shm-usage')
+  
+  configure_chrome_binary(options)
 
-  driver = Selenium::WebDriver.for(:chrome, options: options)
-  driver.quit
-  true
-rescue StandardError => e
-  Rails.logger.warn "Browser availability check failed: #{e.message}" if defined?(Rails)
-  false
+  begin
+    driver = Selenium::WebDriver.for(:chrome, options: options)
+    driver.quit
+    true
+  rescue StandardError => e
+    Rails.logger.warn "Browser availability check failed: #{e.message}" if defined?(Rails)
+    puts "Browser not available: #{e.message}" if ENV['RAILS_ENV'] == 'test'
+    false
+  end
 end
 
-# 條件性系統測試支援 - 如果瀏覽器不可用則跳過系統測試
+# 條件性系統測試支援
 if defined?(RSpec)
   RSpec.configure do |config|
-    config.filter_run_excluding :system unless browser_available?
+    # 在測試套件開始前檢查瀏覽器可用性
+    config.before(:suite) do
+      if RSpec.configuration.files_to_run.any? { |f| f.include?('spec/system') }
+        unless browser_available?
+          puts "\n⚠️  Warning: Browser not available for system tests. Individual tests will be skipped."
+          puts "   Please ensure Chrome and ChromeDriver versions are compatible."
+        else
+          puts "\n✅ Browser compatibility verified. System tests will run normally."
+        end
+      end
+    end
   end
 end

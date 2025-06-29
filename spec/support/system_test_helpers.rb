@@ -1,4 +1,19 @@
 module SystemTestHelpers
+  # Chrome 二進位路徑配置
+  def configure_chrome_binary(options)
+    chrome_bin = ENV.fetch('CHROME_BIN', nil)
+    if chrome_bin.nil?
+      # 優先使用正常的 Google Chrome（版本較新）
+      regular_chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
+      if File.exist?(regular_chrome)
+        options.binary = regular_chrome
+      end
+      # 如果找不到正常版本，讓 Selenium 使用預設路徑
+    elsif File.exist?(chrome_bin)
+      options.binary = chrome_bin
+    end
+  end
+
   # 安全執行系統測試的輔助方法
   def safely_run_system_test
     return skip_system_test_with_message('Browser not available') unless browser_available?
@@ -28,7 +43,7 @@ module SystemTestHelpers
     skip "System test skipped: #{message}"
   end
 
-  # 檢查瀏覽器可用性
+  # 檢查瀏覽器可用性（使用快取以避免重複檢查）
   def browser_available?
     return @browser_available if defined?(@browser_available)
 
@@ -38,12 +53,16 @@ module SystemTestHelpers
       options.add_argument('--headless')
       options.add_argument('--no-sandbox')
       options.add_argument('--disable-dev-shm-usage')
+      
+      # 使用與主要配置相同的Chrome路徑邏輯
+      configure_chrome_binary(options)
 
       driver = Selenium::WebDriver.for(:chrome, options: options)
       driver.quit
       true
     rescue StandardError => e
       Rails.logger.warn "Browser availability check failed: #{e.message}"
+      puts "Browser availability check failed: #{e.message}" if ENV['RAILS_ENV'] == 'test'
       false
     end
   end
@@ -57,6 +76,9 @@ module SystemTestHelpers
         options = Selenium::WebDriver::Chrome::Options.new
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
+        
+        # 使用與主要配置相同的Chrome路徑邏輯
+        configure_chrome_binary(options)
 
         driver = Selenium::WebDriver.for(:chrome, options: options)
         version = driver.capabilities.browser_version
