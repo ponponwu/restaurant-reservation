@@ -232,6 +232,37 @@ Uses Redis-based distributed locking:
 - Check migrations: `rails db:migrate:status`
 - Seed development data: `rails db:seed`
 
+### System Test Browser Issues
+If system tests show "Browser not available in test environment":
+
+1. **Check Chrome and ChromeDriver versions compatibility:**
+```bash
+# Check current versions
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+chromedriver --version
+
+# Update ChromeDriver if versions don't match
+brew upgrade chromedriver
+```
+
+2. **Chrome for Testing vs Regular Chrome:**
+   - System may have both "Google Chrome" and "Google Chrome for Testing"
+   - Regular Chrome (/Applications/Google Chrome.app) is preferred for newer versions
+   - Chrome for Testing (/Applications/Google Chrome for Testing.app) is older
+   - Configuration automatically chooses the right version
+
+3. **Browser configuration location:**
+   - `spec/support/capybara.rb` - Main Capybara driver setup
+   - `spec/support/system_test_helpers.rb` - Browser availability checks
+   - Both files use unified `configure_chrome_binary()` method
+
+4. **Environment variable override:**
+```bash
+# Force specific Chrome binary if needed
+export CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+bundle exec rspec spec/system
+```
+
 ## Important Notes
 
 ### Security Requirements
