@@ -104,6 +104,9 @@ jobs:
               run: yarn build:css
 
             - name: Precompile assets
+              env:
+                RAILS_ENV: production
+                REDIS_URL: redis://localhost:6379/0
               run: bundle exec rails assets:precompile
 
             - name: Run all tests
