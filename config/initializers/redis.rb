@@ -41,8 +41,8 @@ else
   rescue Redis::CannotConnectError, Redis::TimeoutError => e
     Rails.logger.warn "無法連接到 Redis (#{redis_url}): #{e.message}"
     
-    if Rails.env.development?
-      Rails.logger.warn 'Redis 連接失敗，開發環境將使用記憶體快取'
+    if Rails.env.development? || ENV['CI'] == 'true'
+      Rails.logger.warn 'Redis 連接失敗，將使用記憶體快取'
       # 在開發環境中，如果 Redis 不可用，使用簡單的記憶體實現
       Redis.current = Class.new do
         def initialize
