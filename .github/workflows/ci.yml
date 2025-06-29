@@ -103,11 +103,13 @@ jobs:
             - name: Compile CSS assets
               run: yarn build:css
 
+            - name: Generate SECRET_KEY_BASE for assets
+              run: echo "SECRET_KEY_BASE=$(bundle exec rails secret)" >> $GITHUB_ENV
+
             - name: Precompile assets
               env:
                 RAILS_ENV: production
                 REDIS_URL: redis://localhost:6379/0
-                SECRET_KEY_BASE: dummy_secret_key_for_ci_asset_compilation_only
               run: bundle exec rails assets:precompile
 
             - name: Run all tests
