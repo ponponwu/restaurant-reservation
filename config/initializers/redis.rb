@@ -20,12 +20,28 @@ if Rails.env.test?
   # 設定 Redis.current 指向測試模擬
   Redis.current = TestRedis.new
   Rails.logger.info 'Redis.current 設定為 TestRedis (測試環境)'
+elsif ENV['CI'] == 'true'
+  # CI 環境直接使用最簡單的 mock，不嘗試連接
+  require 'ostruct'
+  Redis.current = OpenStruct.new(
+    ping: 'PONG',
+    set: true,
+    get: nil,
+    del: 0,
+    exists?: 0,
+    keys: [],
+    ttl: -1,
+    eval: 0,
+    flushdb: 'OK',
+    info: { 'redis_version' => 'ci-mock', 'redis_mode' => 'mock' }
+  )
+  Rails.logger.info 'CI 環境，使用簡單 Redis mock'
 else
   # 開發和生產環境配置
   begin
     redis_url = ENV.fetch('REDIS_URL', 'redis://localhost:6379/0')
     
-    redis_config = {
+  redis_config = {
       url: redis_url,
       timeout: 1,
       reconnect_attempts: 3
