@@ -31,3 +31,6 @@ node_modules/
 
 public/assets/*
 app/assets/builds/*app/assets/builds/*
+
+/config/credentials/staging.key
+/config/credentials/production.key

@@ -105,7 +105,8 @@ jobs:
 
             - name: Precompile assets
               env:
-                RAILS_ENV: development
+                RAILS_ENV: production
+                RAILS_MASTER_KEY: ${{ secrets.RAILS_MASTER_KEY_STAGING }}
                 REDIS_URL: redis://localhost:6379/0
               run: bundle exec rails assets:precompile
 
