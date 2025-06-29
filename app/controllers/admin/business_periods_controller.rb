@@ -133,8 +133,16 @@ class Admin::BusinessPeriodsController < AdminController
                     Restaurant.find_by!(slug: params[:restaurant_id])
                   else
                     # 餐廳管理員和員工只能存取自己的餐廳
-                    Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:restaurant_id])
+                    if current_user.restaurant_id.present?
+                      Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:restaurant_id])
+                    else
+                      # 如果用戶沒有餐廳關聯，直接拋出記錄未找到錯誤
+                      raise ActiveRecord::RecordNotFound, "User has no restaurant association"
+                    end
                   end
+  rescue ActiveRecord::RecordNotFound => e
+    Rails.logger.warn "Restaurant access denied: #{e.message} for user #{current_user.id}"
+    redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的營業時段管理'
   end
 
   def check_restaurant_access

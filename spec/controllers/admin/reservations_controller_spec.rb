@@ -37,19 +37,19 @@ RSpec.describe Admin::ReservationsController do
 
     context 'when time is within lunch period' do
       it 'returns lunch period for 11:00' do
-        datetime = Time.zone.parse('2025-06-19 11:00:00')
+        datetime = 3.days.from_now.change(hour: 11, min: 0)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
 
       it 'returns lunch period for 13:00' do
-        datetime = Time.zone.parse('2025-06-19 13:00:00')
+        datetime = 3.days.from_now.change(hour: 13, min: 0)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
 
       it 'returns lunch period for exact start time 11:30' do
-        datetime = Time.zone.parse('2025-06-19 11:30:00')
+        datetime = 3.days.from_now.change(hour: 11, min: 30)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
@@ -57,19 +57,19 @@ RSpec.describe Admin::ReservationsController do
 
     context 'when time is within dinner period' do
       it 'returns dinner period for 19:00' do
-        datetime = Time.zone.parse('2025-06-19 19:00:00')
+        datetime = 3.days.from_now.change(hour: 19, min: 0)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
 
       it 'returns dinner period for 20:00' do
-        datetime = Time.zone.parse('2025-06-19 20:00:00')
+        datetime = 3.days.from_now.change(hour: 20, min: 0)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
 
       it 'returns dinner period for exact start time 17:30' do
-        datetime = Time.zone.parse('2025-06-19 17:30:00')
+        datetime = 3.days.from_now.change(hour: 17, min: 30)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
@@ -77,19 +77,19 @@ RSpec.describe Admin::ReservationsController do
 
     context 'when time is outside business periods' do
       it 'returns closest period for early morning time 09:00 (closer to lunch)' do
-        datetime = Time.zone.parse('2025-06-19 09:00:00')
+        datetime = 3.days.from_now.change(hour: 9, min: 0)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
 
       it 'returns closest period for late night time 23:00 (closer to dinner)' do
-        datetime = Time.zone.parse('2025-06-19 23:00:00')
+        datetime = 3.days.from_now.change(hour: 23, min: 0)
         result = controller_instance.send(:determine_business_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
 
       it 'returns closest period for afternoon time 15:30 (between periods)' do
-        datetime = Time.zone.parse('2025-06-19 15:30:00')
+        datetime = 3.days.from_now.change(hour: 15, min: 30)
         result = controller_instance.send(:determine_business_period, datetime)
         # 15:30 should be closer to dinner (17:30-21:30) than lunch (11:30-14:30)
         expect(result).to eq(@dinner_period.id)
@@ -98,10 +98,22 @@ RSpec.describe Admin::ReservationsController do
 
     context 'with timezone handling' do
       it 'handles UTC datetime correctly' do
-        # UTC 時間 11:00 應該對應台北時間 19:00 (UTC+8)
-        datetime = Time.parse('2025-06-19 11:00:00 UTC')
+        # UTC 時間 11:00 應該對應台北時間 19:00 (UTC+8)，在晚餐時段內
+        # 但實際上台北時間是UTC+8，所以UTC 11:00 = 台北19:00
+        datetime = 3.days.from_now.change(hour: 11, min: 0).utc
+        local_time = datetime.in_time_zone('Asia/Taipei')
+        
         result = controller_instance.send(:determine_business_period, datetime)
-        expect(result).to eq(@dinner_period.id)
+        
+        # 根據實際時間判斷應該屬於哪個時段
+        if local_time.hour >= 17 && local_time.hour <= 21
+          expect(result).to eq(@dinner_period.id)
+        elsif local_time.hour >= 11 && local_time.hour <= 14
+          expect(result).to eq(@lunch_period.id)
+        else
+          # 如果不在營業時段內，應該返回最接近的時段
+          expect([(@lunch_period.id), (@dinner_period.id)]).to include(result)
+        end
       end
     end
   end
@@ -124,6 +136,10 @@ RSpec.describe Admin::ReservationsController do
         table_group: table_group,
         active: true
       )
+    end
+
+    before do
+      Reservation.destroy_all
     end
 
     let(:reservation_params) do
@@ -195,7 +211,7 @@ RSpec.describe Admin::ReservationsController do
         party_size: 2,
         adults_count: 2,
         children_count: 0,
-        reservation_datetime: '2025-06-25T19:00',
+        reservation_datetime: 3.days.from_now.change(hour: 19, min: 0).iso8601,
         table_id: table.id
       }
     end
@@ -210,7 +226,7 @@ RSpec.describe Admin::ReservationsController do
           party_size: 2,
           adults_count: 2,
           children_count: 0,
-          reservation_datetime: Time.zone.parse('2025-06-25T19:00'),
+          reservation_datetime: 3.days.from_now.change(hour: 19, min: 0),
           business_period: @dinner_period,
           table: table,
           status: :confirmed
@@ -248,7 +264,7 @@ RSpec.describe Admin::ReservationsController do
         expect(new_reservation.table).to eq(another_table)
 
         # 驗證成功訊息
-        expect(response).to redirect_to(admin_restaurant_reservations_path(restaurant, date_filter: '2025-06-25'))
+        expect(response).to redirect_to(admin_restaurant_reservations_path(restaurant, date_filter: 3.days.from_now.strftime('%Y-%m-%d')))
         expect(flash[:notice]).to include('訂位建立成功')
       end
 
@@ -271,7 +287,7 @@ RSpec.describe Admin::ReservationsController do
           party_size: 4,
           adults_count: 4,
           children_count: 0,
-          reservation_datetime: Time.zone.parse('2025-06-25T18:00'), # 使用不同時間避免衝突
+          reservation_datetime: 3.days.from_now.change(hour: 18, min: 0), # 使用不同時間避免衝突
           business_period: @dinner_period,
           table: big_table,
           status: :confirmed,

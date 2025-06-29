@@ -103,6 +103,7 @@ group :development, :test do
   gem 'rubocop-rails', '~> 2.20', require: false
   gem 'rubocop-rspec', '~> 2.23', require: false
   gem 'simplecov', '~> 0.22', require: false
+  gem 'timecop'
 end
 
 group :development do

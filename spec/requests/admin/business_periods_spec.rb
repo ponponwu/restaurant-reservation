@@ -120,7 +120,8 @@ RSpec.describe 'Admin::BusinessPeriods' do
 
   describe 'authorization' do
     context 'when user is not admin' do
-      let(:regular_user) { create(:user) }
+      let(:other_restaurant) { create(:restaurant) }
+      let(:regular_user) { create(:user, :manager, restaurant: other_restaurant) }
 
       before do
         sign_out user
@@ -130,6 +131,22 @@ RSpec.describe 'Admin::BusinessPeriods' do
       it 'redirects to unauthorized page' do
         get admin_restaurant_business_periods_path(restaurant)
         expect(response).to have_http_status(:redirect)
+        expect(response).to redirect_to(admin_restaurants_path)
+      end
+    end
+
+    context 'when user has no restaurant' do
+      let(:employee_without_restaurant) { create(:user, role: :employee) }
+
+      before do
+        sign_out user
+        sign_in employee_without_restaurant
+      end
+
+      it 'redirects to unauthorized page' do
+        get admin_restaurant_business_periods_path(restaurant)
+        expect(response).to have_http_status(:redirect)
+        expect(response).to redirect_to(admin_restaurants_path)
       end
     end
 

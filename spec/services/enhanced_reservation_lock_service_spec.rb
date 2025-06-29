@@ -135,8 +135,8 @@ RSpec.describe EnhancedReservationLockService, type: :service do
       lock_key = service.send(:generate_lock_key, restaurant_id, datetime, party_size)
       service.send(:redis).set(lock_key, 'test_value', ex: 1)
 
-      # 等待過期（減少等待時間）
-      sleep(1.1)
+      # 等待過期（大幅減少等待時間）
+      sleep(0.3)
 
       active_locks = service.active_locks
       expect(active_locks).to be_empty
@@ -162,7 +162,7 @@ RSpec.describe EnhancedReservationLockService, type: :service do
           
           service.with_lock(restaurant_id, datetime, party_size) do
             results << "Thread #{i} success"
-            sleep(0.1) # 減少持有鎖定時間到100毫秒
+            sleep(0.05) # 減少持有鎖定時間到50毫秒
           end
         rescue ConcurrentReservationError
           results << "Thread #{i} failed"

@@ -22,11 +22,10 @@ export default class extends Controller {
     }
 
     connect() {
-
         this.selectedDate = null
         this.selectedPeriodId = null
         this.selectedTime = null
-        this.maxReservationDays = 30 // 預設值，將從 API 獲取實際值
+        this.maxReservationDays = 30
 
         // 監聽窗口大小變化，重新應用縮放（使用防抖動）
         this.resizeTimeout = null
@@ -37,11 +36,11 @@ export default class extends Controller {
                 if (calendarElement) {
                     this.applyResponsiveScale(calendarElement)
                 }
-            }, 150) // 防抖動延遲
+            }, 150)
         }
         window.addEventListener('resize', this.resizeHandler)
 
-        // 也監聽 orientationchange 事件（手機旋轉）
+        // 監聽手機旋轉事件
         window.addEventListener('orientationchange', () => {
             setTimeout(() => {
                 const calendarElement = this.calendarTarget?.querySelector('.flatpickr-calendar')
@@ -55,7 +54,7 @@ export default class extends Controller {
         setTimeout(() => {
             this.initDatePicker()
             this.setupGuestCountListeners()
-            this.updateGuestCountOptions() // 初始化人數選項
+            this.updateGuestCountOptions()
         }, 100)
     }
 
@@ -73,13 +72,8 @@ export default class extends Controller {
 
     setupGuestCountListeners() {
         const handleGuestCountChange = () => {
-
-            // 動態更新選項
             this.updateGuestCountOptions()
-
             this.updateHiddenFields()
-
-            // 清除當前選中的時段，因為人數變更可能會影響可用性
             this.clearSelectedTimeSlot()
 
             // 重新獲取可用日期（因為人數變更可能影響日期可用性）
@@ -113,8 +107,6 @@ export default class extends Controller {
         const currentAdults = parseInt(this.adultCountTarget.value) || 1
         const currentChildren = parseInt(this.childCountTarget.value) || 0
         const maxPartySize = this.maxPartySizeValue || 6
-        const minPartySize = this.minPartySizeValue || 1
-
 
         // 更新大人選項 (至少1人)
         this.updateSelectOptions(this.adultCountTarget, currentAdults, 1, maxPartySize - currentChildren)
@@ -140,7 +132,6 @@ export default class extends Controller {
             }
             selectElement.appendChild(option)
         }
-
     }
 
     validateCurrentSelection() {
@@ -153,8 +144,6 @@ export default class extends Controller {
         if (totalPartySize > maxPartySize) {
             const adjustedChildren = Math.max(0, maxPartySize - adults)
             this.childCountTarget.value = adjustedChildren
-
-            // 重新更新選項以反映新的狀態
             setTimeout(() => this.updateGuestCountOptions(), 10)
         }
 
@@ -186,7 +175,6 @@ export default class extends Controller {
 
     async initDatePicker() {
         if (!this.hasCalendarTarget) {
-            console.error('No calendar target found')
             return
         }
 
@@ -226,10 +214,28 @@ export default class extends Controller {
             // 檢查是否完全沒有可用日期
             if (
                 availableDatesData.has_capacity &&
-                availableDatesData.available_dates.length === 0 &&
-                availableDatesData.full_booked_until
+                (!availableDatesData.available_dates || availableDatesData.available_dates.length === 0)
             ) {
-                this.showFullyBookedMessage(availableDatesData.full_booked_until, partySize)
+                // 銷毀現有的 flatpickr 實例
+                if (this.datePicker) {
+                    this.datePicker.destroy()
+                    this.datePicker = null
+                }
+                // 使用 full_booked_until 如果有的話，否則使用餐廳設定的預約天數作為預設值
+                const advanceBookingDays = availableDatesData.advance_booking_days || 30
+                const fullBookedUntil = availableDatesData.full_booked_until || new Date(Date.now() + advanceBookingDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                this.showFullyBookedMessage(fullBookedUntil, partySize)
+                return
+            }
+
+            // 如果餐廳沒有足夠容量，也顯示相應訊息
+            if (!availableDatesData.has_capacity) {
+                // 銷毀現有的 flatpickr 實例
+                if (this.datePicker) {
+                    this.datePicker.destroy()
+                    this.datePicker = null
+                }
+                this.showNoCapacityMessage(partySize)
                 return
             }
 
@@ -250,6 +256,11 @@ export default class extends Controller {
 
             const data = await response.json()
 
+            // 更新最大預約天數為餐廳實際設定
+            if (data.max_days) {
+                this.maxReservationDays = data.max_days
+            }
+
             // 隱藏完全訂滿訊息，顯示日曆
             this.hideFullyBookedMessage()
 
@@ -268,7 +279,17 @@ export default class extends Controller {
             if (availableDatesData.available_dates && availableDatesData.available_dates.length > 0) {
                 // 使用第一個可預約日期作為預設日期
                 defaultDate = availableDatesData.available_dates[0]
-                defaultViewDate = new Date(defaultDate)
+                try {
+                    defaultViewDate = new Date(defaultDate)
+                    // 驗證日期是否有效
+                    if (isNaN(defaultViewDate.getTime())) {
+                        defaultDate = null
+                        defaultViewDate = null
+                    }
+                } catch (error) {
+                    defaultDate = null
+                    defaultViewDate = null
+                }
             }
 
 
@@ -285,7 +306,12 @@ export default class extends Controller {
                 // 如果有可預約日期，設定預設日期和視圖月份
                 ...(defaultDate && { defaultDate: defaultDate }),
                 ...(defaultViewDate && { defaultViewDate: defaultViewDate }),
-                onChange: (selectedDates, dateStr) => {
+                onChange: (_, dateStr) => {
+                    // 檢查日期是否有效且不為空
+                    if (!dateStr || dateStr === '') {
+                        return
+                    }
+                    
                     this.selectedDate = dateStr
 
                     // 更新 JavaScript target 欄位
@@ -304,13 +330,11 @@ export default class extends Controller {
 
                     this.loadAllTimeSlots(dateStr)
                 },
-                onReady: (selectedDates, dateStr, instance) => {
+                onReady: (_, __, instance) => {
                     setTimeout(() => this.styleFlatpickr(), 100)
                     
-                    // 在 onReady 中，instance 就是 flatpickr 實例
                     if (defaultDate && instance) {
                         setTimeout(() => {
-                            // 使用 instance.setDate 而不是 this.datePicker.setDate
                             instance.setDate(defaultDate, true)
                             
                             // 備份機制：如果 onChange 沒有正常觸發，手動載入時段
@@ -320,32 +344,28 @@ export default class extends Controller {
                                     if (!currentTimeSlots || 
                                         currentTimeSlots.includes('請先選擇日期') || 
                                         currentTimeSlots === '') {
-                                        this.selectedDate = defaultDate // 手動設定
+                                        this.selectedDate = defaultDate
                                         this.loadAllTimeSlots(defaultDate)
                                     }
                                 }
                             }, 100)
-                        }, 300) // 增加延遲確保 DOM 準備完成
+                        }, 300)
                     }
                 },
                 onOpen: () => {
-                    // 確保在日曆打開時也應用樣式（雖然我們使用 inline 模式，但保險起見）
                     setTimeout(() => this.styleFlatpickr(), 100)
                 },
                 onMonthChange: () => {
-                    // 確保在月份切換時也重新應用樣式
                     setTimeout(() => this.styleFlatpickr(), 50)
                 },
                 onYearChange: () => {
-                    // 確保在年份切換時也重新應用樣式
                     setTimeout(() => this.styleFlatpickr(), 50)
-                },
+                }
             }
             
             this.datePicker = flatpickr(this.calendarTarget, flatpickrConfig)
 
         } catch (error) {
-            console.error('Error initializing date picker:', error)
             this.showError('載入日期選擇器時發生錯誤')
         }
     }
@@ -374,14 +394,12 @@ export default class extends Controller {
         calendarElement.style.display = 'block'
         calendarElement.style.width = '100%'
         calendarElement.style.maxWidth = '100%'
-
-        // 確保 transform 樣式不會被覆蓋
         calendarElement.style.transformOrigin = 'center center'
 
-        // 強制應用等比例放大樣式
+        // 應用響應式縮放
         this.applyResponsiveScale(calendarElement)
 
-        // 讓dayContainer使用CSS設定
+        // 讓容器使用CSS設定
         const dayContainer = calendarElement.querySelector('.dayContainer')
         if (dayContainer) {
             dayContainer.style.width = ''
@@ -389,41 +407,34 @@ export default class extends Controller {
             dayContainer.style.maxWidth = ''
         }
 
-        // 讓days容器使用CSS設定
         const daysContainer = calendarElement.querySelector('.flatpickr-days')
         if (daysContainer) {
             daysContainer.style.width = ''
         }
-
     }
 
     applyResponsiveScale(calendarElement) {
         const screenWidth = window.innerWidth
         let scale, margin, maxWidth
 
-        // 配合 CSS 斷點的響應式縮放
+        // 響應式縮放設定
         if (screenWidth <= 480) {
-            // 極小螢幕 - 手機直向
             scale = 1.2
             margin = '1rem auto'
             maxWidth = '100%'
         } else if (screenWidth <= 768) {
-            // 小螢幕 - 手機橫向/小平板
             scale = 1.1
             margin = '1rem auto'
             maxWidth = '90%'
         } else if (screenWidth <= 1024) {
-            // 中等螢幕 - 平板
             scale = 1.1
             margin = '1.25rem auto'
             maxWidth = '100%'
         } else if (screenWidth <= 1440) {
-            // 大螢幕 - 桌機
             scale = 1.2
             margin = '2rem auto'
             maxWidth = '100%'
         } else {
-            // 超大螢幕 - 大桌機
             scale = 1.3
             margin = '2rem auto'
             maxWidth = '100%'
@@ -438,7 +449,7 @@ export default class extends Controller {
         calendarElement.style.maxWidth = maxWidth
     }
 
-    updateFullBookingNotice(data) {
+    updateFullBookingNotice() {
         // 簡化邏輯：不顯示額滿提示訊息
         if (this.hasFullBookingNoticeTarget) {
             this.fullBookingNoticeTarget.classList.add('hidden')
@@ -446,10 +457,41 @@ export default class extends Controller {
     }
 
     showFullyBookedMessage(fullBookedUntil, partySize) {
+        // 清除選中的日期
+        this.selectedDate = null
+        this.selectedTime = null
+        this.selectedPeriodId = null
 
-        // 隱藏日曆
+        // 清除隱藏欄位
+        const reservationDateField = document.getElementById('reservation_date')
+        if (reservationDateField) {
+            reservationDateField.value = ''
+        }
+        
+        if (this.hasDateTarget) {
+            this.dateTarget.value = ''
+        }
+
+        // 清除 URL 參數
+        const url = new URL(window.location)
+        url.searchParams.delete('date_filter')
+        window.history.pushState({}, '', url.toString())
+
+        // 銷毀並清除 flatpickr 實例
+        if (this.datePicker) {
+            this.datePicker.destroy()
+            this.datePicker = null
+        }
+
+        // 清除日曆容器內容
+        if (this.hasCalendarTarget) {
+            this.calendarTarget.innerHTML = ''
+        }
+
+        // 完全隱藏整個日期選擇容器
         if (this.hasDatePickerContainerTarget) {
             this.datePickerContainerTarget.classList.add('hidden')
+            this.datePickerContainerTarget.style.display = 'none'
         }
 
         // 隱藏時間選擇區域
@@ -468,7 +510,75 @@ export default class extends Controller {
                         </svg>
                     </div>
                     <h3 class="text-lg font-semibold text-white mb-2">訂位已額滿</h3>
-                    <p class="text-gray-300">到 ${formattedDate} 為止 ${partySize} 人訂位已額滿</p>
+                    <p class="text-gray-300">到 <strong>${formattedDate}</strong> 前，<strong>${partySize} 人</strong>位的訂位已額滿</p>
+                    <p class="text-gray-400 text-sm mt-2">請嘗試調整人數或選擇其他日期，或直接聯絡餐廳</p>
+                </div>
+            `
+            this.fullBookingNoticeTarget.classList.remove('hidden')
+        }
+
+        // 禁用下一步按鈕
+        if (this.hasNextStepTarget) {
+            this.nextStepTarget.disabled = true
+            this.nextStepTarget.classList.remove('bg-blue-600', 'hover:bg-blue-700')
+            this.nextStepTarget.classList.add('bg-gray-600', 'hover:bg-gray-500')
+        }
+    }
+
+    showNoCapacityMessage(partySize) {
+        // 清除選中的日期
+        this.selectedDate = null
+        this.selectedTime = null
+        this.selectedPeriodId = null
+
+        // 清除隱藏欄位
+        const reservationDateField = document.getElementById('reservation_date')
+        if (reservationDateField) {
+            reservationDateField.value = ''
+        }
+        
+        if (this.hasDateTarget) {
+            this.dateTarget.value = ''
+        }
+
+        // 清除 URL 參數
+        const url = new URL(window.location)
+        url.searchParams.delete('date_filter')
+        window.history.pushState({}, '', url.toString())
+
+        // 銷毀並清除 flatpickr 實例
+        if (this.datePicker) {
+            this.datePicker.destroy()
+            this.datePicker = null
+        }
+
+        // 清除日曆容器內容
+        if (this.hasCalendarTarget) {
+            this.calendarTarget.innerHTML = ''
+        }
+
+        // 完全隱藏整個日期選擇容器
+        if (this.hasDatePickerContainerTarget) {
+            this.datePickerContainerTarget.classList.add('hidden')
+            this.datePickerContainerTarget.style.display = 'none'
+        }
+
+        // 隱藏時間選擇區域
+        if (this.hasTimeSlotsTarget) {
+            this.timeSlotsTarget.innerHTML = ''
+        }
+
+        // 顯示無容量訊息
+        if (this.hasFullBookingNoticeTarget) {
+            this.fullBookingNoticeTarget.innerHTML = `
+                <div class="bg-gray-800 border border-gray-600 rounded-lg p-6 text-center">
+                    <div class="flex justify-center mb-4">
+                        <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">無法安排訂位</h3>
+                    <p class="text-gray-300">很抱歉，無法為 <strong>${partySize} 人</strong> 安排訂位</p>
                     <p class="text-gray-400 text-sm mt-2">請嘗試調整人數或直接聯絡餐廳</p>
                 </div>
             `
@@ -484,10 +594,10 @@ export default class extends Controller {
     }
 
     hideFullyBookedMessage() {
-
-        // 顯示日曆
+        // 重新顯示日曆容器
         if (this.hasDatePickerContainerTarget) {
             this.datePickerContainerTarget.classList.remove('hidden')
+            this.datePickerContainerTarget.style.display = ''
         }
 
         // 隱藏完全訂滿訊息
@@ -504,23 +614,44 @@ export default class extends Controller {
             const day = date.getDate()
             return `${year}年${month}月${day}日`
         } catch (error) {
-            console.error('Error formatting date:', error)
             return dateString
         }
     }
 
     async loadAllTimeSlots(date) {
         if (!this.hasTimeSlotsTarget) {
-            console.error('No timeSlots target found')
+            return
+        }
+
+        // 驗證日期格式
+        if (!date || date === '' || date === 'undefined' || date === 'null') {
+            this.showError('請先選擇日期')
             return
         }
 
         try {
             const partySize = this.getCurrentPartySize()
-            const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 0 : partySize
+            const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 1 : Math.max(1, partySize)
             const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0
 
-            const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`
+            // 確保日期格式正確 (YYYY-MM-DD)
+            let formattedDate = date
+            if (date instanceof Date) {
+                formattedDate = date.toISOString().split('T')[0]
+            } else if (typeof date === 'string' && date.length > 0) {
+                // 驗證日期字符串格式
+                const dateRegex = /^\d{4}-\d{2}-\d{2}$/
+                if (!dateRegex.test(date)) {
+                    this.showError('日期格式錯誤，請重新選擇日期')
+                    return
+                }
+                formattedDate = date
+            } else {
+                this.showError('日期格式錯誤，請重新選擇日期')
+                return
+            }
+
+            const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${formattedDate}&adult_count=${adults}&child_count=${children}`
 
             const response = await fetch(url, {
                 headers: {
@@ -529,7 +660,8 @@ export default class extends Controller {
                 },
             })
             if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`)
+                const errorData = await response.json().catch(() => ({}))
+                throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
             }
 
             const data = await response.json()
@@ -537,8 +669,7 @@ export default class extends Controller {
             this.renderTimeSlots(data.slots || [])
             this.updateFormState()
         } catch (error) {
-            console.error('Error loading time slots:', error)
-            this.showError('載入時間時發生錯誤')
+            this.showError(error.message || '載入時間時發生錯誤')
         }
     }
 
@@ -625,7 +756,6 @@ export default class extends Controller {
     }
 
     selectTimeSlot(slot, buttonElement) {
-
         // 移除之前選中的樣式
         this.timeSlotsTarget.querySelectorAll('button').forEach((btn) => {
             btn.classList.remove('bg-blue-600', 'border-blue-500')
@@ -748,19 +878,14 @@ export default class extends Controller {
         return disabledDates
     }
 
-    // 更新 URL，移除 show_all 參數並設定 date_filter
     updateUrlWithDate(dateStr) {
+        if (!dateStr || dateStr === '') {
+            return
+        }
         const url = new URL(window.location)
-
-        // 移除 show_all 參數
         url.searchParams.delete('show_all')
-
-        // 設定 date_filter 參數
         url.searchParams.set('date_filter', dateStr)
-
-        // 更新瀏覽器 URL，但不重新載入頁面
         window.history.pushState({}, '', url.toString())
-
     }
 
     clearSelectedTimeSlot() {
@@ -788,7 +913,6 @@ export default class extends Controller {
     }
 
     async refreshAvailableDates() {
-
         try {
             // 先檢查是否有可用日期
             const partySize = this.getCurrentPartySize()
@@ -813,15 +937,28 @@ export default class extends Controller {
             // 檢查是否完全沒有可用日期
             if (
                 availableDatesData.has_capacity &&
-                availableDatesData.available_dates.length === 0 &&
-                availableDatesData.full_booked_until
+                (!availableDatesData.available_dates || availableDatesData.available_dates.length === 0)
             ) {
                 // 銷毀現有的 flatpickr 實例
                 if (this.datePicker) {
                     this.datePicker.destroy()
                     this.datePicker = null
                 }
-                this.showFullyBookedMessage(availableDatesData.full_booked_until, partySize)
+                // 使用 full_booked_until 如果有的話，否則使用餐廳設定的預約天數作為預設值
+                const advanceBookingDays = availableDatesData.advance_booking_days || 30
+                const fullBookedUntil = availableDatesData.full_booked_until || new Date(Date.now() + advanceBookingDays * 24 * 60 * 60 * 1000).toISOString().split('T')[0]
+                this.showFullyBookedMessage(fullBookedUntil, partySize)
+                return
+            }
+
+            // 如果餐廳沒有足夠容量，也顯示相應訊息
+            if (!availableDatesData.has_capacity) {
+                // 銷毀現有的 flatpickr 實例
+                if (this.datePicker) {
+                    this.datePicker.destroy()
+                    this.datePicker = null
+                }
+                this.showNoCapacityMessage(partySize)
                 return
             }
 
@@ -883,7 +1020,6 @@ export default class extends Controller {
                 }
             }
         } catch (error) {
-            console.error('Error refreshing available dates:', error)
             this.showError('重新載入可用日期時發生錯誤')
         }
     }

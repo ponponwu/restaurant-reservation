@@ -28,6 +28,17 @@ class ApplicationController < ActionController::Base
     end
   end
 
+  rescue_from StandardError do |exception|
+    # 在日誌中記錄詳細錯誤
+    logger.error "Unhandled error: #{exception.message}"
+    logger.error exception.backtrace.join("\n")
+
+    respond_to do |format|
+      format.html { render file: Rails.root.join('public', '500.html'), status: :internal_server_error, layout: false }
+      format.json { render json: { error: '伺服器內部錯誤' }, status: :internal_server_error }
+    end
+  end
+
   protected
 
   # Devise 登入後跳轉邏輯

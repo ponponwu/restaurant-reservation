@@ -14,7 +14,6 @@ class TableGroup < ApplicationRecord
 
   # 4. 回調函數
   before_validation :set_defaults
-  before_validation :sanitize_inputs
 
   # Ransack 搜索屬性白名單
   def self.ransackable_attributes(_auth_object = nil)
@@ -50,7 +49,7 @@ class TableGroup < ApplicationRecord
 
   # 下一個排序號碼
   def self.next_sort_order(restaurant)
-    restaurant.table_groups.maximum(:sort_order).to_i + 1
+    TableGroup.where(restaurant: restaurant).maximum(:sort_order).to_i + 1
   end
 
   # 6. 實例方法
@@ -82,11 +81,12 @@ class TableGroup < ApplicationRecord
       .where(
         reservations: {
           status: %w[confirmed seated],
-          restaurant: restaurant
+          restaurant_id: restaurant.id
         }
       )
       .where("reservations.reservation_datetime <= ? AND reservations.reservation_datetime + INTERVAL '120 minutes' > ?",
              current_time, current_time)
+      .select('restaurant_tables.id')
       .distinct
       .count
   end
@@ -102,9 +102,6 @@ class TableGroup < ApplicationRecord
   def set_defaults
     self.sort_order ||= self.class.next_sort_order(restaurant) if restaurant
     self.active = true if active.nil?
-  end
-
-  def sanitize_inputs
     self.name = name&.strip
     self.description = description&.strip
   end

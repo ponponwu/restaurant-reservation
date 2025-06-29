@@ -1,15 +1,26 @@
 require 'rails_helper'
 
-# Specs in this file have access to a helper object that includes
-# the Admin::RestaurantSettingsHelper. For example:
-#
-# describe Admin::RestaurantSettingsHelper do
-#   describe "string concat" do
-#     it "concats two strings with spaces" do
-#       expect(helper.concat_strings("this","that")).to eq("this that")
-#     end
-#   end
-# end
 RSpec.describe Admin::RestaurantSettingsHelper do
-  pending "add some examples to (or delete) #{__FILE__}"
+  describe 'module structure' do
+    it 'is defined as a module' do
+      expect(Admin::RestaurantSettingsHelper).to be_a(Module)
+    end
+
+    it 'has no public methods defined' do
+      # Currently this helper module is empty with no methods to test
+      # This test validates the module exists and is properly structured
+      expect(Admin::RestaurantSettingsHelper.public_instance_methods(false)).to be_empty
+    end
+  end
+
+  describe 'inclusion in view context' do
+    it 'can be included in a view helper context' do
+      # Test that the module can be properly included
+      test_class = Class.new do
+        include Admin::RestaurantSettingsHelper
+      end
+      
+      expect(test_class.ancestors).to include(Admin::RestaurantSettingsHelper)
+    end
+  end
 end
