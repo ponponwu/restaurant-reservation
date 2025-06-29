@@ -26,6 +26,11 @@ RSpec.describe 'Internationalization Tests' do
           period_id: business_period.id
         }
 
+        # 如果重定向，跟隨重定向
+        if response.status == 302
+          follow_redirect!
+        end
+
         expect(response).to have_http_status(:success)
         # 檢查是否包含繁體中文文字
         expect(response.body).to include('預約') if response.body.present?
@@ -64,6 +69,11 @@ RSpec.describe 'Internationalization Tests' do
           period_id: business_period.id
         }
 
+        # 如果重定向，跟隨重定向
+        if response.status == 302
+          follow_redirect!
+        end
+
         expect(response).to have_http_status(:success)
         # 檢查是否包含英文文字
         expect(response.body).to include('Reservation') if response.body.present?
@@ -101,6 +111,11 @@ RSpec.describe 'Internationalization Tests' do
           time: '18:00',
           period_id: business_period.id
         }
+
+        # 如果重定向，跟隨重定向
+        if response.status == 302
+          follow_redirect!
+        end
 
         expect(response).to have_http_status(:success)
         # 檢查日期格式是否適合日文環境

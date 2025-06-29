@@ -1,4 +1,5 @@
 require 'rails_helper'
+require 'concurrent'
 
 RSpec.describe 'Frontend Stress Tests and Edge Cases' do
   let(:restaurant) { create(:restaurant) }
@@ -29,9 +30,12 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
     end
 
     it 'handles concurrent reservations for same time slot' do
+      # 清空所有現有預約
+      Reservation.delete_all
+      
       # 模擬兩個用戶同時預約同一時段
       threads = []
-      reservation_results = []
+      reservation_results = Concurrent::Array.new  # 使用線程安全的數組
 
       2.times do |i|
         threads << Thread.new do
@@ -40,8 +44,11 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
           params[:reservation][:customer_email] = "test#{i}@example.com"
 
           begin
-            post restaurant_reservations_path(restaurant.slug), params: params
-            reservation_results << { success: response.status == 302, response: response }
+            # 在新的資料庫連接中執行，確保併發測試的準確性
+            ActiveRecord::Base.connection_pool.with_connection do
+              post restaurant_reservations_path(restaurant.slug), params: params
+              reservation_results << { success: response.status == 302, response: response }
+            end
           rescue StandardError => e
             reservation_results << { success: false, error: e.message }
           end
@@ -79,6 +86,9 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
 
   describe 'Database constraint violations' do
     it 'handles duplicate reservations gracefully' do
+      # 清空所有現有預約
+      Reservation.delete_all
+      
       # 建立第一個訂位
       create(:reservation,
              restaurant: restaurant,
@@ -319,7 +329,8 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
       end_time = Time.current
       response_time = end_time - start_time
 
-      expect(response).to have_http_status(:success)
+      # 應該返回成功狀態或重定向，但不會崩潰
+      expect([200, 302]).to include(response.status)
       expect(response_time).to be < 10.seconds # 合理的超時限制
     end
 

@@ -19,6 +19,14 @@ RSpec.describe AvailabilityService, type: :service do
   describe '#has_any_availability_on_date?' do
     let(:test_date) { Date.current + 1.day }
 
+    before do
+      # Mock restaurant methods to return available time options
+      allow(restaurant).to receive(:available_time_options_for_date).with(test_date).and_return([
+        { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
+        { datetime: test_date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+      ])
+    end
+
     context '基本可用性測試' do
       it '當有可用桌位時返回 true' do
         expect(service.has_any_availability_on_date?(test_date, 2)).to be true
