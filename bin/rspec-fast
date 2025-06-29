@@ -1,0 +1,43 @@
+#!/bin/bash
+
+# Fast test runner for restaurant reservation system
+# Usage:
+#   bin/rspec-fast           # Run only fast tests (models, units)
+#   bin/rspec-fast medium    # Run medium speed tests (services, requests) 
+#   bin/rspec-fast slow      # Run slow tests (system tests)
+#   bin/rspec-fast all       # Run all tests
+
+set -e  # Exit on any error
+
+# Get the filter argument, default to 'fast'
+FILTER=${1:-fast}
+
+case "$FILTER" in
+  "fast")
+    echo "🚀 Running fast tests (models, units)..."
+    bundle exec rspec spec/models --format documentation
+    ;;
+  "medium")
+    echo "⚡ Running medium speed tests (services, requests)..."
+    bundle exec rspec spec/services spec/requests --format documentation
+    ;;
+  "slow")
+    echo "🐌 Running slow tests (system tests)..."
+    bundle exec rspec spec/system --format documentation
+    ;;
+  "all")
+    echo "🏃 Running all tests..."
+    bundle exec rspec --format documentation
+    ;;
+  *)
+    echo "Usage: bin/rspec-fast [fast|medium|slow|all]"
+    echo "Default: fast"
+    echo ""
+    echo "Examples:"
+    echo "  bin/rspec-fast           # Fast tests (~30 seconds)"
+    echo "  bin/rspec-fast medium    # Medium tests (~2 minutes)"
+    echo "  bin/rspec-fast slow      # System tests (~3-5 minutes)"
+    echo "  bin/rspec-fast all       # All tests (~5-8 minutes)"
+    exit 1
+    ;;
+esac

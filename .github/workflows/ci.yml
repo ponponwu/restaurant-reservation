@@ -106,11 +106,14 @@ jobs:
             - name: Precompile assets
               run: bundle exec rails assets:precompile
 
-            - name: Run RSpec tests
-              run: bundle exec rspec --format progress
+            - name: Run Fast tests (Models & Units) 
+              run: bin/rspec-fast --format progress
+
+            - name: Run Medium tests (Services & Requests)
+              run: bin/rspec-fast medium --format progress
 
             - name: Run System tests
-              run: bundle exec rspec spec/system --format progress
+              run: bin/rspec-fast slow --format progress
 
             - name: Upload screenshots (if system tests fail)
               uses: actions/upload-artifact@v4
