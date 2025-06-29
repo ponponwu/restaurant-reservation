@@ -288,16 +288,22 @@ RSpec.describe 'Frontend Reservation API' do
     end
 
     context 'with invalid party size for restaurant capacity' do
+      before do
+        # 明確設定餐廳容量限制確保測試可預測
+        restaurant.update!(total_capacity: 20)
+        restaurant.reservation_policy.update!(max_party_size: 20)
+      end
+
       it 'redirects when party size exceeds capacity' do
-        invalid_params = reservation_params.merge(adults: 20, children: 5)
+        invalid_params = reservation_params.merge(adults: 20, children: 5)  # 總共25人
 
         get new_restaurant_reservation_path(restaurant.slug), params: invalid_params
 
         # 應該重定向並顯示錯誤訊息
         expect(response).to have_http_status(:redirect)
         follow_redirect!
-        # 檢查是否顯示了無法訂位的相關訊息
-        expect(response.body).to include('所選日期無法訂位') 
+        # 檢查實際的控制器錯誤訊息
+        expect(response.body).to include('無法為 25 人安排訂位，請選擇其他人數')
       end
     end
 
