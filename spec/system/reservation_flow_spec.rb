@@ -19,7 +19,7 @@ RSpec.describe '訂位流程', type: :system, js: true do
     find('.flatpickr-next-month').click
     find('.flatpickr-day', text: '10', match: :first).click
 
-    within('[data-reservation-target="timeSlots"]', wait: 10) do
+    within('[data-reservation-target="timeSlots"]', wait: 5) do
       find('button', match: :first).click
     end
     
@@ -29,6 +29,6 @@ RSpec.describe '訂位流程', type: :system, js: true do
     fill_in '聯絡電話', with: '0912345678'
     click_button '送出預約申請'
     
-    expect(page).to have_content('訂位建立成功', wait: 10)
+    expect(page).to have_content('訂位建立成功', wait: 5)
   end
 end

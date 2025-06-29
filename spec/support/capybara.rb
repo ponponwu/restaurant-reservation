@@ -66,8 +66,8 @@ end
 Capybara.default_driver = :rack_test
 Capybara.javascript_driver = :headless_chrome
 
-# 基本配置
-Capybara.default_max_wait_time = 10
+# 基本配置 - 優化等待時間以提升測試速度
+Capybara.default_max_wait_time = 5
 # 使用隨機端口避免衝突
 Capybara.server_port = nil  # 讓 Capybara 自動選擇可用端口
 Capybara.app_host = nil     # 讓 Capybara 自動設定
@@ -109,8 +109,8 @@ end
 
 # 環境特定的配置
 if ENV['CI'] || ENV['GITHUB_ACTIONS']
-  # CI 環境配置
-  Capybara.default_max_wait_time = 30
+  # CI 環境配置 - 減少等待時間提升CI速度
+  Capybara.default_max_wait_time = 15
   Capybara.server_port = 3002
 
   # 在 CI 中使用更穩定的設定

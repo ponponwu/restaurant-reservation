@@ -35,6 +35,6 @@ RSpec.describe '桌位分配系統', type: :system, js: true do
 
     click_button '建立訂位'
 
-    expect(page).to have_content('訂位建立成功', wait: 10)
+    expect(page).to have_content('訂位建立成功', wait: 5)
   end
 end
