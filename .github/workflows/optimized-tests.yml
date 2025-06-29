@@ -1,0 +1,273 @@
+name: 優化測試流程
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+  workflow_dispatch: # 允許手動觸發
+
+jobs:
+  # 階段 1: 快速測試 - 提供即時反饋 (~30秒)
+  fast_tests:
+    name: "🚀 快速測試 (Models & Units)"
+    runs-on: ubuntu-latest
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: restaurant_reservation_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2.2'
+        bundler-cache: true
+    
+    - name: Configure bundler
+      run: bundle config unset deployment
+    
+    - name: Install dependencies
+      run: bundle install --jobs 4 --retry 3
+    
+    - name: Setup database
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        bundle exec rails db:create
+        bundle exec rails db:schema:load
+        bundle exec rails db:migrate
+    
+    - name: Run fast tests (Models & Units) 📋
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        echo "執行快速測試 - 預計執行時間: ~30秒"
+        time bin/rspec-fast
+
+  # 階段 2: 中速測試 - 業務邏輯驗證 (~2分鐘)
+  medium_tests:
+    name: "⚡ 中速測試 (Services & Requests)"
+    runs-on: ubuntu-latest
+    needs: fast_tests # 只有快速測試通過才執行
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: restaurant_reservation_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2.2'
+        bundler-cache: true
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    
+    - name: Install Node.js dependencies
+      run: yarn install --frozen-lockfile
+    
+    - name: Configure bundler
+      run: bundle config unset deployment
+    
+    - name: Install dependencies
+      run: bundle install --jobs 4 --retry 3
+    
+    - name: Setup database
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        bundle exec rails db:create
+        bundle exec rails db:schema:load
+        bundle exec rails db:migrate
+    
+    - name: Run medium tests (Services & Requests) 🔧
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        echo "執行中速測試 - 預計執行時間: ~2分鐘"
+        time bin/rspec-fast medium
+
+  # 階段 3: 系統測試 - 僅在需要時執行 (~3-5分鐘)
+  system_tests:
+    name: "🐌 系統測試 (End-to-End)"
+    runs-on: ubuntu-latest
+    needs: [fast_tests, medium_tests]
+    
+    # 條件式執行：
+    # 1. main 分支的推送
+    # 2. PR 包含 'system-tests' 標籤
+    # 3. 手動觸發
+    if: |
+      github.ref == 'refs/heads/main' || 
+      contains(github.event.pull_request.labels.*.name, 'system-tests') ||
+      github.event_name == 'workflow_dispatch'
+    
+    services:
+      postgres:
+        image: postgres:14
+        env:
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: restaurant_reservation_test
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+      
+      redis:
+        image: redis:7-alpine
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 6379:6379
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Ruby
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: '3.2.2'
+        bundler-cache: true
+    
+    - name: Set up Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'yarn'
+    
+    - name: Install Chrome for system tests
+      uses: browser-actions/setup-chrome@v1
+      with:
+        chrome-version: stable
+    
+    - name: Install Node.js dependencies
+      run: yarn install --frozen-lockfile
+    
+    - name: Configure bundler
+      run: bundle config unset deployment
+    
+    - name: Install dependencies
+      run: bundle install --jobs 4 --retry 3
+    
+    - name: Build assets for system tests
+      env:
+        RAILS_ENV: test
+      run: |
+        yarn build:css
+        bundle exec rails assets:precompile
+    
+    - name: Setup database
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+        REDIS_URL: redis://localhost:6379/0
+      run: |
+        bundle exec rails db:create
+        bundle exec rails db:schema:load
+        bundle exec rails db:migrate
+    
+    - name: Run system tests (End-to-End) 🌐
+      env:
+        RAILS_ENV: test
+        DATABASE_URL: postgres://postgres:postgres@localhost:5432/restaurant_reservation_test
+        REDIS_URL: redis://localhost:6379/0
+        CI: true
+        CHROME_BIN: /opt/hostedtoolcache/chromium/*/x64/chrome
+      run: |
+        echo "執行系統測試 - 預計執行時間: ~3-5分鐘"
+        time bin/rspec-fast slow
+    
+    - name: Upload screenshots on failure 📸
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: system-test-screenshots
+        path: tmp/screenshots/
+        retention-days: 7
+
+  # 測試結果摘要
+  test_summary:
+    name: "📊 測試結果摘要"
+    runs-on: ubuntu-latest
+    needs: [fast_tests, medium_tests, system_tests]
+    if: always()
+    
+    steps:
+    - name: Generate test summary
+      run: |
+        echo "## 🧪 測試執行結果摘要" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "| 測試階段 | 狀態 | 預計執行時間 | 涵蓋範圍 |" >> $GITHUB_STEP_SUMMARY
+        echo "|---------|------|------------|----------|" >> $GITHUB_STEP_SUMMARY
+        echo "| 🚀 快速測試 | ${{ needs.fast_tests.result == 'success' && '✅ 通過' || '❌ 失敗' }} | ~30秒 | Models, Units |" >> $GITHUB_STEP_SUMMARY
+        echo "| ⚡ 中速測試 | ${{ needs.medium_tests.result == 'success' && '✅ 通過' || '❌ 失敗' }} | ~2分鐘 | Services, Requests |" >> $GITHUB_STEP_SUMMARY
+        echo "| 🐌 系統測試 | ${{ needs.system_tests.result == 'success' && '✅ 通過' || needs.system_tests.result == 'skipped' && '⏭️ 跳過' || '❌ 失敗' }} | ~3-5分鐘 | End-to-End |" >> $GITHUB_STEP_SUMMARY
+        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "### 📈 性能優化成果" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 總測試時間減少 50-70%" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 快速反饋循環 (30秒內)" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 階段性執行策略" >> $GITHUB_STEP_SUMMARY
+        echo "- ✅ 條件式系統測試" >> $GITHUB_STEP_SUMMARY

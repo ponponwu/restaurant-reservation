@@ -884,6 +884,10 @@ select {
   z-index: 10;
 }
 
+.z-20 {
+  z-index: 20;
+}
+
 .z-50 {
   z-index: 50;
 }
@@ -972,6 +976,10 @@ select {
 
 .mb-8 {
   margin-bottom: 2rem;
+}
+
+.ml-1 {
+  margin-left: 0.25rem;
 }
 
 .ml-2 {
@@ -1106,6 +1114,10 @@ select {
   height: 0.5rem;
 }
 
+.h-20 {
+  height: 5rem;
+}
+
 .h-3 {
   height: 0.75rem;
 }
@@ -1116,6 +1128,10 @@ select {
 
 .h-4 {
   height: 1rem;
+}
+
+.h-48 {
+  height: 12rem;
 }
 
 .h-5 {
@@ -1180,6 +1196,10 @@ select {
 
 .w-3\.5 {
   width: 0.875rem;
+}
+
+.w-32 {
+  width: 8rem;
 }
 
 .w-4 {
@@ -1329,6 +1349,10 @@ select {
 
 .cursor-pointer {
   cursor: pointer;
+}
+
+.resize {
+  resize: both;
 }
 
 .list-inside {
@@ -1947,6 +1971,11 @@ select {
   --tw-gradient-to: #e0e7ff var(--tw-gradient-to-position);
 }
 
+.object-cover {
+  -o-object-fit: cover;
+     object-fit: cover;
+}
+
 .p-0 {
   padding: 0px;
 }
@@ -2237,6 +2266,10 @@ select {
 
 .leading-7 {
   line-height: 1.75rem;
+}
+
+.leading-relaxed {
+  line-height: 1.625;
 }
 
 .tracking-wide {
@@ -4249,18 +4282,18 @@ span.flatpickr-weekday {
 /* Admin backend light theme - comprehensive override for all flatpickr elements */
 
 .admin-page .flatpickr-calendar,
-[data-controller*="admin-reservation"] .flatpickr-calendar {
+[data-controller*='admin-reservation'] .flatpickr-calendar {
   background-color: #fff !important;
   color: #393939 !important;
   border: 1px solid #e6e6e6 !important;
   border-radius: 5px !important;
-  box-shadow: 0 3px 13px rgba(0,0,0,0.08) !important;
+  box-shadow: 0 3px 13px rgba(0, 0, 0, 0.08) !important;
 }
 
 /* Month header */
 
 .admin-page .flatpickr-calendar .flatpickr-month,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-month {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-month {
   background-color: #fff !important;
   color: #393939 !important;
 }
@@ -4268,7 +4301,7 @@ span.flatpickr-weekday {
 /* Month dropdown */
 
 .admin-page .flatpickr-calendar .flatpickr-monthDropdown-months,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-monthDropdown-months {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-monthDropdown-months {
   background-color: #fff !important;
   color: #393939 !important;
 }
@@ -4276,14 +4309,14 @@ span.flatpickr-weekday {
 /* Current month display */
 
 .admin-page .flatpickr-calendar .flatpickr-current-month,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-current-month {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-current-month {
   color: #393939 !important;
 }
 
 /* Current month input */
 
 .admin-page .flatpickr-calendar .flatpickr-current-month input,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-current-month input {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-current-month input {
   background-color: #fff !important;
   color: #393939 !important;
 }
@@ -4292,28 +4325,28 @@ span.flatpickr-weekday {
 
 .admin-page .flatpickr-calendar .flatpickr-prev-month,
 .admin-page .flatpickr-calendar .flatpickr-next-month,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-prev-month,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-next-month {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-prev-month,
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-next-month {
   color: #393939 !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-prev-month:hover,
 .admin-page .flatpickr-calendar .flatpickr-next-month:hover,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-prev-month:hover,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-next-month:hover {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-prev-month:hover,
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-next-month:hover {
   color: #569ff7 !important;
 }
 
 /* Weekdays header */
 
 .admin-page .flatpickr-calendar .flatpickr-weekdays,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-weekdays {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-weekdays {
   background-color: #fff !important;
   color: #393939 !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-weekday,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-weekday {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-weekday {
   background-color: #fff !important;
   color: #393939 !important;
 }
@@ -4321,46 +4354,46 @@ span.flatpickr-weekday {
 /* Days container */
 
 .admin-page .flatpickr-calendar .dayContainer,
-[data-controller*="admin-reservation"] .flatpickr-calendar .dayContainer {
+[data-controller*='admin-reservation'] .flatpickr-calendar .dayContainer {
   background-color: #fff !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-days,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-days {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-days {
   background-color: #fff !important;
 }
 
 /* Individual day cells */
 
 .admin-page .flatpickr-calendar .flatpickr-day,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day {
   background-color: #fff !important;
   color: #393939 !important;
   border: 1px solid transparent !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-day:hover,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day:hover {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day:hover {
   background-color: #e6e6e6 !important;
   color: #393939 !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-day.selected,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.selected {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day.selected {
   background-color: #569ff7 !important;
   color: #fff !important;
   border-color: #569ff7 !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-day.today,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.today {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day.today {
   border-color: #959ea9 !important;
   color: #393939 !important;
   background-color: #fff !important;
 }
 
 .admin-page .flatpickr-calendar .flatpickr-day.today.selected,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.today.selected {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day.today.selected {
   background-color: #569ff7 !important;
   color: #fff !important;
   border-color: #569ff7 !important;
@@ -4369,7 +4402,7 @@ span.flatpickr-weekday {
 /* Disabled days */
 
 .admin-page .flatpickr-calendar .flatpickr-day.flatpickr-disabled,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.flatpickr-disabled {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day.flatpickr-disabled {
   background-color: #f3f4f6 !important;
   color: #9ca3af !important;
 }
@@ -4378,20 +4411,20 @@ span.flatpickr-weekday {
 
 .admin-page .flatpickr-calendar .flatpickr-day.prevMonthDay,
 .admin-page .flatpickr-calendar .flatpickr-day.nextMonthDay,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.prevMonthDay,
-[data-controller*="admin-reservation"] .flatpickr-calendar .flatpickr-day.nextMonthDay {
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day.prevMonthDay,
+[data-controller*='admin-reservation'] .flatpickr-calendar .flatpickr-day.nextMonthDay {
   color: #d1d5db !important;
 }
 
 /* Year dropdown */
 
 .admin-page .flatpickr-calendar .numInputWrapper,
-[data-controller*="admin-reservation"] .flatpickr-calendar .numInputWrapper {
+[data-controller*='admin-reservation'] .flatpickr-calendar .numInputWrapper {
   background-color: #fff !important;
 }
 
 .admin-page .flatpickr-calendar .numInput,
-[data-controller*="admin-reservation"] .flatpickr-calendar .numInput {
+[data-controller*='admin-reservation'] .flatpickr-calendar .numInput {
   background-color: #fff !important;
   color: #393939 !important;
 }
@@ -4400,13 +4433,13 @@ span.flatpickr-weekday {
 
 .admin-page .flatpickr-calendar .arrowUp,
 .admin-page .flatpickr-calendar .arrowDown,
-[data-controller*="admin-reservation"] .flatpickr-calendar .arrowUp,
-[data-controller*="admin-reservation"] .flatpickr-calendar .arrowDown {
+[data-controller*='admin-reservation'] .flatpickr-calendar .arrowUp,
+[data-controller*='admin-reservation'] .flatpickr-calendar .arrowDown {
   border-bottom-color: #393939 !important;
 }
 
 .admin-page .flatpickr-calendar .arrowDown,
-[data-controller*="admin-reservation"] .flatpickr-calendar .arrowDown {
+[data-controller*='admin-reservation'] .flatpickr-calendar .arrowDown {
   border-top-color: #393939 !important;
 }
 
@@ -4734,6 +4767,241 @@ This file is in app/assets/stylesheets/application.tailwind.css
   border-radius: 0 !important;
 }
 
+/* ========================================
+   餐廳公開頁面響應式日曆樣式
+   ======================================== */
+
+/* 日曆容器基礎設定 */
+
+[data-reservation-target='calendar'] {
+  display: block !important;
+  width: 100% !important;
+  position: relative !important;
+  overflow: hidden;
+  /* 避免縮放後溢出 */
+}
+
+/* 手機版日曆容器特別設定 */
+
+@media (max-width: 768px) {
+  [data-reservation-target='calendar'] {
+    padding: 0 0.5rem !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+
+  /* 日期選擇容器也要限制寬度 */
+
+  [data-reservation-target='datePickerContainer'] {
+    padding: 1rem 0.5rem !important;
+    max-width: 100vw !important;
+    box-sizing: border-box !important;
+  }
+}
+
+/* 基礎日曆樣式 - 覆蓋前面的 dark theme */
+
+[data-reservation-target='calendar'] .flatpickr-calendar.inline {
+  background: #1f2937 !important;
+  border-radius: 0.75rem !important;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+  padding: 1rem !important;
+  transform-origin: center center !important;
+  position: relative !important;
+  width: 100% !important;
+  max-width: 100% !important;
+  display: block !important;
+  top: auto !important;
+  left: auto !important;
+  right: auto !important;
+  bottom: auto !important;
+  transform: scale(1) !important;
+  margin: 1rem auto !important;
+  -webkit-transform: scale(1) !important;
+  -moz-transform: scale(1) !important;
+  -ms-transform: scale(1) !important;
+}
+
+/* Flatpickr wrapper 樣式修復 */
+
+[data-reservation-target='calendar'] .flatpickr-wrapper {
+  padding-top: 32px !important;
+}
+
+/* 響應式縮放斷點設定
+   - 手機直向: 1.2x 縮放
+   - 手機橫向/小平板: 1.1x 縮放
+   - 平板: 1.1x 縮放
+   - 桌機: 1.2x 縮放
+   - 大桌機: 1.3x 縮放
+   ---------------------------------------- */
+
+/* 極小螢幕 - 手機直向 (≤480px) */
+
+@media (max-width: 480px) {
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline {
+    transform: scale(1.2) !important;
+    -webkit-transform: scale(1.2) !important;
+    -moz-transform: scale(1.2) !important;
+    -ms-transform: scale(1.2) !important;
+    margin: 1rem auto !important;
+    padding: 0.75rem !important;
+    max-width: 100% !important;
+    /* 強制限制寬度避免溢出 */
+    width: auto !important;
+    min-width: 0 !important;
+  }
+
+  [data-reservation-target='calendar'] .flatpickr-day {
+    min-height: 36px !important;
+    line-height: 36px !important;
+    font-size: 13px !important;
+    width: auto !important;
+    min-width: 36px !important;
+  }
+
+  [data-reservation-target='calendar'] .flatpickr-weekday {
+    font-size: 12px !important;
+  }
+
+  [data-reservation-target='calendar'] .flatpickr-current-month {
+    font-size: 14px !important;
+  }
+
+  /* 限制日曆內部容器寬度 */
+
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline .dayContainer {
+    max-width: 100% !important;
+    width: auto !important;
+  }
+
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline .flatpickr-days {
+    max-width: 100% !important;
+    width: auto !important;
+  }
+}
+
+/* 小螢幕 - 手機橫向/小平板 (481px - 768px) */
+
+@media (min-width: 481px) and (max-width: 768px) {
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline {
+    transform: scale(1.1) !important;
+    -webkit-transform: scale(1.1) !important;
+    -moz-transform: scale(1.1) !important;
+    -ms-transform: scale(1.1) !important;
+    margin: 1rem auto !important;
+    max-width: 90% !important;
+  }
+
+  [data-reservation-target='calendar'] .flatpickr-day {
+    min-height: 40px !important;
+    line-height: 40px !important;
+  }
+}
+
+/* 中等螢幕 - 平板 (769px - 1024px) */
+
+@media (min-width: 769px) and (max-width: 1024px) {
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline {
+    transform: scale(1.1) !important;
+    -webkit-transform: scale(1.1) !important;
+    -moz-transform: scale(1.1) !important;
+    -ms-transform: scale(1.1) !important;
+    margin: 1.25rem auto !important;
+  }
+}
+
+/* 大螢幕 - 桌機 (1025px - 1440px) */
+
+@media (min-width: 1025px) and (max-width: 1440px) {
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline {
+    transform: scale(1.2) !important;
+    -webkit-transform: scale(1.2) !important;
+    -moz-transform: scale(1.2) !important;
+    -ms-transform: scale(1.2) !important;
+    margin: 2rem auto !important;
+  }
+}
+
+/* 超大螢幕 - 大桌機 (>1440px) */
+
+@media (min-width: 1441px) {
+  [data-reservation-target='calendar'] .flatpickr-calendar.inline {
+    transform: scale(1.3) !important;
+    -webkit-transform: scale(1.3) !important;
+    -moz-transform: scale(1.3) !important;
+    -ms-transform: scale(1.3) !important;
+    margin: 2rem auto !important;
+  }
+}
+
+/* 日曆元素細節樣式 (黑色主題) */
+
+[data-reservation-target='calendar'] .flatpickr-calendar.inline .flatpickr-weekdays {
+  background: #374151 !important;
+}
+
+[data-reservation-target='calendar'] .flatpickr-calendar.inline .flatpickr-day {
+  color: #e5e7eb !important;
+  border-radius: 0.375rem !important;
+  margin: 1px !important;
+}
+
+[data-reservation-target='calendar'] .flatpickr-calendar.inline .flatpickr-day:hover {
+  background: #4b5563 !important;
+}
+
+[data-reservation-target='calendar'] .flatpickr-calendar.inline .flatpickr-day.today {
+  background: #3b82f6 !important;
+  color: white !important;
+}
+
+[data-reservation-target='calendar'] .flatpickr-calendar.inline .flatpickr-day.selected {
+  background: #10b981 !important;
+  color: white !important;
+}
+
+.file\:mr-4::file-selector-button {
+  margin-right: 1rem;
+}
+
+.file\:rounded-md::file-selector-button {
+  border-radius: 0.375rem;
+}
+
+.file\:border-0::file-selector-button {
+  border-width: 0px;
+}
+
+.file\:bg-blue-50::file-selector-button {
+  --tw-bg-opacity: 1;
+  background-color: rgb(239 246 255 / var(--tw-bg-opacity, 1));
+}
+
+.file\:px-4::file-selector-button {
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+
+.file\:py-2::file-selector-button {
+  padding-top: 0.5rem;
+  padding-bottom: 0.5rem;
+}
+
+.file\:text-sm::file-selector-button {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.file\:font-medium::file-selector-button {
+  font-weight: 500;
+}
+
+.file\:text-blue-700::file-selector-button {
+  --tw-text-opacity: 1;
+  color: rgb(29 78 216 / var(--tw-text-opacity, 1));
+}
+
 .last\:border-b-0:last-child {
   border-bottom-width: 0px;
 }
@@ -4962,6 +5230,11 @@ This file is in app/assets/stylesheets/application.tailwind.css
   --tw-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
   --tw-shadow-colored: 0 4px 6px -1px var(--tw-shadow-color), 0 2px 4px -2px var(--tw-shadow-color);
   box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+
+.hover\:file\:bg-blue-100::file-selector-button:hover {
+  --tw-bg-opacity: 1;
+  background-color: rgb(219 234 254 / var(--tw-bg-opacity, 1));
 }
 
 .focus\:z-10:focus {
@@ -5393,10 +5666,6 @@ This file is in app/assets/stylesheets/application.tailwind.css
     display: none;
   }
 
-  .md\:max-w-lg {
-    max-width: 32rem;
-  }
-
   .md\:grid-cols-2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -5455,10 +5724,6 @@ This file is in app/assets/stylesheets/application.tailwind.css
 
   .lg\:min-w-0 {
     min-width: 0px;
-  }
-
-  .lg\:max-w-xl {
-    max-width: 36rem;
   }
 
   .lg\:flex-1 {

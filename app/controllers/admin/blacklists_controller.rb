@@ -5,7 +5,7 @@ class Admin::BlacklistsController < Admin::BaseController
 
   def index
     @q = @restaurant.blacklists.ransack(params[:q])
-    @blacklists = @q.result.recent.page(params[:page]).per(20)
+    @pagy, @blacklists = pagy(@q.result.recent, items: 20)
 
     respond_to do |format|
       format.html

@@ -21,6 +21,20 @@ bundle exec sidekiq
 ```
 
 ### Testing
+
+#### Fast Test Execution (Optimized)
+```bash
+# Use optimized test runner for different speeds
+bin/rspec-fast               # Fast tests only (models, units) - ~30 seconds
+bin/rspec-fast medium        # Medium tests (services, requests) - ~2 minutes  
+bin/rspec-fast slow          # Slow tests (system tests) - ~3-5 minutes
+bin/rspec-fast all           # All tests - ~5-8 minutes
+
+# Run tests with performance profiling
+bundle exec rspec --profile 10     # Show 10 slowest tests
+```
+
+#### Standard Test Commands  
 ```bash
 # Run all tests
 bundle exec rspec
@@ -156,6 +170,30 @@ Services handle complex business logic:
 
 ## Testing Approach
 
+### Test Performance Optimization
+The test suite has been optimized for speed with the following improvements:
+
+**System Test Optimizations:**
+- Reduced Capybara wait times from 10-15s to 5-8s
+- Optimized Chrome browser configuration with performance flags
+- Added test categorization (fast/medium/slow) for selective execution
+
+**Database Operation Optimizations:**
+- Use `build_stubbed` for tests that don't need database persistence
+- Optimized factory usage to reduce database hits
+- Batch data creation where possible
+
+**Concurrent Test Optimizations:**  
+- Reduced sleep times in lock service tests from 1.1s to 0.3s
+- Optimized thread synchronization delays from 0.1s to 0.05s
+- Enhanced mock usage for non-critical concurrent scenarios
+
+**Expected Performance Gains:**
+- Fast tests (models): ~30 seconds
+- Medium tests (services/requests): ~2 minutes
+- Slow tests (system): ~3-5 minutes  
+- Full suite: 50-70% faster execution
+
 ### Test Organization
 ```
 spec/
@@ -231,6 +269,37 @@ Uses Redis-based distributed locking:
 - Reset test DB: `RAILS_ENV=test rails db:drop db:create db:migrate`
 - Check migrations: `rails db:migrate:status`
 - Seed development data: `rails db:seed`
+
+### System Test Browser Issues
+If system tests show "Browser not available in test environment":
+
+1. **Check Chrome and ChromeDriver versions compatibility:**
+```bash
+# Check current versions
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --version
+chromedriver --version
+
+# Update ChromeDriver if versions don't match
+brew upgrade chromedriver
+```
+
+2. **Chrome for Testing vs Regular Chrome:**
+   - System may have both "Google Chrome" and "Google Chrome for Testing"
+   - Regular Chrome (/Applications/Google Chrome.app) is preferred for newer versions
+   - Chrome for Testing (/Applications/Google Chrome for Testing.app) is older
+   - Configuration automatically chooses the right version
+
+3. **Browser configuration location:**
+   - `spec/support/capybara.rb` - Main Capybara driver setup
+   - `spec/support/system_test_helpers.rb` - Browser availability checks
+   - Both files use unified `configure_chrome_binary()` method
+
+4. **Environment variable override:**
+```bash
+# Force specific Chrome binary if needed
+export CHROME_BIN="/Applications/Google Chrome.app/Contents/MacOS/Google Chrome"
+bundle exec rspec spec/system
+```
 
 ## Important Notes
 

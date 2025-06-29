@@ -50,7 +50,10 @@ class RestaurantsController < ApplicationController
 
     # 如果餐廳有容量，檢查實際可用日期（優化版本）
     unavailable_dates = []
-    unavailable_dates = get_unavailable_dates_optimized(party_size, max_days) if has_capacity
+    if has_capacity
+      availability_service = RestaurantAvailabilityService.new(@restaurant)
+      unavailable_dates = availability_service.get_unavailable_dates_optimized(party_size, max_days)
+    end
 
     # 合併所有不可用日期
     all_special_closures = (special_closure_dates + unavailable_dates).uniq
@@ -67,8 +70,6 @@ class RestaurantsController < ApplicationController
 
   def available_dates
     party_size = params[:party_size].to_i
-
-    # 如果沒有提供 adults 和 children，則使用 party_size 作為 adults
     adults = params[:adults]&.to_i || party_size
     children = params[:children].to_i
 
@@ -79,23 +80,21 @@ class RestaurantsController < ApplicationController
       return
     end
 
-    # 檢查餐廳是否有足夠容量的桌位
+    # 使用新的service處理業務邏輯
+    availability_service = RestaurantAvailabilityService.new(@restaurant)
     has_capacity = @restaurant.has_capacity_for_party_size?(party_size)
 
-    # 獲取接下來 60 天的可預約日期
     available_dates = if has_capacity
-                        get_available_dates_with_allocator(party_size, adults, children)
+                        availability_service.get_available_dates(party_size, adults, children)
                       else
                         []
                       end
 
-    business_periods = @restaurant.business_periods.active
-
-    # 只有在餐廳有足夠容量但沒有可預約日期時，才計算客滿到什麼時候
-    # 如果餐廳沒有足夠容量的桌位，則不顯示額滿訊息
     full_booked_until = if has_capacity && available_dates.empty?
-                          calculate_full_booked_until(party_size, adults, children)
+                          availability_service.calculate_full_booked_until(party_size, adults, children)
                         end
+
+    business_periods = @restaurant.business_periods.active
 
     render json: {
       available_dates: available_dates,
@@ -124,9 +123,7 @@ class RestaurantsController < ApplicationController
     end
 
     party_size = params[:party_size].to_i
-    phone_number = params[:phone] # 添加手機號碼參數
-
-    # 如果沒有提供 adults 和 children，則使用 party_size 作為 adults
+    phone_number = params[:phone]
     adults = params[:adults]&.to_i || party_size
     children = params[:children].to_i
 
@@ -143,16 +140,12 @@ class RestaurantsController < ApplicationController
       return
     end
 
-    Rails.logger.info 'Party size check passed'
-
     # 強化日期檢查：不能預定當天或過去的日期
     if date <= Date.current
       Rails.logger.info "Rejected date #{date} because it's not after #{Date.current} (same-day booking disabled)"
       render json: { error: '不可預定當天或過去的日期' }, status: :unprocessable_entity
       return
     end
-
-    Rails.logger.info 'Date check passed'
 
     # 檢查預約天數限制
     advance_booking_days = reservation_policy&.advance_booking_days || 30
@@ -163,8 +156,6 @@ class RestaurantsController < ApplicationController
       render json: { error: '超出預約範圍' }, status: :unprocessable_entity
       return
     end
-
-    Rails.logger.info 'Advance booking check passed'
 
     # 檢查手機號碼訂位限制
     phone_limit_exceeded = false
@@ -182,7 +173,6 @@ class RestaurantsController < ApplicationController
     end
 
     # 檢查餐廳當天是否營業
-    Rails.logger.info "Checking if restaurant is closed on #{date}"
     if @restaurant.closed_on_date?(date)
       Rails.logger.info "Restaurant is closed on #{date}"
       render json: {
@@ -195,10 +185,9 @@ class RestaurantsController < ApplicationController
       return
     end
 
-    Rails.logger.info "Restaurant is open on #{date}, getting time slots"
-
-    # 獲取當天的營業時段和可用時間
-    time_slots = get_available_times_with_allocator(date, party_size, adults, children)
+    # 使用新的service處理業務邏輯
+    availability_service = RestaurantAvailabilityService.new(@restaurant)
+    time_slots = availability_service.get_available_times(date, party_size, adults, children)
 
     Rails.logger.info "Got #{time_slots.size} time slots, rendering response"
 
@@ -220,179 +209,11 @@ class RestaurantsController < ApplicationController
       :business_periods,
       :restaurant_tables,
       :table_groups,
-      :closure_dates
+      :closure_dates,
+      :reservation_policy
     ).find_by!(slug: params[:slug])
   rescue ActiveRecord::RecordNotFound
     redirect_to root_path, alert: '找不到指定的餐廳'
-  end
-
-  def get_available_dates_with_allocator(party_size, _adults, _children)
-    available_dates = []
-    start_date = Date.current + 1.day
-    end_date = start_date + 30.days
-
-    # 在迴圈外初始化，避免重複建立和查詢
-    availability_service = AvailabilityService.new(@restaurant)
-
-    # 預載入所有日期範圍內的訂位資料（只查詢一次）
-    all_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
-
-    # 預載入餐廳桌位資料（只查詢一次）
-    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
-      .includes(:table_group)
-      .to_a
-
-    # 預載入營業時段資料
-    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
-
-    (start_date..end_date).each do |date|
-      # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
-      day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
-
-      # 使用 AvailabilityService 的方法檢查可用性
-      next unless availability_service.has_availability_on_date_cached?(
-        date,
-        day_reservations,
-        restaurant_tables,
-        business_periods_cache,
-        party_size
-      )
-
-      available_dates << date.to_s
-    end
-
-    available_dates
-  end
-
-  def get_available_times_with_allocator(date, party_size, adults, children)
-    Rails.logger.info "Getting available times for date=#{date}, party_size=#{party_size}, adults=#{adults}, children=#{children}"
-
-    available_times = []
-    target_date = date.is_a?(Date) ? date : Date.parse(date.to_s)
-
-    # 使用餐廳的動態時間產生方法
-    available_time_options = @restaurant.available_time_options_for_date(target_date)
-
-    # 在迴圈外初始化，避免重複建立和查詢
-    availability_service = AvailabilityService.new(@restaurant)
-
-    # 預載入當天的訂位資料（只查詢一次）
-    day_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) = ?', target_date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
-
-    # 預載入餐廳桌位資料（只查詢一次）
-    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
-      .includes(:table_group)
-      .to_a
-
-    available_time_options.each do |time_option|
-      datetime = time_option[:datetime]
-      business_period_id = time_option[:business_period_id]
-
-      # 按營業時段分組訂位（在迴圈內過濾，但不重新查詢）
-      period_reservations = day_reservations.select { |r| r.business_period_id == business_period_id }
-
-      # 檢查該時段是否有可用桌位
-      next unless availability_service.has_availability_for_slot_optimized?(
-        restaurant_tables,
-        period_reservations,
-        datetime,
-        party_size,
-        business_period_id
-      )
-
-      available_times << {
-        time: datetime.strftime('%H:%M'),
-        datetime: datetime.iso8601,
-        business_period_id: business_period_id
-      }
-    end
-
-    Rails.logger.info "Found #{available_times.size} available times"
-    available_times
-  end
-
-  def has_availability_on_date?(date, party_size, _adults, _children)
-    # 使用餐廳的動態時間產生方法
-    available_time_options = @restaurant.available_time_options_for_date(date)
-    return false if available_time_options.empty?
-
-    # 使用 AvailabilityService 檢查可用性
-    availability_service = AvailabilityService.new(@restaurant)
-
-    # 預載入當天的訂位資料
-    day_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) = ?', date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
-
-    # 預載入餐廳桌位資料
-    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
-      .includes(:table_group)
-      .to_a
-
-    # 預載入營業時段資料
-    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
-
-    # 使用 AvailabilityService 的方法檢查可用性
-    availability_service.has_availability_on_date_cached?(
-      date,
-      day_reservations,
-      restaurant_tables,
-      business_periods_cache,
-      party_size
-    )
-  end
-
-  def calculate_full_booked_until(party_size, _adults, _children)
-    # 檢查接下來 90 天內第一個有空位的日期
-    start_date = Date.current
-    end_date = start_date + 90.days
-
-    # 在迴圈外初始化，避免重複建立和查詢
-    availability_service = AvailabilityService.new(@restaurant)
-
-    # 預載入所有日期範圍內的訂位資料（只查詢一次）
-    all_reservations = @restaurant.reservations
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
-      .includes(:business_period, :table, table_combination: :restaurant_tables)
-      .to_a
-
-    # 預載入餐廳桌位資料（只查詢一次）
-    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
-      .includes(:table_group)
-      .to_a
-
-    # 預載入營業時段資料
-    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
-
-    (start_date..end_date).each do |date|
-      # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
-      day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
-
-      # 使用 AvailabilityService 的方法檢查可用性
-      if availability_service.has_availability_on_date_cached?(
-        date,
-        day_reservations,
-        restaurant_tables,
-        business_periods_cache,
-        party_size
-      )
-        return date
-      end
-    end
-
-    # 如果 90 天內都沒有空位，回傳 90 天後
-    end_date
   end
 
   def check_reservation_enabled
@@ -404,11 +225,5 @@ class RestaurantsController < ApplicationController
       reservation_enabled: false,
       message: "很抱歉，#{@restaurant.name} 目前暫停接受線上訂位。如需訂位，請直接致電餐廳洽詢。"
     }, status: :service_unavailable
-  end
-
-  def get_unavailable_dates_optimized(party_size, max_days)
-    # 使用 AvailabilityService 處理
-    availability_service = AvailabilityService.new(@restaurant)
-    availability_service.get_unavailable_dates_optimized(party_size, max_days)
   end
 end

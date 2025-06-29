@@ -171,7 +171,9 @@ class TestRedis
 
       @data[key] = value
       @expires[key] = Time.current + options[:ex].seconds if options[:ex]
-      true
+      
+      # 返回 "OK" 而非 true，以符合 Redis 的行為
+      "OK"
     end
   end
 

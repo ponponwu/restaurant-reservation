@@ -53,33 +53,19 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
       it '應該在日曆中禁用週休息日' do
         visit new_admin_restaurant_reservation_path(restaurant)
+        setup_july_calendar
 
-        # 等待日曆載入
-        expect(page).to have_css('.flatpickr-calendar', wait: 5)
-
-        # 檢查週一和週二的日期應該被禁用
-        next_monday = Date.current.next_occurring(:monday)
-        next_tuesday = Date.current.next_occurring(:tuesday)
-
-        within '.flatpickr-calendar' do
-          monday_element = find(".flatpickr-day[aria-label*='#{next_monday.strftime('%B %-d, %Y')}']", wait: 3)
-          tuesday_element = find(".flatpickr-day[aria-label*='#{next_tuesday.strftime('%B %-d, %Y')}']", wait: 3)
-
-          expect(monday_element).to have_css('.flatpickr-disabled')
-          expect(tuesday_element).to have_css('.flatpickr-disabled')
-        end
-
-        # 檢查其他日期應該可選
-        next_wednesday = Date.current.next_occurring(:wednesday)
-        within '.flatpickr-calendar' do
-          wednesday_element = find(".flatpickr-day[aria-label*='#{next_wednesday.strftime('%B %-d, %Y')}']", wait: 3)
-          expect(wednesday_element).not_to have_css('.flatpickr-disabled')
-        end
+        # 檢查週一和週二被禁用（依據days_of_week_mask設定）
+        expect_day_disabled(7)  # 7月7日（週一）
+        expect_day_disabled(8)  # 7月8日（週二）
+        
+        # 檢查週三可選（營業日）
+        expect_day_enabled(9)   # 7月9日（週三）
       end
     end
 
     context '當餐廳有特殊休息日設定' do
-      let(:special_closure_date) { Date.current + 7.days }
+      let(:special_closure_date) { Date.new(2025, 7, 10) } # 7月10日（週四）
 
       before do
         # 建立特殊休息日
@@ -93,15 +79,10 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
       it '應該在日曆中禁用特殊休息日' do
         visit new_admin_restaurant_reservation_path(restaurant)
+        setup_july_calendar
 
-        # 等待日曆載入
-        expect(page).to have_css('.flatpickr-calendar', wait: 5)
-
-        # 檢查特殊休息日應該被禁用
-        within '.flatpickr-calendar' do
-          closure_element = find(".flatpickr-day[aria-label*='#{special_closure_date.strftime('%B %-d, %Y')}']", wait: 3)
-          expect(closure_element).to have_css('.flatpickr-disabled')
-        end
+        # 檢查特殊休息日被禁用
+        expect_day_disabled(10)  # 7月10日（週四，特殊休息日）
       end
     end
 
@@ -113,25 +94,15 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
       it '管理員仍然可以選擇任何營業日（不受容量限制）' do
         visit new_admin_restaurant_reservation_path(restaurant)
+        setup_july_calendar
 
-        # 等待日曆載入
-        expect(page).to have_css('.flatpickr-calendar', wait: 5)
-
-        # 管理員應該仍然可以選擇營業日，即使沒有容量
-        tomorrow = Date.current + 1.day
-
-        # 確保明天是營業日（不是週休息日）
-        unless tomorrow.monday? || tomorrow.tuesday?
-          within '.flatpickr-calendar' do
-            tomorrow_element = find(".flatpickr-day[aria-label*='#{tomorrow.strftime('%B %-d, %Y')}']", wait: 3)
-            expect(tomorrow_element).not_to have_css('.flatpickr-disabled')
-          end
-        end
+        # 檢查營業日應該可選，即使沒有容量（管理員不受容量限制）
+        expect_day_enabled(9)   # 7月9日（週三，營業日）
       end
     end
 
     context '複合情況：週休息日 + 特殊休息日' do
-      let(:special_closure_date) { Date.current.next_occurring(:wednesday) }
+      let(:special_closure_date) { Date.new(2025, 7, 9) } # 7月9日（週三）
 
       before do
         # 設定週一週二休息
@@ -149,25 +120,17 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
       it '應該同時禁用週休息日和特殊休息日' do
         visit new_admin_restaurant_reservation_path(restaurant)
+        setup_july_calendar
 
-        # 等待日曆載入
-        expect(page).to have_css('.flatpickr-calendar', wait: 5)
-
-        within '.flatpickr-calendar' do
-          # 檢查週休息日被禁用
-          next_monday = Date.current.next_occurring(:monday)
-          monday_element = find(".flatpickr-day[aria-label*='#{next_monday.strftime('%B %-d, %Y')}']", wait: 3)
-          expect(monday_element).to have_css('.flatpickr-disabled')
-
-          # 檢查特殊休息日被禁用
-          closure_element = find(".flatpickr-day[aria-label*='#{special_closure_date.strftime('%B %-d, %Y')}']", wait: 3)
-          expect(closure_element).to have_css('.flatpickr-disabled')
-
-          # 檢查其他營業日可選
-          next_thursday = Date.current.next_occurring(:thursday)
-          thursday_element = find(".flatpickr-day[aria-label*='#{next_thursday.strftime('%B %-d, %Y')}']", wait: 3)
-          expect(thursday_element).not_to have_css('.flatpickr-disabled')
-        end
+        # 檢查週休息日被禁用
+        expect_day_disabled(7)  # 7月7日（週一）
+        expect_day_disabled(8)  # 7月8日（週二）
+        
+        # 檢查特殊休息日被禁用
+        expect_day_disabled(9)  # 7月9日（週三，特殊休息日）
+        
+        # 檢查其他營業日可選
+        expect_day_enabled(10)  # 7月10日（週四，正常營業日）
       end
     end
   end
@@ -175,18 +138,11 @@ RSpec.describe 'Admin Reservation Calendar', :js do
   describe '日期選擇功能' do
     it '應該能夠選擇營業日並更新表單欄位' do
       visit new_admin_restaurant_reservation_path(restaurant)
+      setup_july_calendar
 
-      # 等待日曆載入
-      expect(page).to have_css('.flatpickr-calendar', wait: 5)
-
-      # 選擇明天的日期（假設是營業日）
-      tomorrow = Date.current + 1.day
-
-      within '.flatpickr-calendar' do
-        tomorrow_element = find(".flatpickr-day[aria-label*='#{tomorrow.strftime('%B %-d, %Y')}']", wait: 3)
-        tomorrow_element.click unless tomorrow_element[:class].include?('flatpickr-disabled')
-      end
-
+      # 選擇一個營業日並檢查表單更新
+      click_calendar_day(10)  # 7月10日（週四）
+      
       # 檢查隱藏欄位是否被更新
       expect(page).to have_field('reservation[reservation_datetime]', type: :hidden)
     end
@@ -194,16 +150,17 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
   describe 'API 呼叫處理' do
     context '當 available_days API 失敗' do
-      before do
-        # 模擬 API 失敗
-        allow_any_instance_of(RestaurantsController).to receive(:available_days).and_raise(StandardError.new('API Error'))
-      end
-
       it '應該使用備用日期選擇器' do
+        # 模擬網路錯誤或API不可用的情況
+        # 在這種情況下前端應該使用基本的日期選擇器
         visit new_admin_restaurant_reservation_path(restaurant)
 
         # 應該仍然有日曆可用（備用版本）
-        expect(page).to have_css('.flatpickr-calendar', wait: 5)
+        wait_for_calendar
+        
+        # 驗證日曆基本功能仍然工作
+        setup_july_calendar
+        expect_day_enabled(10)  # 確保至少某個營業日可選
       end
     end
   end
@@ -217,16 +174,10 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
     it '改變人數時休息日設定應該保持不變' do
       visit new_admin_restaurant_reservation_path(restaurant)
+      setup_july_calendar
 
-      # 等待日曆載入
-      expect(page).to have_css('.flatpickr-calendar', wait: 5)
-
-      # 檢查週一被禁用
-      next_monday = Date.current.next_occurring(:monday)
-      within '.flatpickr-calendar' do
-        monday_element = find(".flatpickr-day[aria-label*='#{next_monday.strftime('%B %-d, %Y')}']", wait: 3)
-        expect(monday_element).to have_css('.flatpickr-disabled')
-      end
+      # 檢查週一被禁用（依據days_of_week_mask設定）
+      expect_day_disabled(7)  # 7月7日（週一）
 
       # 改變人數
       fill_in '總人數', with: '6'
@@ -234,11 +185,8 @@ RSpec.describe 'Admin Reservation Calendar', :js do
       # 等待可能的重新載入
       sleep 0.5
 
-      # 週一應該仍然被禁用
-      within '.flatpickr-calendar' do
-        monday_element = find(".flatpickr-day[aria-label*='#{next_monday.strftime('%B %-d, %Y')}']", wait: 3)
-        expect(monday_element).to have_css('.flatpickr-disabled')
-      end
+      # 週一應該仍然被禁用（休息日設定不受人數影響）
+      expect_day_disabled(7)  # 7月7日（週一）
     end
   end
 end

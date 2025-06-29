@@ -12589,7 +12589,17 @@ var reservation_calendar_controller_default = class extends Controller {
 // app/javascript/controllers/reservation_controller.js
 var import_zh_tw2 = __toESM(require_zh_tw());
 var reservation_controller_default = class extends Controller {
-  static targets = ["date", "calendar", "timeSlots", "periodInfo", "nextStep", "adultCount", "childCount"];
+  static targets = [
+    "date",
+    "calendar",
+    "timeSlots",
+    "periodInfo",
+    "nextStep",
+    "adultCount",
+    "childCount",
+    "fullBookingNotice",
+    "datePickerContainer"
+  ];
   static values = {
     restaurantSlug: String,
     businessHours: Object,
@@ -12597,28 +12607,45 @@ var reservation_controller_default = class extends Controller {
     minPartySize: Number
   };
   connect() {
-    if (true) {
-      console.log("\u{1F525} Reservation controller connected");
-      console.log("\u{1F525} Controller targets:", this.targets);
-      console.log("\u{1F525} timeSlots target available:", this.hasTimeSlotsTarget);
-      console.log("\u{1F525} dateTarget available:", this.hasDateTarget);
-      console.log("\u{1F525} Restaurant slug:", this.restaurantSlugValue);
-      console.log("\u{1F525} Max party size:", this.maxPartySizeValue);
-      console.log("\u{1F525} Min party size:", this.minPartySizeValue);
-    }
     this.selectedDate = null;
     this.selectedPeriodId = null;
     this.selectedTime = null;
     this.maxReservationDays = 30;
+    this.resizeTimeout = null;
+    this.resizeHandler = () => {
+      clearTimeout(this.resizeTimeout);
+      this.resizeTimeout = setTimeout(() => {
+        const calendarElement = this.calendarTarget?.querySelector(".flatpickr-calendar");
+        if (calendarElement) {
+          this.applyResponsiveScale(calendarElement);
+        }
+      }, 150);
+    };
+    window.addEventListener("resize", this.resizeHandler);
+    window.addEventListener("orientationchange", () => {
+      setTimeout(() => {
+        const calendarElement = this.calendarTarget?.querySelector(".flatpickr-calendar");
+        if (calendarElement) {
+          this.applyResponsiveScale(calendarElement);
+        }
+      }, 300);
+    });
     setTimeout(() => {
       this.initDatePicker();
       this.setupGuestCountListeners();
       this.updateGuestCountOptions();
     }, 100);
   }
+  disconnect() {
+    if (this.resizeHandler) {
+      window.removeEventListener("resize", this.resizeHandler);
+    }
+    if (this.resizeTimeout) {
+      clearTimeout(this.resizeTimeout);
+    }
+  }
   setupGuestCountListeners() {
     const handleGuestCountChange = () => {
-      console.log("\u{1F525} Guest count changed, updating form...");
       this.updateGuestCountOptions();
       this.updateHiddenFields();
       this.clearSelectedTimeSlot();
@@ -12628,7 +12655,6 @@ var reservation_controller_default = class extends Controller {
         this.initDatePicker();
       }
       if (this.selectedDate) {
-        console.log("\u{1F525} Reloading time slots for selected date:", this.selectedDate);
         this.loadAllTimeSlots(this.selectedDate);
       }
     };
@@ -12645,8 +12671,6 @@ var reservation_controller_default = class extends Controller {
     const currentAdults = parseInt(this.adultCountTarget.value) || 1;
     const currentChildren = parseInt(this.childCountTarget.value) || 0;
     const maxPartySize = this.maxPartySizeValue || 6;
-    const minPartySize = this.minPartySizeValue || 1;
-    console.log("\u{1F525} Updating guest count options:", { currentAdults, currentChildren, maxPartySize, minPartySize });
     this.updateSelectOptions(this.adultCountTarget, currentAdults, 1, maxPartySize - currentChildren);
     this.updateSelectOptions(this.childCountTarget, currentChildren, 0, maxPartySize - currentAdults);
     this.validateCurrentSelection();
@@ -12662,22 +12686,18 @@ var reservation_controller_default = class extends Controller {
       }
       selectElement.appendChild(option2);
     }
-    console.log(`\u{1F525} Updated ${selectElement.name} options: ${minValue}-${maxValue}, current: ${currentValue}`);
   }
   validateCurrentSelection() {
     const adults = parseInt(this.adultCountTarget.value) || 1;
     const children = parseInt(this.childCountTarget.value) || 0;
     const totalPartySize = adults + children;
     const maxPartySize = this.maxPartySizeValue || 6;
-    console.log("\u{1F525} Validating selection:", { adults, children, totalPartySize, maxPartySize });
     if (totalPartySize > maxPartySize) {
       const adjustedChildren = Math.max(0, maxPartySize - adults);
-      console.log("\u{1F525} Adjusting children count from", children, "to", adjustedChildren);
       this.childCountTarget.value = adjustedChildren;
       setTimeout(() => this.updateGuestCountOptions(), 10);
     }
     if (adults < 1) {
-      console.log("\u{1F525} Adjusting adults count to minimum 1");
       this.adultCountTarget.value = 1;
       setTimeout(() => this.updateGuestCountOptions(), 10);
     }
@@ -12698,9 +12718,7 @@ var reservation_controller_default = class extends Controller {
     return adults + children;
   }
   async initDatePicker() {
-    console.log("\u{1F525} Starting initDatePicker...");
     if (!this.hasCalendarTarget) {
-      console.error("\u{1F525} No calendar target found!");
       return;
     }
     if (this.datePicker) {
@@ -12709,41 +12727,94 @@ var reservation_controller_default = class extends Controller {
     }
     try {
       const partySize = this.getCurrentPartySize();
+      const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 0 : partySize;
+      const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0;
+      const availableDatesUrl = `/restaurants/${this.restaurantSlugValue}/available_dates?party_size=${partySize}&adults=${adults}&children=${children}`;
+      const availableDatesResponse = await fetch(availableDatesUrl, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+      if (availableDatesResponse.status === 503) {
+        const errorData = await availableDatesResponse.json();
+        this.showServiceUnavailable(errorData.message || errorData.error);
+        return;
+      }
+      if (!availableDatesResponse.ok) {
+        throw new Error(`HTTP error! status: ${availableDatesResponse.status}`);
+      }
+      const availableDatesData = await availableDatesResponse.json();
+      if (availableDatesData.has_capacity && (!availableDatesData.available_dates || availableDatesData.available_dates.length === 0)) {
+        if (this.datePicker) {
+          this.datePicker.destroy();
+          this.datePicker = null;
+        }
+        const advanceBookingDays = availableDatesData.advance_booking_days || 30;
+        const fullBookedUntil = availableDatesData.full_booked_until || new Date(Date.now() + advanceBookingDays * 24 * 60 * 60 * 1e3).toISOString().split("T")[0];
+        this.showFullyBookedMessage(fullBookedUntil, partySize);
+        return;
+      }
+      if (!availableDatesData.has_capacity) {
+        if (this.datePicker) {
+          this.datePicker.destroy();
+          this.datePicker = null;
+        }
+        this.showNoCapacityMessage(partySize);
+        return;
+      }
       const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
-      console.log("\u{1F525} Fetching from:", apiUrl);
       const response = await fetch(apiUrl, {
         headers: {
           Accept: "application/json",
           "Content-Type": "application/json"
         }
       });
-      console.log("\u{1F525} API response status:", response.status);
-      if (response.status === 503) {
-        const errorData = await response.json();
-        this.showServiceUnavailable(errorData.message || errorData.error);
-        return;
-      }
       if (!response.ok) {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      console.log("\u{1F525} Available days data:", data);
-      this.updateFullBookingNotice(data);
+      if (data.max_days) {
+        this.maxReservationDays = data.max_days;
+      }
+      this.hideFullyBookedMessage();
       const disabledDates = this.calculateDisabledDates(
         data.weekly_closures || [],
         data.special_closures || [],
-        data.has_capacity
+        data.has_capacity,
+        availableDatesData.available_dates || []
       );
-      console.log("\u{1F525} Disabled dates:", disabledDates);
-      this.datePicker = esm_default(this.calendarTarget, {
+      let defaultDate = null;
+      let defaultViewDate = null;
+      if (availableDatesData.available_dates && availableDatesData.available_dates.length > 0) {
+        defaultDate = availableDatesData.available_dates[0];
+        try {
+          defaultViewDate = new Date(defaultDate);
+          if (isNaN(defaultViewDate.getTime())) {
+            defaultDate = null;
+            defaultViewDate = null;
+          }
+        } catch (error2) {
+          defaultDate = null;
+          defaultViewDate = null;
+        }
+      }
+      const flatpickrConfig = {
         inline: true,
+        static: true,
+        // 移除 appendTo，讓 flatpickr 使用預設行為
         locale: import_zh_tw2.default.zh_tw,
         dateFormat: "Y-m-d",
         minDate: "today",
         maxDate: (/* @__PURE__ */ new Date()).fp_incr(this.maxReservationDays),
         disable: disabledDates,
-        onChange: (selectedDates, dateStr) => {
-          console.log("\u{1F525} Date selected:", dateStr);
+        // 如果有可預約日期，設定預設日期和視圖月份
+        ...defaultDate && { defaultDate },
+        ...defaultViewDate && { defaultViewDate },
+        onChange: (_, dateStr) => {
+          if (!dateStr || dateStr === "") {
+            return;
+          }
           this.selectedDate = dateStr;
           if (this.hasDateTarget) {
             this.dateTarget.value = dateStr;
@@ -12755,54 +12826,251 @@ var reservation_controller_default = class extends Controller {
           this.updateUrlWithDate(dateStr);
           this.loadAllTimeSlots(dateStr);
         },
-        onReady: () => {
-          this.styleFlatpickr();
+        onReady: (_, __, instance) => {
+          setTimeout(() => this.styleFlatpickr(), 100);
+          if (defaultDate && instance) {
+            setTimeout(() => {
+              instance.setDate(defaultDate, true);
+              setTimeout(() => {
+                if (this.hasTimeSlotsTarget) {
+                  const currentTimeSlots = this.timeSlotsTarget.innerHTML.trim();
+                  if (!currentTimeSlots || currentTimeSlots.includes("\u8ACB\u5148\u9078\u64C7\u65E5\u671F") || currentTimeSlots === "") {
+                    this.selectedDate = defaultDate;
+                    this.loadAllTimeSlots(defaultDate);
+                  }
+                }
+              }, 100);
+            }, 300);
+          }
+        },
+        onOpen: () => {
+          setTimeout(() => this.styleFlatpickr(), 100);
+        },
+        onMonthChange: () => {
+          setTimeout(() => this.styleFlatpickr(), 50);
+        },
+        onYearChange: () => {
+          setTimeout(() => this.styleFlatpickr(), 50);
         }
-      });
+      };
+      this.datePicker = esm_default(this.calendarTarget, flatpickrConfig);
     } catch (error2) {
-      console.error("\u{1F525} Error initializing date picker:", error2);
       this.showError("\u8F09\u5165\u65E5\u671F\u9078\u64C7\u5668\u6642\u767C\u751F\u932F\u8AA4");
     }
   }
-  styleFlatpickr() {
-    const calendarElement = this.calendarTarget.querySelector(".flatpickr-calendar");
-    if (calendarElement) {
-      calendarElement.classList.add("inline");
-      calendarElement.style.position = "relative";
-      calendarElement.style.top = "auto";
-      calendarElement.style.left = "auto";
-      calendarElement.style.display = "block";
-      calendarElement.style.width = "100%";
-      calendarElement.style.maxWidth = "none";
-      const dayContainer = calendarElement.querySelector(".dayContainer");
-      if (dayContainer) {
-        dayContainer.style.width = "100%";
-        dayContainer.style.minWidth = "100%";
-        dayContainer.style.maxWidth = "100%";
+  styleFlatpickr(retryCount = 0) {
+    let calendarElement = this.calendarTarget?.querySelector(".flatpickr-calendar");
+    if (!calendarElement) {
+      calendarElement = document.querySelector(".flatpickr-calendar");
+    }
+    if (!calendarElement) {
+      if (retryCount < 3) {
+        setTimeout(() => this.styleFlatpickr(retryCount + 1), 200);
       }
-      const daysContainer = calendarElement.querySelector(".flatpickr-days");
-      if (daysContainer) {
-        daysContainer.style.width = "100%";
-      }
+      return;
+    }
+    calendarElement.classList.add("inline");
+    calendarElement.style.position = "relative";
+    calendarElement.style.top = "";
+    calendarElement.style.left = "";
+    calendarElement.style.display = "block";
+    calendarElement.style.width = "100%";
+    calendarElement.style.maxWidth = "100%";
+    calendarElement.style.transformOrigin = "center center";
+    this.applyResponsiveScale(calendarElement);
+    const dayContainer = calendarElement.querySelector(".dayContainer");
+    if (dayContainer) {
+      dayContainer.style.width = "";
+      dayContainer.style.minWidth = "";
+      dayContainer.style.maxWidth = "";
+    }
+    const daysContainer = calendarElement.querySelector(".flatpickr-days");
+    if (daysContainer) {
+      daysContainer.style.width = "";
     }
   }
-  updateFullBookingNotice(data) {
+  applyResponsiveScale(calendarElement) {
+    const screenWidth = window.innerWidth;
+    let scale, margin, maxWidth;
+    if (screenWidth <= 480) {
+      scale = 1.2;
+      margin = "1rem auto";
+      maxWidth = "100%";
+    } else if (screenWidth <= 768) {
+      scale = 1.1;
+      margin = "1rem auto";
+      maxWidth = "90%";
+    } else if (screenWidth <= 1024) {
+      scale = 1.1;
+      margin = "1.25rem auto";
+      maxWidth = "100%";
+    } else if (screenWidth <= 1440) {
+      scale = 1.2;
+      margin = "2rem auto";
+      maxWidth = "100%";
+    } else {
+      scale = 1.3;
+      margin = "2rem auto";
+      maxWidth = "100%";
+    }
+    calendarElement.style.transform = `scale(${scale})`;
+    calendarElement.style.webkitTransform = `scale(${scale})`;
+    calendarElement.style.mozTransform = `scale(${scale})`;
+    calendarElement.style.msTransform = `scale(${scale})`;
+    calendarElement.style.margin = margin;
+    calendarElement.style.maxWidth = maxWidth;
+  }
+  updateFullBookingNotice() {
     if (this.hasFullBookingNoticeTarget) {
       this.fullBookingNoticeTarget.classList.add("hidden");
     }
   }
+  showFullyBookedMessage(fullBookedUntil, partySize) {
+    this.selectedDate = null;
+    this.selectedTime = null;
+    this.selectedPeriodId = null;
+    const reservationDateField = document.getElementById("reservation_date");
+    if (reservationDateField) {
+      reservationDateField.value = "";
+    }
+    if (this.hasDateTarget) {
+      this.dateTarget.value = "";
+    }
+    const url = new URL(window.location);
+    url.searchParams.delete("date_filter");
+    window.history.pushState({}, "", url.toString());
+    if (this.datePicker) {
+      this.datePicker.destroy();
+      this.datePicker = null;
+    }
+    if (this.hasCalendarTarget) {
+      this.calendarTarget.innerHTML = "";
+    }
+    if (this.hasDatePickerContainerTarget) {
+      this.datePickerContainerTarget.classList.add("hidden");
+      this.datePickerContainerTarget.style.display = "none";
+    }
+    if (this.hasTimeSlotsTarget) {
+      this.timeSlotsTarget.innerHTML = "";
+    }
+    if (this.hasFullBookingNoticeTarget) {
+      const formattedDate = this.formatDateToTaiwan(fullBookedUntil);
+      this.fullBookingNoticeTarget.innerHTML = `
+                <div class="bg-gray-800 border border-gray-600 rounded-lg p-6 text-center">
+                    <div class="flex justify-center mb-4">
+                        <svg class="h-12 w-12 text-orange-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">\u8A02\u4F4D\u5DF2\u984D\u6EFF</h3>
+                    <p class="text-gray-300">\u5230 <strong>${formattedDate}</strong> \u524D\uFF0C<strong>${partySize} \u4EBA</strong>\u4F4D\u7684\u8A02\u4F4D\u5DF2\u984D\u6EFF</p>
+                    <p class="text-gray-400 text-sm mt-2">\u8ACB\u5617\u8A66\u8ABF\u6574\u4EBA\u6578\u6216\u9078\u64C7\u5176\u4ED6\u65E5\u671F\uFF0C\u6216\u76F4\u63A5\u806F\u7D61\u9910\u5EF3</p>
+                </div>
+            `;
+      this.fullBookingNoticeTarget.classList.remove("hidden");
+    }
+    if (this.hasNextStepTarget) {
+      this.nextStepTarget.disabled = true;
+      this.nextStepTarget.classList.remove("bg-blue-600", "hover:bg-blue-700");
+      this.nextStepTarget.classList.add("bg-gray-600", "hover:bg-gray-500");
+    }
+  }
+  showNoCapacityMessage(partySize) {
+    this.selectedDate = null;
+    this.selectedTime = null;
+    this.selectedPeriodId = null;
+    const reservationDateField = document.getElementById("reservation_date");
+    if (reservationDateField) {
+      reservationDateField.value = "";
+    }
+    if (this.hasDateTarget) {
+      this.dateTarget.value = "";
+    }
+    const url = new URL(window.location);
+    url.searchParams.delete("date_filter");
+    window.history.pushState({}, "", url.toString());
+    if (this.datePicker) {
+      this.datePicker.destroy();
+      this.datePicker = null;
+    }
+    if (this.hasCalendarTarget) {
+      this.calendarTarget.innerHTML = "";
+    }
+    if (this.hasDatePickerContainerTarget) {
+      this.datePickerContainerTarget.classList.add("hidden");
+      this.datePickerContainerTarget.style.display = "none";
+    }
+    if (this.hasTimeSlotsTarget) {
+      this.timeSlotsTarget.innerHTML = "";
+    }
+    if (this.hasFullBookingNoticeTarget) {
+      this.fullBookingNoticeTarget.innerHTML = `
+                <div class="bg-gray-800 border border-gray-600 rounded-lg p-6 text-center">
+                    <div class="flex justify-center mb-4">
+                        <svg class="h-12 w-12 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.664-.833-2.464 0L4.35 16.5c-.77.833.192 2.5 1.732 2.5z"></path>
+                        </svg>
+                    </div>
+                    <h3 class="text-lg font-semibold text-white mb-2">\u7121\u6CD5\u5B89\u6392\u8A02\u4F4D</h3>
+                    <p class="text-gray-300">\u5F88\u62B1\u6B49\uFF0C\u7121\u6CD5\u70BA <strong>${partySize} \u4EBA</strong> \u5B89\u6392\u8A02\u4F4D</p>
+                    <p class="text-gray-400 text-sm mt-2">\u8ACB\u5617\u8A66\u8ABF\u6574\u4EBA\u6578\u6216\u76F4\u63A5\u806F\u7D61\u9910\u5EF3</p>
+                </div>
+            `;
+      this.fullBookingNoticeTarget.classList.remove("hidden");
+    }
+    if (this.hasNextStepTarget) {
+      this.nextStepTarget.disabled = true;
+      this.nextStepTarget.classList.remove("bg-blue-600", "hover:bg-blue-700");
+      this.nextStepTarget.classList.add("bg-gray-600", "hover:bg-gray-500");
+    }
+  }
+  hideFullyBookedMessage() {
+    if (this.hasDatePickerContainerTarget) {
+      this.datePickerContainerTarget.classList.remove("hidden");
+      this.datePickerContainerTarget.style.display = "";
+    }
+    if (this.hasFullBookingNoticeTarget) {
+      this.fullBookingNoticeTarget.classList.add("hidden");
+    }
+  }
+  formatDateToTaiwan(dateString) {
+    try {
+      const date = new Date(dateString);
+      const year = date.getFullYear();
+      const month = date.getMonth() + 1;
+      const day = date.getDate();
+      return `${year}\u5E74${month}\u6708${day}\u65E5`;
+    } catch (error2) {
+      return dateString;
+    }
+  }
   async loadAllTimeSlots(date) {
-    console.log("\u{1F525} Loading time slots for date:", date);
     if (!this.hasTimeSlotsTarget) {
-      console.error("\u{1F525} No timeSlots target found!");
+      return;
+    }
+    if (!date || date === "" || date === "undefined" || date === "null") {
+      this.showError("\u8ACB\u5148\u9078\u64C7\u65E5\u671F");
       return;
     }
     try {
       const partySize = this.getCurrentPartySize();
-      const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 0 : partySize;
+      const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 1 : Math.max(1, partySize);
       const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0;
-      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${date}&adult_count=${adults}&child_count=${children}`;
-      console.log("\u{1F525} Fetching time slots from:", url);
+      let formattedDate = date;
+      if (date instanceof Date) {
+        formattedDate = date.toISOString().split("T")[0];
+      } else if (typeof date === "string" && date.length > 0) {
+        const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
+        if (!dateRegex.test(date)) {
+          this.showError("\u65E5\u671F\u683C\u5F0F\u932F\u8AA4\uFF0C\u8ACB\u91CD\u65B0\u9078\u64C7\u65E5\u671F");
+          return;
+        }
+        formattedDate = date;
+      } else {
+        this.showError("\u65E5\u671F\u683C\u5F0F\u932F\u8AA4\uFF0C\u8ACB\u91CD\u65B0\u9078\u64C7\u65E5\u671F");
+        return;
+      }
+      const url = `/restaurants/${this.restaurantSlugValue}/reservations/available_slots?date=${formattedDate}&adult_count=${adults}&child_count=${children}`;
       const response = await fetch(url, {
         headers: {
           Accept: "application/json",
@@ -12810,15 +13078,14 @@ var reservation_controller_default = class extends Controller {
         }
       });
       if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      console.log("\u{1F525} Time slots data:", data);
       this.renderTimeSlots(data.slots || []);
       this.updateFormState();
     } catch (error2) {
-      console.error("\u{1F525} Error loading time slots:", error2);
-      this.showError("\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4");
+      this.showError(error2.message || "\u8F09\u5165\u6642\u9593\u6642\u767C\u751F\u932F\u8AA4");
     }
   }
   renderTimeSlots(timeSlots) {
@@ -12886,7 +13153,6 @@ var reservation_controller_default = class extends Controller {
     this.periodInfoTarget.innerHTML = `<p class="text-gray-400">\u53EF\u7528\u9910\u671F\uFF1A${periodsText}</p>`;
   }
   selectTimeSlot(slot, buttonElement) {
-    console.log("\u{1F525} Time slot selected:", slot);
     this.timeSlotsTarget.querySelectorAll("button").forEach((btn) => {
       btn.classList.remove("bg-blue-600", "border-blue-500");
       btn.classList.add("bg-gray-800", "border-gray-600");
@@ -12931,7 +13197,6 @@ var reservation_controller_default = class extends Controller {
     }
   }
   showError(message) {
-    console.error("\u{1F525} Error:", message);
     if (this.hasTimeSlotsTarget) {
       this.timeSlotsTarget.innerHTML = `
                 <div class="bg-yellow-50 border border-yellow-200 rounded-lg p-4 text-center">
@@ -12940,7 +13205,7 @@ var reservation_controller_default = class extends Controller {
             `;
     }
   }
-  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true) {
+  calculateDisabledDates(weekly_closures, special_closures, hasCapacity = true, availableDates = []) {
     const disabledDates = [];
     if (!hasCapacity) {
       const today = /* @__PURE__ */ new Date();
@@ -12965,15 +13230,26 @@ var reservation_controller_default = class extends Controller {
         });
       });
     }
+    if (availableDates && availableDates.length > 0) {
+      const availableDateSet = new Set(availableDates.map((dateStr) => {
+        const date = new Date(dateStr);
+        return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+      }));
+      disabledDates.push((date) => {
+        const dateStr = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+        return !availableDateSet.has(dateStr);
+      });
+    }
     return disabledDates;
   }
-  // 更新 URL，移除 show_all 參數並設定 date_filter
   updateUrlWithDate(dateStr) {
+    if (!dateStr || dateStr === "") {
+      return;
+    }
     const url = new URL(window.location);
     url.searchParams.delete("show_all");
     url.searchParams.set("date_filter", dateStr);
     window.history.pushState({}, "", url.toString());
-    console.log("\u{1F525} URL updated to:", url.toString());
   }
   clearSelectedTimeSlot() {
     this.selectedTime = null;
@@ -12991,11 +13267,41 @@ var reservation_controller_default = class extends Controller {
     this.updateFormState();
   }
   async refreshAvailableDates() {
-    console.log("\u{1F525} Refreshing available dates due to party size change...");
     try {
       const partySize = this.getCurrentPartySize();
+      const adults = this.hasAdultCountTarget ? parseInt(this.adultCountTarget.value) || 0 : partySize;
+      const children = this.hasChildCountTarget ? parseInt(this.childCountTarget.value) || 0 : 0;
+      const availableDatesUrl = `/restaurants/${this.restaurantSlugValue}/available_dates?party_size=${partySize}&adults=${adults}&children=${children}`;
+      const availableDatesResponse = await fetch(availableDatesUrl, {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json"
+        }
+      });
+      if (!availableDatesResponse.ok) {
+        throw new Error(`HTTP error! status: ${availableDatesResponse.status}`);
+      }
+      const availableDatesData = await availableDatesResponse.json();
+      if (availableDatesData.has_capacity && (!availableDatesData.available_dates || availableDatesData.available_dates.length === 0)) {
+        if (this.datePicker) {
+          this.datePicker.destroy();
+          this.datePicker = null;
+        }
+        const advanceBookingDays = availableDatesData.advance_booking_days || 30;
+        const fullBookedUntil = availableDatesData.full_booked_until || new Date(Date.now() + advanceBookingDays * 24 * 60 * 60 * 1e3).toISOString().split("T")[0];
+        this.showFullyBookedMessage(fullBookedUntil, partySize);
+        return;
+      }
+      if (!availableDatesData.has_capacity) {
+        if (this.datePicker) {
+          this.datePicker.destroy();
+          this.datePicker = null;
+        }
+        this.showNoCapacityMessage(partySize);
+        return;
+      }
+      this.hideFullyBookedMessage();
       const apiUrl = `/restaurants/${this.restaurantSlugValue}/available_days?party_size=${partySize}`;
-      console.log("\u{1F525} Fetching updated available days from:", apiUrl);
       const response = await fetch(apiUrl, {
         headers: {
           Accept: "application/json",
@@ -13006,29 +13312,34 @@ var reservation_controller_default = class extends Controller {
         throw new Error(`HTTP error! status: ${response.status}`);
       }
       const data = await response.json();
-      console.log("\u{1F525} Updated available days data:", data);
       const disabledDates = this.calculateDisabledDates(
         data.weekly_closures || [],
         data.special_closures || [],
-        data.has_capacity
+        data.has_capacity,
+        availableDatesData.available_dates || []
       );
       if (this.datePicker) {
         this.datePicker.set("disable", disabledDates);
         this.datePicker.redraw();
+        setTimeout(() => this.styleFlatpickr(), 50);
+      } else {
+        this.initDatePicker();
+        return;
       }
-      this.updateFullBookingNotice(data);
       if (this.selectedDate && !data.has_capacity) {
-        console.log("\u{1F525} Current selected date is no longer available, clearing selection");
         this.selectedDate = null;
         if (this.hasDateTarget) {
           this.dateTarget.value = "";
+        }
+        const reservationDateField = document.getElementById("reservation_date");
+        if (reservationDateField) {
+          reservationDateField.value = "";
         }
         if (this.hasTimeSlotsTarget) {
           this.timeSlotsTarget.innerHTML = '<p class="text-gray-500 text-center py-4">\u8ACB\u5148\u9078\u64C7\u65E5\u671F</p>';
         }
       }
     } catch (error2) {
-      console.error("\u{1F525} Error refreshing available dates:", error2);
       this.showError("\u91CD\u65B0\u8F09\u5165\u53EF\u7528\u65E5\u671F\u6642\u767C\u751F\u932F\u8AA4");
     }
   }
@@ -13336,7 +13647,7 @@ var reservation_policy_controller_default = class extends Controller {
 
 // app/javascript/controllers/restaurant_info_controller.js
 var restaurant_info_controller_default = class extends Controller {
-  static targets = ["infoButton", "infoPanel"];
+  static targets = ["infoButton", "infoPanel", "reminderButton", "reminderPanel"];
   connect() {
     console.log("\u{1F525} Restaurant Info Controller connected");
   }
@@ -13348,6 +13659,18 @@ var restaurant_info_controller_default = class extends Controller {
     } else {
       this.infoPanelTarget.classList.add("hidden");
       this.infoPanelTarget.classList.remove("animate-slideDown");
+    }
+  }
+  toggleReminder() {
+    console.log("\u{1F525} Toggle reminder info");
+    if (this.hasReminderPanelTarget) {
+      if (this.reminderPanelTarget.classList.contains("hidden")) {
+        this.reminderPanelTarget.classList.remove("hidden");
+        this.reminderPanelTarget.classList.add("animate-slideDown");
+      } else {
+        this.reminderPanelTarget.classList.add("hidden");
+        this.reminderPanelTarget.classList.remove("animate-slideDown");
+      }
     }
   }
 };

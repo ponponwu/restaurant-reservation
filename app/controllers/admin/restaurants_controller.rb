@@ -14,7 +14,7 @@ class Admin::RestaurantsController < AdminController
     # 簡單搜尋功能
     @restaurants = @restaurants.search_by_name(params[:search]) if params[:search].present?
 
-    @restaurants = @restaurants.page(params[:page]).per(10)
+    @pagy, @restaurants = pagy(@restaurants, items: 10)
 
     respond_to do |format|
       format.html
@@ -164,6 +164,6 @@ class Admin::RestaurantsController < AdminController
   end
 
   def restaurant_params
-    params.require(:restaurant).permit(:name, :description, :phone, :address, :business_name, :tax_id, :reminder_notes)
+    params.require(:restaurant).permit(:name, :description, :phone, :address, :business_name, :tax_id, :reminder_notes, :hero_image)
   end
 end

@@ -1,6 +1,9 @@
 class ApplicationController < ActionController::Base
   # 防止 CSRF 攻擊
   protect_from_forgery with: :exception
+  
+  # 加入 Pagy helper
+  include Pagy::Backend
 
   # 移除強制登入要求，讓系統可以不登入使用
   # before_action :authenticate_user!, except: [:index, :show, :new, :create]
@@ -22,6 +25,17 @@ class ApplicationController < ActionController::Base
     respond_to do |format|
       format.html { redirect_to root_path, alert: '找不到指定的資源' }
       format.json { render json: { error: '資源不存在' }, status: :not_found }
+    end
+  end
+
+  rescue_from StandardError do |exception|
+    # 在日誌中記錄詳細錯誤
+    logger.error "Unhandled error: #{exception.message}"
+    logger.error exception.backtrace.join("\n")
+
+    respond_to do |format|
+      format.html { render file: Rails.root.join('public', '500.html'), status: :internal_server_error, layout: false }
+      format.json { render json: { error: '伺服器內部錯誤' }, status: :internal_server_error }
     end
   end
 

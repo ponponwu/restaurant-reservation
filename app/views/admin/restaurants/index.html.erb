@@ -55,8 +55,10 @@
     </div>
 
     <!-- 分頁 -->
-    <div class="mt-4 d-flex justify-content-center">
-      <%= paginate @restaurants %>
-    </div>
+    <% if defined?(@pagy) && @pagy.pages > 1 %>
+      <div class="mt-4">
+        <%= custom_pagy_nav(@pagy) %>
+      </div>
+    <% end %>
   <% end %>
 </div> 

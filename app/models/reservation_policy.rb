@@ -45,6 +45,27 @@ class ReservationPolicy < ApplicationRecord
     target_datetime >= latest_booking_datetime
   end
 
+  def can_reserve_at?(target_datetime)
+    # 綜合檢查：同時檢查日期和時間限制
+    can_book_on_date?(target_datetime.to_date) && can_book_at_time?(target_datetime)
+  end
+
+  def reservation_rejection_reason(target_datetime)
+    # 如果可以預約，則不返回拒絕原因
+    return nil if can_reserve_at?(target_datetime)
+
+    # 檢查各種拒絕原因
+    unless can_book_on_date?(target_datetime.to_date)
+      return "預約日期超出允許範圍（最多提前 #{advance_booking_days} 天）"
+    end
+
+    unless can_book_at_time?(target_datetime)
+      return "預約時間過於接近（最少需提前 #{minimum_advance_hours} 小時）"
+    end
+
+    "預約不被允許"
+  end
+
   def party_size_valid?(size)
     size.between?(min_party_size, max_party_size)
   end

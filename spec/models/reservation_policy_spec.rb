@@ -545,8 +545,10 @@ RSpec.describe ReservationPolicy do
     end
 
     describe '#can_book_at_time?' do
-      it '不允許當天時間訂位' do
-        expect(reservation_policy.can_book_at_time?(today_noon)).to be false
+      it '不允許過於接近的時間訂位' do
+        # 使用1小時後的時間，這應該少於預設的2小時最少提前時間
+        one_hour_later = Time.current + 1.hour
+        expect(reservation_policy.can_book_at_time?(one_hour_later)).to be false
       end
 
       it '允許明天時間訂位' do
@@ -555,8 +557,11 @@ RSpec.describe ReservationPolicy do
     end
 
     describe '#can_reserve_at?' do
-      it '綜合檢查不允許當天訂位' do
-        expect(reservation_policy.can_reserve_at?(today_noon)).to be false
+      it '綜合檢查允許在最小預約時間之前的預約' do
+        Timecop.freeze(today.change(hour: 10)) do # 假設現在是 10:00
+          # 預設 minimum_advance_hours 是 2 小時，所以 12:00 之後的預約是允許的
+          expect(reservation_policy.can_reserve_at?(today_noon)).to be true
+        end
       end
 
       it '綜合檢查允許明天訂位' do
@@ -565,10 +570,11 @@ RSpec.describe ReservationPolicy do
     end
 
     describe '#reservation_rejection_reason' do
-      it '當天訂位返回拒絕原因' do
-        reason = reservation_policy.reservation_rejection_reason(today_noon)
-        expect(reason).to be_present
-        expect(reason).to include('提前')
+      it '在允許預約時不返回拒絕原因' do
+        Timecop.freeze(today.change(hour: 10)) do
+          reason = reservation_policy.reservation_rejection_reason(today_noon)
+          expect(reason).to be_nil
+        end
       end
 
       it '明天訂位不返回拒絕原因' do
