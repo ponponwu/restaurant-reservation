@@ -26,7 +26,7 @@ class Admin::TablesController < AdminController
 
     # 確保設定正確的全域排序順序
     if @table.sort_order.blank? || @table.sort_order <= 0
-      last_sort_order = @restaurant.restaurant_tables.lock.maximum(:sort_order) || 0
+      last_sort_order = @restaurant.restaurant_tables.maximum(:sort_order) || 0
       @table.sort_order = last_sort_order + 1
     end
 
