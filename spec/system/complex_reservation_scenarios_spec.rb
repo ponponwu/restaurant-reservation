@@ -62,10 +62,10 @@ RSpec.describe '複雜訂位情境系統測試' do
       # 填寫客戶基本資訊
       expect(page).to have_field('客戶姓名')
       fill_in '客戶姓名', with: '張小明'
-      
+
       expect(page).to have_field('電話號碼')
       fill_in '電話號碼', with: '0912345678'
-      
+
       expect(page).to have_field('總人數')
       fill_in '總人數', with: '2'
 
@@ -75,13 +75,13 @@ RSpec.describe '複雜訂位情境系統測試' do
 
       # 設定日期
       set_reservation_date(target_date.to_date)
-      
+
       # 選擇餐期
       select_business_period_safely
-      
+
       # 設定時間
       set_reservation_time('12:00')
-      
+
       # 設定完整的日期時間
       set_reservation_datetime(target_datetime)
 
@@ -91,18 +91,18 @@ RSpec.describe '複雜訂位情境系統測試' do
       click_button '建立訂位'
 
       # 檢查是否成功建立
-      expect_successful_creation(['訂位建立成功', '張小明', '已成功', '訂位列表'])
+      expect_successful_creation(%w[訂位建立成功 張小明 已成功 訂位列表])
     end
 
     it '應該提供清晰的桌位不可用提示', :js do
       # 建立一個簡單的衝突情況
       existing_reservation = create(:reservation, :confirmed,
-                                   restaurant: restaurant,
-                                   business_period: business_period,
-                                   table: square_tables.first,
-                                   customer_name: '先存在的客戶',
-                                   party_size: 2,
-                                   reservation_datetime: 1.day.from_now.change(hour: 12, min: 0))
+                                    restaurant: restaurant,
+                                    business_period: business_period,
+                                    table: square_tables.first,
+                                    customer_name: '先存在的客戶',
+                                    party_size: 2,
+                                    reservation_datetime: 1.day.from_now.change(hour: 12, min: 0))
 
       visit new_admin_restaurant_reservation_path(restaurant)
 
@@ -127,7 +127,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       click_button '建立訂位'
 
       # 系統應該能處理這種情況：要么成功分配其他桌位，要么顯示適當的訊息
-      expect_reasonable_reservation_outcome(['訂位建立成功', '客滿先生', '時間衝突', '桌位已被占用', '建議時間', '自動分配'])
+      expect_reasonable_reservation_outcome(%w[訂位建立成功 客滿先生 時間衝突 桌位已被占用 建議時間 自動分配])
     end
   end
 
@@ -159,7 +159,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       click_button '建立訂位'
 
       # 檢查結果：要么成功建立要么顯示併桌需求
-      expect_table_combination_result(['訂位建立成功', '需要併桌', '無法安排併桌', '大型聚會'])
+      expect_table_combination_result(%w[訂位建立成功 需要併桌 無法安排併桌 大型聚會])
     end
 
     it '應該動態顯示併桌的可用組合', :js do
@@ -185,7 +185,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       expect(page).to have_css('form', wait: 10)
 
       # 檢查是否有併桌相關的提示或選項出現
-      expect_table_combination_feedback(['併桌', '桌位組合', '多桌', '建立訂位'])
+      expect_table_combination_feedback(%w[併桌 桌位組合 多桌 建立訂位])
     end
   end
 
@@ -224,15 +224,13 @@ RSpec.describe '複雜訂位情境系統測試' do
       if page.has_css?('select[name="reservation[table_id]"]')
         select_element = page.find('select[name="reservation[table_id]"]')
         occupied_option = select_element.all('option').find { |opt| opt.text.include?(square_tables.first.table_number) }
-        if occupied_option
-          select occupied_option.text, from: 'reservation[table_id]'
-        end
+        select occupied_option.text, from: 'reservation[table_id]' if occupied_option
       end
 
       click_button '建立訂位'
 
       # 系統應該檢測衝突並處理
-      expect_conflict_resolution(['時間衝突', '自動分配其他桌位', '訂位建立成功', '衝突客戶', '桌位已被占用'])
+      expect_conflict_resolution(%w[時間衝突 自動分配其他桌位 訂位建立成功 衝突客戶 桌位已被占用])
     end
 
     it '應該提供智慧型重新安排建議', :js do
@@ -267,7 +265,7 @@ RSpec.describe '複雜訂位情境系統測試' do
 
       # 等待頁面響應
       expect(page).to have_css('body', wait: 10)
-      
+
       # 檢查頁面是否有任何合理的回應
       expect(
         page.has_content?('訂位建立成功') ||
@@ -291,28 +289,22 @@ RSpec.describe '複雜訂位情境系統測試' do
       fill_in '客戶姓名', with: '親子客戶'
       fill_in '電話號碼', with: '0933333333'
       fill_in '總人數', with: '3'
-      
+
       # 只填寫基本的大人數和小孩數
-      if page.has_field?('大人數')
-        fill_in '大人數', with: '2'
-      end
-      if page.has_field?('小孩數')
-        fill_in '小孩數', with: '1'
-      end
+      fill_in '大人數', with: '2' if page.has_field?('大人數')
+      fill_in '小孩數', with: '1' if page.has_field?('小孩數')
 
       # 設定日期時間
       target_date = 1.day.from_now.to_date
       target_datetime = 1.day.from_now.change(hour: 18, min: 30)
-      
+
       set_reservation_date(target_date)
       select_business_period_safely
       set_reservation_time('18:30')
       set_reservation_datetime(target_datetime)
 
       # 填寫特殊需求備註
-      if page.has_field?('特殊需求')
-        fill_in '特殊需求', with: '需要兒童座椅和無障礙桌位'
-      end
+      fill_in '特殊需求', with: '需要兒童座椅和無障礙桌位' if page.has_field?('特殊需求')
 
       # 選擇合適的桌位（避免吧台）
       select_available_table
@@ -340,18 +332,14 @@ RSpec.describe '複雜訂位情境系統測試' do
       fill_in '客戶姓名', with: '帶小孩客戶'
       fill_in '電話號碼', with: '0944444444'
       fill_in '總人數', with: '2'
-      
-      if page.has_field?('大人數')
-        fill_in '大人數', with: '1'
-      end
-      if page.has_field?('小孩數')
-        fill_in '小孩數', with: '1'
-      end
+
+      fill_in '大人數', with: '1' if page.has_field?('大人數')
+      fill_in '小孩數', with: '1' if page.has_field?('小孩數')
 
       # 設定日期時間
       target_date = 1.day.from_now.to_date
       target_datetime = 1.day.from_now.change(hour: 18, min: 0)
-      
+
       set_reservation_date(target_date)
       select_business_period_safely
       set_reservation_time('18:00')
@@ -393,21 +381,17 @@ RSpec.describe '複雜訂位情境系統測試' do
 
       # 等待編輯表單載入
       expect(
-        page.has_content?('修改') || 
+        page.has_content?('修改') ||
         page.has_content?('編輯') ||
         page.has_content?('更新訂位') ||
         page.has_field?('客戶姓名')
       ).to be true
 
       # 確認客戶姓名欄位存在並有值
-      if page.has_field?('客戶姓名')
-        expect(page.find_field('客戶姓名').value).to eq('可修改客戶')
-      end
+      expect(page.find_field('客戶姓名').value).to eq('可修改客戶') if page.has_field?('客戶姓名')
 
       # 修改人數，這應該觸發重新分配
-      if page.has_field?('總人數')
-        fill_in '總人數', with: '6'
-      end
+      fill_in '總人數', with: '6' if page.has_field?('總人數')
 
       click_button '更新訂位'
 
@@ -425,19 +409,19 @@ RSpec.describe '複雜訂位情境系統測試' do
     it '取消訂位應該釋放桌位給等候清單', :js do
       # 建立等候清單訂位（使用pending狀態）
       waiting_reservation = create(:reservation,
-                                 restaurant: restaurant,
-                                 business_period: business_period,
-                                 customer_name: '等候客戶',
-                                 party_size: 2,
-                                 status: 'pending',
-                                 reservation_datetime: 1.day.from_now.change(hour: 12, min: 0))
+                                   restaurant: restaurant,
+                                   business_period: business_period,
+                                   customer_name: '等候客戶',
+                                   party_size: 2,
+                                   status: 'pending',
+                                   reservation_datetime: 1.day.from_now.change(hour: 12, min: 0))
 
       # 直接訪問編輯頁面來取消訂位
       visit edit_admin_restaurant_reservation_path(restaurant, existing_reservation)
 
       # 等待編輯表單載入
       expect(
-        page.has_content?('修改') || 
+        page.has_content?('修改') ||
         page.has_content?('編輯') ||
         page.has_field?('客戶姓名')
       ).to be true
@@ -446,7 +430,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       if page.has_select?('reservation[status]')
         select '已取消', from: 'reservation[status]'
         click_button '更新訂位'
-        
+
         # 等待更新完成
         expect(page).to have_css('body', wait: 10)
         expect(
@@ -458,10 +442,10 @@ RSpec.describe '複雜訂位情境系統測試' do
       else
         # 如果沒有狀態欄位，直接在資料庫層級測試取消邏輯
         existing_reservation.update!(status: 'cancelled')
-        
+
         # 檢查等候訂位是否存在
         expect(waiting_reservation.reload.status).to eq('pending')
-        
+
         # 測試通過，因為等候訂位依然存在
         expect(true).to be true
       end
@@ -474,7 +458,7 @@ RSpec.describe '複雜訂位情境系統測試' do
   def set_reservation_date(date)
     # 嘗試多種方式設定日期
     date_string = date.strftime('%Y-%m-%d')
-    
+
     # 方法1：尋找日期隱藏欄位
     if page.has_css?('input[data-admin-reservation-target="dateField"]', visible: false)
       page.execute_script("
@@ -485,12 +469,10 @@ RSpec.describe '複雜訂位情境系統測試' do
         }
       ")
     end
-    
+
     # 方法2：尋找日期欄位
-    if page.has_field?('reservation[reservation_date]')
-      fill_in 'reservation[reservation_date]', with: date_string
-    end
-    
+    fill_in 'reservation[reservation_date]', with: date_string if page.has_field?('reservation[reservation_date]')
+
     # 觸發change事件確保設定生效
     page.execute_script("document.dispatchEvent(new Event('change'));")
   end
@@ -502,7 +484,7 @@ RSpec.describe '複雜訂位情境系統測試' do
     elsif page.has_field?('reservation[reservation_time]')
       fill_in 'reservation[reservation_time]', with: time
     end
-    
+
     # 觸發change事件
     page.execute_script("document.dispatchEvent(new Event('change'));")
   end
@@ -510,7 +492,7 @@ RSpec.describe '複雜訂位情境系統測試' do
   def set_reservation_datetime(datetime)
     # 設定完整的日期時間
     datetime_string = datetime.strftime('%Y-%m-%d %H:%M')
-    
+
     page.execute_script("
       const datetimeField = document.querySelector('input[name=\"reservation[reservation_datetime]\"]');
       if (datetimeField) {
@@ -518,7 +500,7 @@ RSpec.describe '複雜訂位情境系統測試' do
         datetimeField.dispatchEvent(new Event('change'));
       }
     ")
-    
+
     # 觸發change事件
     page.execute_script("document.dispatchEvent(new Event('change'));")
   end
@@ -526,10 +508,10 @@ RSpec.describe '複雜訂位情境系統測試' do
   def select_business_period_safely
     # 等待頁面穩定
     expect(page).to have_css('select[name="reservation[business_period_id]"]', wait: 5)
-    
+
     # 嘗試多種選擇器找到餐期下拉選單
     business_period_selected = false
-    
+
     # 方法1：使用name屬性
     if page.has_css?('select[name="reservation[business_period_id]"]')
       select_element = page.find('select[name="reservation[business_period_id]"]')
@@ -539,17 +521,17 @@ RSpec.describe '複雜訂位情境系統測試' do
         business_period_selected = true
       end
     end
-    
+
     # 方法2：使用ID
     if !business_period_selected && page.has_css?('#reservation_business_period_id')
-      select_element = page.find('#reservation_business_period_id')
+      select_element = page.find_by_id('reservation_business_period_id')
       period_options = select_element.all('option').reject { |opt| opt.text.include?('請選擇') || opt.value.blank? }
       if period_options.any?
         select period_options.first.text, from: 'reservation_business_period_id'
         business_period_selected = true
       end
     end
-    
+
     # 觸發change事件
     page.execute_script("document.dispatchEvent(new Event('change'));") if business_period_selected
     business_period_selected
@@ -572,9 +554,8 @@ RSpec.describe '複雜訂位情境系統測試' do
   def expect_successful_creation(success_messages)
     # 檢查是否出現成功訊息
     success_found = success_messages.any? { |msg| page.has_content?(msg) }
-    unless success_found
-      fail "Expected one of: #{success_messages.join(', ')}, but page contains: #{page.text}"
-    end
+    raise "Expected one of: #{success_messages.join(', ')}, but page contains: #{page.text}" unless success_found
+
     expect(success_found).to be true
   end
 
@@ -582,8 +563,9 @@ RSpec.describe '複雜訂位情境系統測試' do
     # 檢查可用性回饋訊息
     feedback_found = feedback_messages.any? { |msg| page.has_content?(msg) }
     unless feedback_found
-      fail "Expected availability feedback: #{feedback_messages.join(', ')}, but page contains: #{page.text}"
+      raise "Expected availability feedback: #{feedback_messages.join(', ')}, but page contains: #{page.text}"
     end
+
     expect(feedback_found).to be true
   end
 
@@ -591,8 +573,9 @@ RSpec.describe '複雜訂位情境系統測試' do
     # 檢查併桌結果
     result_found = result_messages.any? { |msg| page.has_content?(msg) }
     unless result_found
-      fail "Expected table combination result: #{result_messages.join(', ')}, but page contains: #{page.text}"
+      raise "Expected table combination result: #{result_messages.join(', ')}, but page contains: #{page.text}"
     end
+
     expect(result_found).to be true
   end
 
@@ -600,8 +583,9 @@ RSpec.describe '複雜訂位情境系統測試' do
     # 檢查併桌動態回饋
     feedback_found = feedback_messages.any? { |msg| page.has_content?(msg) }
     unless feedback_found
-      fail "Expected table combination feedback: #{feedback_messages.join(', ')}, but page contains: #{page.text}"
+      raise "Expected table combination feedback: #{feedback_messages.join(', ')}, but page contains: #{page.text}"
     end
+
     expect(feedback_found).to be true
   end
 
@@ -609,8 +593,9 @@ RSpec.describe '複雜訂位情境系統測試' do
     # 檢查衝突解決結果
     resolution_found = resolution_messages.any? { |msg| page.has_content?(msg) }
     unless resolution_found
-      fail "Expected conflict resolution: #{resolution_messages.join(', ')}, but page contains: #{page.text}"
+      raise "Expected conflict resolution: #{resolution_messages.join(', ')}, but page contains: #{page.text}"
     end
+
     expect(resolution_found).to be true
   end
 
@@ -618,16 +603,17 @@ RSpec.describe '複雜訂位情境系統測試' do
     # 檢查合理的預約結果，包括錯誤情況
     all_possible_outcomes = outcome_messages + ['something went wrong', '500', 'Error', 'server error']
     outcome_found = all_possible_outcomes.any? { |msg| page.has_content?(msg) }
-    
+
     # 如果發生系統錯誤，至少要能識別出來
     if page.has_content?('something went wrong') || page.has_content?('500')
-      puts "Warning: System error occurred during test, but test can continue"
+      puts 'Warning: System error occurred during test, but test can continue'
       return true
     end
-    
+
     unless outcome_found
-      fail "Expected reasonable outcome: #{outcome_messages.join(', ')}, but page contains: #{page.text}"
+      raise "Expected reasonable outcome: #{outcome_messages.join(', ')}, but page contains: #{page.text}"
     end
+
     expect(outcome_found).to be true
   end
 
@@ -670,6 +656,7 @@ RSpec.describe '複雜訂位情境系統測試' do
     start_time = Time.current
     while Time.current - start_time < timeout
       return true if page.has_css?(selector)
+
       sleep(0.1) # Keep minimal sleep for polling loop
     end
     false
@@ -692,22 +679,23 @@ RSpec.describe '複雜訂位情境系統測試' do
     # 檢查智慧型重新安排回饋，更寬容的檢查
     all_possible_outcomes = feedback_messages + ['500', 'Error', 'server error', 'Internal Server Error']
     outcome_found = all_possible_outcomes.any? { |msg| page.has_content?(msg) }
-    
+
     # 如果發生系統錯誤，至少要能識別出來
     if page.has_content?('something went wrong') || page.has_content?('500') || page.has_content?('Internal Server Error')
-      puts "Warning: System error occurred during intelligent rearrangement test, but test can continue"
+      puts 'Warning: System error occurred during intelligent rearrangement test, but test can continue'
       return true
     end
-    
+
     # 檢查頁面是否至少有任何內容
     if page.text.strip.length > 10
-      puts "Page has content, considering test successful even without exact matches"
+      puts 'Page has content, considering test successful even without exact matches'
       return true
     end
-    
+
     unless outcome_found
-      fail "Expected intelligent rearrangement feedback: #{feedback_messages.join(', ')}, but page contains: #{page.text}"
+      raise "Expected intelligent rearrangement feedback: #{feedback_messages.join(', ')}, but page contains: #{page.text}"
     end
+
     expect(outcome_found).to be true
   end
 
@@ -716,13 +704,11 @@ RSpec.describe '複雜訂位情境系統測試' do
     begin
       attempts += 1
       yield
-    rescue => e
-      if attempts < times
-        sleep(0.1) # Minimal retry delay
-        retry
-      else
-        raise e
-      end
+    rescue StandardError => e
+      raise e unless attempts < times
+
+      sleep(0.1) # Minimal retry delay
+      retry
     end
   end
 end

@@ -58,9 +58,9 @@ RSpec.describe 'Admin Reservation Calendar', :js do
         # 檢查週一和週二被禁用（依據days_of_week_mask設定）
         expect_day_disabled(7)  # 7月7日（週一）
         expect_day_disabled(8)  # 7月8日（週二）
-        
+
         # 檢查週三可選（營業日）
-        expect_day_enabled(9)   # 7月9日（週三）
+        expect_day_enabled(9) # 7月9日（週三）
       end
     end
 
@@ -82,7 +82,7 @@ RSpec.describe 'Admin Reservation Calendar', :js do
         setup_july_calendar
 
         # 檢查特殊休息日被禁用
-        expect_day_disabled(10)  # 7月10日（週四，特殊休息日）
+        expect_day_disabled(10) # 7月10日（週四，特殊休息日）
       end
     end
 
@@ -97,7 +97,7 @@ RSpec.describe 'Admin Reservation Calendar', :js do
         setup_july_calendar
 
         # 檢查營業日應該可選，即使沒有容量（管理員不受容量限制）
-        expect_day_enabled(9)   # 7月9日（週三，營業日）
+        expect_day_enabled(9) # 7月9日（週三，營業日）
       end
     end
 
@@ -125,12 +125,12 @@ RSpec.describe 'Admin Reservation Calendar', :js do
         # 檢查週休息日被禁用
         expect_day_disabled(7)  # 7月7日（週一）
         expect_day_disabled(8)  # 7月8日（週二）
-        
+
         # 檢查特殊休息日被禁用
-        expect_day_disabled(9)  # 7月9日（週三，特殊休息日）
-        
+        expect_day_disabled(9) # 7月9日（週三，特殊休息日）
+
         # 檢查其他營業日可選
-        expect_day_enabled(10)  # 7月10日（週四，正常營業日）
+        expect_day_enabled(10) # 7月10日（週四，正常營業日）
       end
     end
   end
@@ -141,8 +141,8 @@ RSpec.describe 'Admin Reservation Calendar', :js do
       setup_july_calendar
 
       # 選擇一個營業日並檢查表單更新
-      click_calendar_day(10)  # 7月10日（週四）
-      
+      click_calendar_day(10) # 7月10日（週四）
+
       # 檢查隱藏欄位是否被更新
       expect(page).to have_field('reservation[reservation_datetime]', type: :hidden)
     end
@@ -157,10 +157,10 @@ RSpec.describe 'Admin Reservation Calendar', :js do
 
         # 應該仍然有日曆可用（備用版本）
         wait_for_calendar
-        
+
         # 驗證日曆基本功能仍然工作
         setup_july_calendar
-        expect_day_enabled(10)  # 確保至少某個營業日可選
+        expect_day_enabled(10) # 確保至少某個營業日可選
       end
     end
   end
@@ -177,7 +177,7 @@ RSpec.describe 'Admin Reservation Calendar', :js do
       setup_july_calendar
 
       # 檢查週一被禁用（依據days_of_week_mask設定）
-      expect_day_disabled(7)  # 7月7日（週一）
+      expect_day_disabled(7) # 7月7日（週一）
 
       # 改變人數
       fill_in '總人數', with: '6'
@@ -186,7 +186,7 @@ RSpec.describe 'Admin Reservation Calendar', :js do
       sleep 0.5
 
       # 週一應該仍然被禁用（休息日設定不受人數影響）
-      expect_day_disabled(7)  # 7月7日（週一）
+      expect_day_disabled(7) # 7月7日（週一）
     end
   end
 end

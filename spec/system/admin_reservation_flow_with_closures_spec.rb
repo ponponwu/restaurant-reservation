@@ -76,7 +76,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
         # 選擇日期 - 尋找隱藏的日期欄位並直接設定
         target_date = 3.days.from_now.to_date
-        
+
         # 檢查是否有隱藏的日期欄位
         hidden_date_field = page.first('input[type="hidden"][name*="date"]', visible: false)
         if hidden_date_field
@@ -98,13 +98,11 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
         # 設定時間
         fill_in '訂位時間', with: '19:00'
-        
+
         # 檢查是否有桌位選擇選項，如果有就選擇第一個可用的桌位
         if page.has_select?('選擇桌位')
           table_options = page.find('select[name*="table"]').all('option').reject { |opt| opt.text.include?('請選擇') }
-          if table_options.any?
-            select table_options.first.text, from: '選擇桌位'
-          end
+          select table_options.first.text, from: '選擇桌位' if table_options.any?
         end
 
         # 提交表單
@@ -129,17 +127,15 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
         # 檢查週一休息日無法選擇
         wait_for_calendar
-        
+
         # 找到下週一的日期並檢查是否被禁用
         next_monday = Date.current.next_occurring(:monday)
         if next_monday.month == Date.current.month
           monday_day = next_monday.day
           monday_element = find_calendar_day(monday_day)
-          if monday_element
-            expect(monday_element[:class]).to include('flatpickr-disabled')
-          end
+          expect(monday_element[:class]).to include('flatpickr-disabled') if monday_element
         end
-        
+
         # 確保日曆已載入
         expect(page).to have_content('選擇日期')
       end
@@ -149,16 +145,14 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
         # 檢查特殊休息日無法選擇
         wait_for_calendar
-        
+
         # 檢查特殊休息日是否被正確禁用
         if @special_closure.month == Date.current.month
           special_day = @special_closure.day
           special_element = find_calendar_day(special_day)
-          if special_element
-            expect(special_element[:class]).to include('flatpickr-disabled')
-          end
+          expect(special_element[:class]).to include('flatpickr-disabled') if special_element
         end
-        
+
         # 確保日曆已載入
         expect(page).to have_content('選擇日期')
       end
@@ -168,7 +162,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
       before do
         # 創建一個小容量桌位，測試強制模式可以超越容量限制
         restaurant.restaurant_tables.destroy_all
-        small_table = restaurant.restaurant_tables.create!(
+        restaurant.restaurant_tables.create!(
           table_number: 'SMALL1',
           capacity: 2,
           min_capacity: 1,
@@ -192,7 +186,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
         # 選擇日期 - 直接設定隱藏欄位
         target_date = 3.days.from_now.to_date
-        
+
         # 檢查是否有隱藏的日期欄位
         hidden_date_field = page.first('input[type="hidden"][name*="date"]', visible: false)
         if hidden_date_field
@@ -212,16 +206,14 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
         # 選擇餐期和時間
         select '午餐 (11:30 - 14:30)', from: '餐期選擇'
         fill_in '訂位時間', with: '12:00'
-        
+
         # 啟用強制模式
         check '管理員強制模式'
-        
+
         # 在強制模式下，選擇小容量桌位但使用大人數測試超越容量限制
         if page.has_select?('選擇桌位')
           table_options = page.find('select[name*="table"]').all('option').reject { |opt| opt.text.include?('請選擇') }
-          if table_options.any?
-            select table_options.first.text, from: '選擇桌位'
-          end
+          select table_options.first.text, from: '選擇桌位' if table_options.any?
         end
 
         # 提交表單
@@ -245,17 +237,15 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
         # 檢查週三仍然被禁用（即使在強制模式下）
         wait_for_calendar
-        
+
         # 找到下週三的日期並檢查是否被禁用
         next_wednesday = Date.current.next_occurring(:wednesday)
         if next_wednesday.month == Date.current.month
           wednesday_day = next_wednesday.day
           wednesday_element = find_calendar_day(wednesday_day)
-          if wednesday_element
-            expect(wednesday_element[:class]).to include('flatpickr-disabled')
-          end
+          expect(wednesday_element[:class]).to include('flatpickr-disabled') if wednesday_element
         end
-        
+
         # 確保日曆已載入
         expect(page).to have_content('選擇日期')
       end
@@ -283,7 +273,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
       # 選擇日期 - 直接設定隱藏欄位
       target_date = 3.days.from_now.to_date
-      
+
       # 檢查是否有隱藏的日期欄位
       hidden_date_field = page.first('input[type="hidden"][name*="date"]', visible: false)
       if hidden_date_field
@@ -299,16 +289,14 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
           }
         ")
       end
-      
+
       select '晚餐 (17:30 - 21:30)', from: '餐期選擇'
       fill_in '訂位時間', with: '19:00'
-      
+
       # 檢查是否有桌位選擇選項，如果有就選擇第一個可用的桌位
       if page.has_select?('選擇桌位')
         table_options = page.find('select[name*="table"]').all('option').reject { |opt| opt.text.include?('請選擇') }
-        if table_options.any?
-          select table_options.first.text, from: '選擇桌位'
-        end
+        select table_options.first.text, from: '選擇桌位' if table_options.any?
       end
 
       click_button '建立訂位'
@@ -353,11 +341,10 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
   def find_calendar_day(day)
     # 嘗試找到指定日期的日曆元素
-    begin
-      page.find(".flatpickr-day[aria-label*='#{day}']")
-    rescue Capybara::ElementNotFound
-      # 如果找不到 flatpickr 的日期元素，返回 nil
-      nil
-    end
+
+    page.find(".flatpickr-day[aria-label*='#{day}']")
+  rescue Capybara::ElementNotFound
+    # 如果找不到 flatpickr 的日期元素，返回 nil
+    nil
   end
 end
