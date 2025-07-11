@@ -167,7 +167,7 @@ RSpec.describe 'API Security Tests' do
         # 讀取 controller 的原始碼以確認有 protect_from_forgery 設定
         controller_content = File.read(Rails.root.join('app', 'controllers', 'application_controller.rb'))
         expect(controller_content).to include('protect_from_forgery')
-        
+
         # 在測試環境中執行請求來確保系統運作正常
         post restaurant_reservations_path(restaurant.slug), params: {
           reservation: {

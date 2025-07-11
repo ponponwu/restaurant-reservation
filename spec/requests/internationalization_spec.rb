@@ -27,9 +27,7 @@ RSpec.describe 'Internationalization Tests' do
         }
 
         # 如果重定向，跟隨重定向
-        if response.status == 302
-          follow_redirect!
-        end
+        follow_redirect! if response.status == 302
 
         expect(response).to have_http_status(:success)
         # 檢查是否包含繁體中文文字
@@ -70,9 +68,7 @@ RSpec.describe 'Internationalization Tests' do
         }
 
         # 如果重定向，跟隨重定向
-        if response.status == 302
-          follow_redirect!
-        end
+        follow_redirect! if response.status == 302
 
         expect(response).to have_http_status(:success)
         # 檢查是否包含英文文字
@@ -95,7 +91,7 @@ RSpec.describe 'Internationalization Tests' do
 
         expect(response).to have_http_status(:unprocessable_entity)
         # 檢查錯誤訊息是否為英文 - 檢查包含英文驗證錯誤相關字詞
-        expect(response.body).to include("required") if response.body.present?
+        expect(response.body).to include('required') if response.body.present?
       end
     end
 
@@ -113,9 +109,7 @@ RSpec.describe 'Internationalization Tests' do
         }
 
         # 如果重定向，跟隨重定向
-        if response.status == 302
-          follow_redirect!
-        end
+        follow_redirect! if response.status == 302
 
         expect(response).to have_http_status(:success)
         # 檢查日期格式是否適合日文環境

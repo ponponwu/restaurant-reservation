@@ -32,10 +32,10 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
     it 'handles concurrent reservations for same time slot' do
       # 清空所有現有預約
       Reservation.delete_all
-      
+
       # 模擬兩個用戶同時預約同一時段
       threads = []
-      reservation_results = Concurrent::Array.new  # 使用線程安全的數組
+      reservation_results = Concurrent::Array.new # 使用線程安全的數組
 
       2.times do |i|
         threads << Thread.new do
@@ -88,7 +88,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
     it 'handles duplicate reservations gracefully' do
       # 清空所有現有預約
       Reservation.delete_all
-      
+
       # 建立第一個訂位
       create(:reservation,
              restaurant: restaurant,

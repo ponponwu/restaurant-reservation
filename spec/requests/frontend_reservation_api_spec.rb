@@ -249,10 +249,8 @@ RSpec.describe 'Frontend Reservation API' do
         get new_restaurant_reservation_path(restaurant.slug), params: reservation_params
 
         # 如果重定向，跟隨重定向
-        if response.status == 302
-          follow_redirect!
-        end
-        
+        follow_redirect! if response.status == 302
+
         expect(response).to have_http_status(:success)
         expect(response.body).to include('預約')
       end
@@ -261,15 +259,11 @@ RSpec.describe 'Frontend Reservation API' do
         get new_restaurant_reservation_path(restaurant.slug), params: reservation_params.merge(adults: 4, children: 1)
 
         # 如果重定向，跟隨重定向
-        if response.status == 302
-          follow_redirect!
-        end
+        follow_redirect! if response.status == 302
 
         expect(response).to have_http_status(:success)
         # Check that the party size is handled properly
-        if assigns(:reservation)
-          expect(assigns(:reservation).party_size).to eq(5)
-        end
+        expect(assigns(:reservation).party_size).to eq(5) if assigns(:reservation)
       end
     end
 
@@ -295,7 +289,7 @@ RSpec.describe 'Frontend Reservation API' do
       end
 
       it 'redirects when party size exceeds capacity' do
-        invalid_params = reservation_params.merge(adults: 20, children: 5)  # 總共25人
+        invalid_params = reservation_params.merge(adults: 20, children: 5) # 總共25人
 
         get new_restaurant_reservation_path(restaurant.slug), params: invalid_params
 
