@@ -4,7 +4,8 @@ class TableGroup < ApplicationRecord
   has_many :restaurant_tables, -> { order(:sort_order) }, dependent: :destroy
 
   # 2. 驗證規則
-  validates :name, presence: true, length: { maximum: 50 }
+  validates :name, presence: true, length: { maximum: 50 },
+                   uniqueness: { scope: :restaurant_id, message: '該餐廳已存在相同名稱的桌位群組' }
   validates :sort_order, presence: true, numericality: { greater_than_or_equal_to: 0 }
 
   # 3. Scope 定義

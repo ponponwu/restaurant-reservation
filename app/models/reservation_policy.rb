@@ -55,15 +55,11 @@ class ReservationPolicy < ApplicationRecord
     return nil if can_reserve_at?(target_datetime)
 
     # 檢查各種拒絕原因
-    unless can_book_on_date?(target_datetime.to_date)
-      return "預約日期超出允許範圍（最多提前 #{advance_booking_days} 天）"
-    end
+    return "預約日期超出允許範圍（最多提前 #{advance_booking_days} 天）" unless can_book_on_date?(target_datetime.to_date)
 
-    unless can_book_at_time?(target_datetime)
-      return "預約時間過於接近（最少需提前 #{minimum_advance_hours} 小時）"
-    end
+    return "預約時間過於接近（最少需提前 #{minimum_advance_hours} 小時）" unless can_book_at_time?(target_datetime)
 
-    "預約不被允許"
+    '預約不被允許'
   end
 
   def party_size_valid?(size)

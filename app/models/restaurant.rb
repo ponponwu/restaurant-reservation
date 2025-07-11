@@ -39,7 +39,7 @@ class Restaurant < ApplicationRecord
   validates :business_name, length: { maximum: 100 }
   validates :tax_id, length: { maximum: 20 }
   validates :reminder_notes, length: { maximum: 2000 }
-  
+
   # 圖片驗證
   validate :hero_image_format, if: :hero_image_attached?
 
@@ -48,13 +48,11 @@ class Restaurant < ApplicationRecord
   def hero_image_format
     return unless hero_image.attached?
 
-    if hero_image.blob.byte_size > 5.megabytes
-      errors.add(:hero_image, '圖片大小不能超過 5MB')
-    end
+    errors.add(:hero_image, '圖片大小不能超過 5MB') if hero_image.blob.byte_size > 5.megabytes
 
-    unless hero_image.blob.content_type.in?(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
-      errors.add(:hero_image, '只支援 JPEG、PNG 或 WebP 格式的圖片')
-    end
+    return if hero_image.blob.content_type.in?(['image/jpeg', 'image/jpg', 'image/png', 'image/webp'])
+
+    errors.add(:hero_image, '只支援 JPEG、PNG 或 WebP 格式的圖片')
   end
 
   def hero_image_attached?
@@ -169,6 +167,9 @@ class Restaurant < ApplicationRecord
   end
 
   def closed_on_date?(date)
+    # 檢查特殊訂位日是否關閉
+    return true if is_closed_on_special_date?(date)
+
     # 檢查特定日期的公休
     return true if closure_dates.for_date(date).exists?
 
@@ -304,6 +305,51 @@ class Restaurant < ApplicationRecord
     dining_duration_minutes + (policy&.buffer_time_minutes || 15)
   end
 
+  # 特殊訂位日相關方法
+  def effective_business_rules_for_date(date)
+    special_date = special_reservation_dates
+      .active
+      .for_date(date)
+      .ordered_by_date
+      .first
+      
+    special_date || :normal_operations
+  end
+
+  def has_special_date_on?(date)
+    effective_business_rules_for_date(date).is_a?(SpecialReservationDate)
+  end
+
+  def special_date_for(date)
+    rules = effective_business_rules_for_date(date)
+    rules.is_a?(SpecialReservationDate) ? rules : nil
+  end
+
+  def dining_duration_for_date(date)
+    special_rules = effective_business_rules_for_date(date)
+    
+    if special_rules.is_a?(SpecialReservationDate) && special_rules.custom_hours?
+      special_rules.table_usage_minutes
+    else
+      dining_duration_minutes
+    end
+  end
+
+  def dining_duration_with_buffer_for_date(date)
+    special_rules = effective_business_rules_for_date(date)
+    
+    if special_rules.is_a?(SpecialReservationDate) && special_rules.custom_hours?
+      special_rules.table_usage_minutes + (policy&.buffer_time_minutes || 15)
+    else
+      dining_duration_with_buffer
+    end
+  end
+
+  def is_closed_on_special_date?(date)
+    special_date = special_date_for(date)
+    special_date&.closed? || false
+  end
+
   def can_combine_tables?
     # 使用實例變數快取結果，避免重複查詢
     @can_combine_tables ||= policy&.allow_table_combinations? && restaurant_tables.active.exists?(can_combine: true)
@@ -366,7 +412,32 @@ class Restaurant < ApplicationRecord
 
     slots = []
 
-    # 獲取當天營業的餐期（使用 0-6 格式）
+    # 檢查是否有特殊訂位日
+    special_date = special_date_for(date)
+    
+    if special_date&.closed?
+      # 如果是關閉日，回傳空陣列
+      @time_options_cache[cache_key] = []
+      return []
+    elsif special_date&.custom_hours?
+      # 如果是自訂時段，使用特殊訂位日的時段
+      available_time_slots = special_date.generate_available_time_slots
+      
+      available_time_slots.each do |time_slot|
+        slot_datetime = Time.zone.parse("#{date} #{time_slot}")
+        
+        slots << {
+          time: time_slot,
+          datetime: slot_datetime,
+          business_period_id: nil # 特殊訂位日不綁定特定餐期
+        }
+      end
+      
+      @time_options_cache[cache_key] = slots.sort_by { |slot| slot[:time] }
+      return slots.sort_by { |slot| slot[:time] }
+    end
+
+    # 正常營業日：使用一般營業時段
     weekday = date.wday
 
     # 使用實例變數快取活躍的營業時段，避免重複查詢
