@@ -40,7 +40,7 @@ FactoryBot.define do
           active: true,
           status: 'active'
         )
-        
+
         restaurant.business_periods.create!(
           name: '晚餐',
           start_time: '17:30',
@@ -61,7 +61,7 @@ FactoryBot.define do
           sort_order: 1,
           active: true
         )
-        
+
         # 創建一些餐桌
         restaurant.restaurant_tables.create!(
           table_number: 'A1',
@@ -74,7 +74,7 @@ FactoryBot.define do
           table_group: table_group,
           sort_order: 1
         )
-        
+
         restaurant.restaurant_tables.create!(
           table_number: 'A2',
           capacity: 4,
@@ -86,7 +86,7 @@ FactoryBot.define do
           table_group: table_group,
           sort_order: 2
         )
-        
+
         restaurant.restaurant_tables.create!(
           table_number: 'A3',
           capacity: 6,
