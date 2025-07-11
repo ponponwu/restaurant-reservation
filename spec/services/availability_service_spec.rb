@@ -22,9 +22,9 @@ RSpec.describe AvailabilityService, type: :service do
     before do
       # Mock restaurant methods to return available time options
       allow(restaurant).to receive(:available_time_options_for_date).with(test_date).and_return([
-        { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-        { datetime: test_date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
-      ])
+                                                                                                  { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
+                                                                                                  { datetime: test_date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+                                                                                                ])
     end
 
     context '基本可用性測試' do

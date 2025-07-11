@@ -146,9 +146,8 @@ RSpec.describe EnhancedReservationLockService, type: :service do
   describe '併發測試' do
     it '防止多個程序同時獲取相同鎖定' do
       # 暫時降低重試次數以減少假成功
-      original_retry_attempts = EnhancedReservationLockService::RETRY_ATTEMPTS
       stub_const('EnhancedReservationLockService::RETRY_ATTEMPTS', 1)
-      
+
       results = []
       threads = []
       start_time = Time.current
@@ -159,7 +158,7 @@ RSpec.describe EnhancedReservationLockService, type: :service do
           # 所有線程同時開始
           sleep_until = start_time + 0.1
           sleep([sleep_until - Time.current, 0].max)
-          
+
           service.with_lock(restaurant_id, datetime, party_size) do
             results << "Thread #{i} success"
             sleep(0.05) # 減少持有鎖定時間到50毫秒
@@ -202,13 +201,13 @@ RSpec.describe EnhancedReservationLockService, type: :service do
     it '在短時間鎖定後會重試' do
       # 測試重試機制：先創建一個短期鎖定，然後在等待期間讓它過期
       lock_key = service.send(:generate_lock_key, restaurant_id, datetime, party_size)
-      
+
       # 使用一個會在重試過程中過期的鎖定
       Thread.new do
         sleep(0.05) # 50毫秒後釋放鎖定
         service.send(:redis).del(lock_key)
       end
-      
+
       # 先設定鎖定
       service.send(:redis).set(lock_key, 'will_expire_soon', ex: 1)
 

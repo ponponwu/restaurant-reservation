@@ -16,9 +16,9 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
     it 'returns available dates for the given party size' do
       # 當餐廳有足夠容量時，應該返回可用日期
       allow(restaurant).to receive(:has_capacity_for_party_size?).with(party_size).and_return(true)
-      
+
       dates = service.get_available_dates(party_size, adults, children)
-      
+
       expect(dates).to be_an(Array)
       # 應該至少有一些可用日期（假設餐廳沒有被完全預訂）
       expect(dates.length).to be >= 0
@@ -27,26 +27,26 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
     it 'uses cached reservations to avoid duplicate queries' do
       # 第一次調用
       service.get_available_dates(party_size, adults, children)
-      
+
       # 模擬第二次調用應該使用快取
       expect(restaurant.reservations).not_to receive(:where)
-      
+
       # 第二次調用同樣的日期範圍
       service.get_available_dates(party_size, adults, children)
     end
 
     it 'excludes today from available dates' do
       dates = service.get_available_dates(party_size, adults, children)
-      
+
       expect(dates).not_to include(Date.current.to_s)
     end
 
     it 'respects advance booking days limit' do
       # 設定餐廳的預約政策
       restaurant.reservation_policy.update!(advance_booking_days: 7)
-      
+
       dates = service.get_available_dates(party_size, adults, children)
-      
+
       if dates.any?
         latest_date = Date.parse(dates.max)
         expected_max_date = Date.current + 7.days
@@ -60,7 +60,7 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
 
     it 'returns available times for the given date and party size' do
       times = service.get_available_times(target_date, party_size, adults, children)
-      
+
       expect(times).to be_an(Array)
       times.each do |time_slot|
         expect(time_slot).to have_key(:time)
@@ -71,7 +71,7 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
 
     it 'returns times sorted by time' do
       times = service.get_available_times(target_date, party_size, adults, children)
-      
+
       if times.length > 1
         time_strings = times.map { |t| t[:time] }
         expect(time_strings).to eq(time_strings.sort)
@@ -81,14 +81,14 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
     it 'uses cached reservations for the date' do
       # 先調用一次以建立快取
       times1 = service.get_available_times(target_date, party_size, adults, children)
-      
+
       # 檢查第二次調用是否使用快取
       expect(service).to receive(:cached_reservations_for_date)
         .with(target_date)
         .and_call_original
-      
+
       times2 = service.get_available_times(target_date, party_size, adults, children)
-      
+
       expect(times1).to eq(times2)
     end
   end
@@ -99,9 +99,9 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
       allow_any_instance_of(AvailabilityService)
         .to receive(:has_availability_on_date_cached?)
         .and_return(false)
-      
+
       result = service.calculate_full_booked_until(party_size, adults, children)
-      
+
       expect(result).to be_a(Date)
       expect(result).to be > Date.current
     end
@@ -111,9 +111,9 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
       allow_any_instance_of(AvailabilityService)
         .to receive(:has_availability_on_date_cached?)
         .and_return(true)
-      
+
       result = service.calculate_full_booked_until(party_size, adults, children)
-      
+
       expect(result).to be_a(Date)
       expect(result).to eq(Date.current + 1.day)
     end
@@ -124,7 +124,7 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
 
     it 'returns boolean for date availability' do
       result = service.has_availability_on_date?(target_date, party_size, adults, children)
-      
+
       expect(result).to be_in([true, false])
     end
 
@@ -132,9 +132,9 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
       allow(restaurant).to receive(:available_time_options_for_date)
         .with(target_date)
         .and_return([])
-      
+
       result = service.has_availability_on_date?(target_date, party_size, adults, children)
-      
+
       expect(result).to be false
     end
   end
@@ -147,11 +147,11 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
       it 'caches reservations for date range' do
         # 第一次調用
         reservations1 = service.send(:cached_reservations_for_date_range, start_date, end_date)
-        
+
         # 第二次調用應該使用快取，不會觸發查詢
         expect(restaurant.reservations).not_to receive(:where)
         reservations2 = service.send(:cached_reservations_for_date_range, start_date, end_date)
-        
+
         expect(reservations1).to eq(reservations2)
         expect(reservations1).to be_an(Array)
       end
@@ -165,20 +165,20 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
         start_date = Date.current
         end_date = Date.current + 7.days
         service.send(:cached_reservations_for_date_range, start_date, end_date)
-        
+
         # 然後調用單日快取，應該從範圍快取中過濾
         expect(restaurant.reservations).not_to receive(:where)
-        
+
         reservations = service.send(:cached_reservations_for_date, target_date)
         expect(reservations).to be_an(Array)
       end
 
       it 'creates new cache when range cache not available' do
         target_date = Date.current + 1.day
-        
+
         reservations = service.send(:cached_reservations_for_date, target_date)
         expect(reservations).to be_an(Array)
-        
+
         # 第二次調用同一日期應該使用快取
         expect(restaurant.reservations).not_to receive(:where)
         reservations2 = service.send(:cached_reservations_for_date, target_date)

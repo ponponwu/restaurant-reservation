@@ -692,20 +692,20 @@ RSpec.describe ReservationAllocatorService, type: :service do
 
         # 預期結果：由於方桌群組現在有3張4人桌位 (總容量12)，應該能分配併桌
         expect(result).to be_present
-        
+
         if result.is_a?(Array)
           # 多桌組合的情況
           expect(result.size).to be >= 2
           expect(result.size).to be <= 3
-          
+
           total_capacity = result.sum(&:capacity)
           expect(total_capacity).to be >= 8
-          
+
           # 驗證所有桌位都來自同一個群組 (方桌群組)
           table_groups = result.map(&:table_group_id).uniq
           expect(table_groups.size).to eq(1)
           expect(result.first.table_group).to eq(table_group_square)
-          
+
           # 驗證所有桌位都支援併桌
           expect(result.all?(&:can_combine?)).to be(true)
         else
@@ -1111,10 +1111,10 @@ RSpec.describe ReservationAllocatorService, type: :service do
         can_combine: true
       )
     end
-    
+
     # 重新計算餐廳總容量
     restaurant.update!(total_capacity: restaurant.calculate_total_capacity)
-    
+
     # 更新餐廳政策以允許更大的人數
     policy = restaurant.reservation_policy
     total_capacity = restaurant.calculate_total_capacity
