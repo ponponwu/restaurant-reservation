@@ -299,11 +299,29 @@ export default class extends Controller {
     updateGlobalPriorities() {
         console.log('🔥 Updating global priorities...')
 
-        // 重新載入頁面以顯示正確的全域 sort_order
-        // 因為 sort_order 已經在後端重新計算，我們需要重新載入來顯示正確的數字
-        setTimeout(() => {
-            window.location.reload()
-        }, 1000)
+        // 使用 Turbo Stream 更新優先順序顯示，而不是重新載入頁面
+        const csrfToken = document.querySelector('[name="csrf-token"]').content
+        const restaurantId = this.restaurantIdValue
+
+        fetch(`/admin/restaurants/${restaurantId}/table_groups/refresh_priorities`, {
+            method: 'GET',
+            headers: {
+                'Accept': 'text/vnd.turbo-stream.html',
+                'X-CSRF-Token': csrfToken,
+            },
+        })
+        .then(response => response.text())
+        .then(html => {
+            // 讓 Turbo 處理 Stream 響應
+            Turbo.renderStreamMessage(html)
+        })
+        .catch(error => {
+            console.error('🔥 Error refreshing priorities:', error)
+            // 如果 Turbo Stream 失敗，才使用重新載入作為後備
+            setTimeout(() => {
+                window.location.reload()
+            }, 500)
+        })
     }
 
     showFlash(message, type) {

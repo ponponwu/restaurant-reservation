@@ -25,8 +25,11 @@ application.register('dropdown', DropdownController)
 import FlashController from './flash_controller'
 application.register('flash', FlashController)
 
-import HelloController from './hello_controller'
-application.register('hello', HelloController)
+import FormValidationController from "./form_validation_controller"
+application.register("form-validation", FormValidationController)
+
+import HelloController from "./hello_controller"
+application.register("hello", HelloController)
 
 import ModalController from './modal_controller'
 application.register('modal', ModalController)
@@ -49,8 +52,14 @@ application.register('restaurant-info', RestaurantInfoController)
 import RestaurantManagementController from './restaurant_management_controller'
 application.register('restaurant-management', RestaurantManagementController)
 
-import SidebarController from './sidebar_controller'
-application.register('sidebar', SidebarController)
+import SidebarController from "./sidebar_controller"
+application.register("sidebar", SidebarController)
 
-import SortableController from './sortable_controller'
-application.register('sortable', SortableController)
+import SortableController from "./sortable_controller"
+application.register("sortable", SortableController)
+
+import SpecialDateFormController from "./special_date_form_controller"
+application.register("special-date-form", SpecialDateFormController)
+
+import SpecialDatesController from "./special_dates_controller"
+application.register("special-dates", SpecialDatesController)

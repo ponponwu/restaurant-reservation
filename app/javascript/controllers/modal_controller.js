@@ -15,12 +15,19 @@ export default class extends Controller {
         // 添加全域事件委派來處理動態載入的關閉按鈕
         this.boundHandleModalClose = this.handleModalClose.bind(this)
         document.addEventListener('click', this.boundHandleModalClose)
+
+        // 監聽全域的關閉事件
+        this.boundCloseEvent = this.close.bind(this)
+        document.addEventListener('close-modal', this.boundCloseEvent)
     }
 
     disconnect() {
         // 清理事件監聽器
         if (this.boundHandleModalClose) {
             document.removeEventListener('click', this.boundHandleModalClose)
+        }
+        if (this.boundCloseEvent) {
+            document.removeEventListener('close-modal', this.boundCloseEvent)
         }
     }
 
