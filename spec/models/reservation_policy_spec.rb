@@ -333,10 +333,10 @@ RSpec.describe ReservationPolicy do
 
         # 創建超出限制期間的訂位（不應計算）- 建立時跳過驗證
         reservation = build(:reservation,
-                           restaurant: restaurant,
-                           customer_phone: phone_number,
-                           reservation_datetime: 45.days.from_now,
-                           status: :confirmed)
+                            restaurant: restaurant,
+                            customer_phone: phone_number,
+                            reservation_datetime: 45.days.from_now,
+                            status: :confirmed)
         reservation.save!(validate: false)
 
         # 創建已取消的訂位（不應計算）
@@ -547,7 +547,7 @@ RSpec.describe ReservationPolicy do
     describe '#can_book_at_time?' do
       it '不允許過於接近的時間訂位' do
         # 使用1小時後的時間，這應該少於預設的2小時最少提前時間
-        one_hour_later = Time.current + 1.hour
+        one_hour_later = 1.hour.from_now
         expect(reservation_policy.can_book_at_time?(one_hour_later)).to be false
       end
 
@@ -730,9 +730,9 @@ RSpec.describe ReservationPolicy do
         # 創建一個已確認的訂位 - 使用足夠遠的時間避免提前時間限制
         test_datetime = 1.day.from_now.change(hour: 18, min: 0)
         reservation = build(:reservation, :confirmed,
-                           restaurant: restaurant,
-                           table: table,
-                           reservation_datetime: test_datetime)
+                            restaurant: restaurant,
+                            table: table,
+                            reservation_datetime: test_datetime)
         reservation.save!(validate: false)
 
         # 在無限時模式下，同一時間的桌位檢查應該回傳 true（不檢查時間衝突）

@@ -11,9 +11,9 @@ RSpec.describe BusinessPeriod do
 
   # 2. 驗證測試
   describe 'validations' do
-    let(:restaurant) { create(:restaurant) }
-    
     subject { build(:business_period, restaurant: restaurant) }
+
+    let(:restaurant) { create(:restaurant) }
 
     describe 'name' do
       it { is_expected.to validate_presence_of(:name) }
@@ -22,7 +22,7 @@ RSpec.describe BusinessPeriod do
 
     describe 'display_name' do
       it { is_expected.to validate_length_of(:display_name).is_at_most(100) }
-      
+
       it 'allows blank display_name' do
         subject.display_name = nil
         expect(subject).to be_valid
@@ -32,7 +32,7 @@ RSpec.describe BusinessPeriod do
     describe 'time validations' do
       it { is_expected.to validate_presence_of(:start_time) }
       it { is_expected.to validate_presence_of(:end_time) }
-      
+
       it 'validates end_time is after start_time' do
         subject.start_time = Time.zone.parse('14:00')
         subject.end_time = Time.zone.parse('12:00')
@@ -53,7 +53,7 @@ RSpec.describe BusinessPeriod do
         expect(subject).not_to be_valid
         expect(subject.errors[:days_of_week_mask]).to include('必須大於0')
       end
-      
+
       it { is_expected.to validate_numericality_of(:days_of_week_mask).is_greater_than(0) }
     end
   end
@@ -63,7 +63,7 @@ RSpec.describe BusinessPeriod do
     let(:restaurant) { create(:restaurant) }
     let!(:active_period) { create(:business_period, restaurant: restaurant, active: true) }
     let!(:inactive_period) { create(:business_period, restaurant: restaurant, active: false) }
-    
+
     describe '.active' do
       it 'returns only active business periods' do
         expect(BusinessPeriod.active).to include(active_period)
@@ -201,7 +201,7 @@ RSpec.describe BusinessPeriod do
   # 6. Days of week 方法測試
   describe 'days of week methods' do
     let(:restaurant) { create(:restaurant) }
-    
+
     describe '#days_of_week=' do
       let(:business_period) { build(:business_period, restaurant: restaurant) }
 
@@ -211,7 +211,7 @@ RSpec.describe BusinessPeriod do
       end
 
       it 'sets bitmask for multiple days' do
-        business_period.days_of_week = ['monday', 'wednesday', 'friday']
+        business_period.days_of_week = %w[monday wednesday friday]
         expect(business_period.days_of_week_mask).to eq(1 + 4 + 16) # 21
       end
 
@@ -230,7 +230,7 @@ RSpec.describe BusinessPeriod do
       let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week_mask: 21) } # Mon, Wed, Fri
 
       it 'returns array of day strings' do
-        expect(business_period.days_of_week).to match_array(['monday', 'wednesday', 'friday'])
+        expect(business_period.days_of_week).to match_array(%w[monday wednesday friday])
       end
 
       it 'returns empty array for zero mask' do
@@ -240,7 +240,7 @@ RSpec.describe BusinessPeriod do
     end
 
     describe '#operates_on_day?' do
-      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: ['monday', 'wednesday']) }
+      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: %w[monday wednesday]) }
 
       it 'returns true for operating days' do
         expect(business_period.operates_on_day?(:monday)).to be true
@@ -256,14 +256,14 @@ RSpec.describe BusinessPeriod do
       it 'handles Date objects' do
         monday_date = Date.current.beginning_of_week # Assuming Monday is beginning of week
         tuesday_date = monday_date + 1.day
-        
+
         expect(business_period.operates_on_day?(monday_date)).to be true
         expect(business_period.operates_on_day?(tuesday_date)).to be false
       end
     end
 
     describe '#operates_on_weekday?' do
-      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: ['sunday', 'monday']) }
+      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: %w[sunday monday]) }
 
       it 'returns true for operating weekdays' do
         expect(business_period.operates_on_weekday?(0)).to be true  # Sunday
@@ -281,15 +281,15 @@ RSpec.describe BusinessPeriod do
     end
 
     describe '#chinese_days_of_week' do
-      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: ['monday', 'friday']) }
+      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: %w[monday friday]) }
 
       it 'returns Chinese day names' do
-        expect(business_period.chinese_days_of_week).to match_array(['星期一', '星期五'])
+        expect(business_period.chinese_days_of_week).to match_array(%w[星期一 星期五])
       end
     end
 
     describe '#formatted_days_of_week' do
-      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: ['monday', 'wednesday', 'friday']) }
+      let(:business_period) { create(:business_period, restaurant: restaurant, days_of_week: %w[monday wednesday friday]) }
 
       it 'returns formatted Chinese day names' do
         expect(business_period.formatted_days_of_week).to eq('星期一、星期三、星期五')
@@ -360,26 +360,25 @@ RSpec.describe BusinessPeriod do
       it 'delegates to available_on? with current date' do
         expect(business_period).to receive(:available_on?).with(Date.current).and_return(true)
         expect(business_period.available_today?).to be true
-        
+
         expect(business_period).to receive(:available_on?).with(Date.current).and_return(false)
         expect(business_period.available_today?).to be false
       end
 
       it 'returns correct availability for specific dates' do
-        business_period = create(:business_period, 
-          restaurant: restaurant, 
-          days_of_week: ['monday', 'wednesday', 'friday']
-        )
-        
+        business_period = create(:business_period,
+                                 restaurant: restaurant,
+                                 days_of_week: %w[monday wednesday friday])
+
         travel_to Date.new(2024, 1, 8) do  # Monday
           expect(business_period.available_today?).to be true
         end
-        
+
         travel_to Date.new(2024, 1, 9) do  # Tuesday
           expect(business_period.available_today?).to be false
         end
-        
-        travel_to Date.new(2024, 1, 10) do  # Wednesday
+
+        travel_to Date.new(2024, 1, 10) do # Wednesday
           expect(business_period.available_today?).to be true
         end
       end
@@ -444,11 +443,11 @@ RSpec.describe BusinessPeriod do
         it 'merges new settings with existing ones' do
           business_period.reservation_settings = { 'max_capacity' => 50 }
           business_period.update_settings({ 'buffer_time' => 15 })
-          
+
           expect(business_period.settings).to eq({
-            'max_capacity' => 50,
-            'buffer_time' => 15
-          })
+                                                   'max_capacity' => 50,
+                                                   'buffer_time' => 15
+                                                 })
         end
       end
     end
@@ -465,9 +464,9 @@ RSpec.describe BusinessPeriod do
         business_period.days_of_week_mask = nil
         business_period.reservation_settings = nil
         business_period.active = nil
-        
+
         business_period.valid?
-        
+
         expect(business_period.days_of_week_mask).to eq(0)
         expect(business_period.reservation_settings).to eq({})
         expect(business_period.active).to be true
@@ -476,9 +475,9 @@ RSpec.describe BusinessPeriod do
       it 'sets display_name to name if blank' do
         business_period.name = 'lunch'
         business_period.display_name = nil
-        
+
         business_period.valid?
-        
+
         expect(business_period.display_name).to eq('lunch')
       end
     end
@@ -489,9 +488,9 @@ RSpec.describe BusinessPeriod do
       it 'strips whitespace from name and display_name' do
         business_period.name = '  lunch  '
         business_period.display_name = '  午餐時段  '
-        
+
         business_period.valid?
-        
+
         expect(business_period.name).to eq('lunch')
         expect(business_period.display_name).to eq('午餐時段')
       end
@@ -518,7 +517,7 @@ RSpec.describe BusinessPeriod do
           display_name: '晚餐時段',
           start_time: '18:00',
           end_time: '22:00',
-          days_of_week: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'],
+          days_of_week: %w[monday tuesday wednesday thursday friday],
           active: true
         }
 
@@ -542,19 +541,19 @@ RSpec.describe BusinessPeriod do
         create(:business_period,
                restaurant: restaurant,
                name: 'weekday_lunch',
-               days_of_week: ['monday', 'tuesday', 'wednesday', 'thursday', 'friday'])
+               days_of_week: %w[monday tuesday wednesday thursday friday])
       end
       let!(:weekend_period) do
         create(:business_period,
                restaurant: restaurant,
                name: 'weekend_brunch',
-               days_of_week: ['saturday', 'sunday'])
+               days_of_week: %w[saturday sunday])
       end
 
       it 'correctly identifies operating periods for specific days' do
         expect(BusinessPeriod.for_day(:monday)).to include(weekday_period)
         expect(BusinessPeriod.for_day(:monday)).not_to include(weekend_period)
-        
+
         expect(BusinessPeriod.for_day(:saturday)).to include(weekend_period)
         expect(BusinessPeriod.for_day(:saturday)).not_to include(weekday_period)
       end

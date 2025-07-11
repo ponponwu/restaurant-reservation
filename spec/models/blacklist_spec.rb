@@ -9,10 +9,10 @@ RSpec.describe Blacklist do
 
   # 2. 驗證測試
   describe 'validations' do
+    subject { build(:blacklist, restaurant: restaurant, added_by: user) }
+
     let(:restaurant) { create(:restaurant) }
     let(:user) { create(:user, :admin, restaurant: restaurant) }
-    
-    subject { build(:blacklist, restaurant: restaurant, added_by: user) }
 
     describe 'customer_name' do
       it { is_expected.to validate_presence_of(:customer_name) }
@@ -21,7 +21,7 @@ RSpec.describe Blacklist do
 
     describe 'customer_phone' do
       it { is_expected.to validate_presence_of(:customer_phone) }
-      
+
       it 'validates phone format' do
         subject.customer_phone = '12345'
         expect(subject).not_to be_valid
@@ -53,7 +53,7 @@ RSpec.describe Blacklist do
 
     describe 'reason' do
       it { is_expected.to validate_length_of(:reason).is_at_most(500) }
-      
+
       it 'allows blank reason' do
         subject.reason = nil
         expect(subject).to be_valid
@@ -219,7 +219,7 @@ RSpec.describe Blacklist do
 
         before do
           # Simulate a case where added_by becomes nil (e.g., orphaned record)
-          # Since we can't actually set it to null due to DB constraints, 
+          # Since we can't actually set it to null due to DB constraints,
           # we'll test the method behavior with a stubbed nil added_by
           allow(blacklist).to receive(:added_by).and_return(nil)
         end
@@ -275,9 +275,9 @@ RSpec.describe Blacklist do
       end
 
       it 'automatically sanitizes phone on creation' do
-        blacklist = create(:blacklist, 
-                          restaurant: restaurant,
-                          customer_phone: '(091) 234-5678')
+        blacklist = create(:blacklist,
+                           restaurant: restaurant,
+                           customer_phone: '(091) 234-5678')
         expect(blacklist.customer_phone).to eq('0912345678')
       end
     end
@@ -298,7 +298,7 @@ RSpec.describe Blacklist do
       it 'can deactivate and reactivate entries' do
         blacklisted_customer.deactivate!
         expect(Blacklist.blacklisted_phone?(restaurant, '0912345678')).to be false
-        
+
         blacklisted_customer.activate!
         expect(Blacklist.blacklisted_phone?(restaurant, '0912345678')).to be true
       end

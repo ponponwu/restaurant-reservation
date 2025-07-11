@@ -10,13 +10,13 @@ RSpec.describe TableCombination do
 
   # 2. 驗證測試
   describe 'validations' do
+    subject { build(:table_combination, :without_tables, reservation: reservation) }
+
     let(:restaurant) { create(:restaurant) }
     let(:table_group) { create(:table_group, restaurant: restaurant) }
     let(:table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, can_combine: true) }
     let(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, can_combine: true) }
     let(:reservation) { create(:reservation, restaurant: restaurant) }
-    
-    subject { build(:table_combination, :without_tables, reservation: reservation) }
 
     describe 'name' do
       it { is_expected.to validate_presence_of(:name) }
@@ -25,12 +25,12 @@ RSpec.describe TableCombination do
 
     describe 'reservation_id uniqueness' do
       it 'validates uniqueness of reservation_id' do
-        existing_combination = create(:table_combination, reservation: reservation)
+        create(:table_combination, reservation: reservation)
         new_combination = build(:table_combination, :without_tables, reservation: reservation)
-        
+
         # 手動設定桌位以通過基本驗證
         new_combination.restaurant_tables = [table1, table2]
-        
+
         expect(new_combination).not_to be_valid
         expect(new_combination.errors[:reservation_id]).to include('已經被使用')
       end
@@ -42,7 +42,7 @@ RSpec.describe TableCombination do
           # 使用 :without_tables trait 來避免自動建立桌位
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1]
-          
+
           expect(combination).not_to be_valid
           expect(combination.errors[:restaurant_tables]).to include('併桌至少需要兩張桌位')
         end
@@ -50,7 +50,7 @@ RSpec.describe TableCombination do
         it 'allows two or more tables' do
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1, table2]
-          
+
           expect(combination).to be_valid
         end
       end
@@ -61,7 +61,7 @@ RSpec.describe TableCombination do
         it 'rejects non-combinable tables through association validation' do
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1, non_combinable_table]
-          
+
           expect(combination).not_to be_valid
           # TableCombinationTable validation triggers this error
           expect(combination.errors.full_messages.any? { |msg| msg.include?('格式錯誤') }).to be true
@@ -70,7 +70,7 @@ RSpec.describe TableCombination do
         it 'allows combinable tables' do
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1, table2]
-          
+
           expect(combination).to be_valid
         end
       end
@@ -79,14 +79,14 @@ RSpec.describe TableCombination do
         it 'demonstrates validation works for compatible tables' do
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1, table2]
-          
+
           expect(combination).to be_valid
         end
 
         it 'validates minimum table requirement' do
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1]
-          
+
           expect(combination).not_to be_valid
           expect(combination.errors[:restaurant_tables]).to include('併桌至少需要兩張桌位')
         end
@@ -95,7 +95,7 @@ RSpec.describe TableCombination do
           non_combinable_table = create(:table, restaurant: restaurant, table_group: table_group, can_combine: false)
           combination = build(:table_combination, :without_tables, reservation: reservation)
           combination.restaurant_tables = [table1, non_combinable_table]
-          
+
           expect(combination).not_to be_valid
           expect(combination.errors.full_messages.any? { |msg| msg.include?('格式錯誤') }).to be true
         end
@@ -121,26 +121,26 @@ RSpec.describe TableCombination do
 
   # 4. 實例方法測試
   describe 'instance methods' do
-    let(:restaurant) { create(:restaurant) }
-    let(:table_group) { create(:table_group, restaurant: restaurant) }
-    let(:table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, table_number: 'T1', can_combine: true) }
-    let(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 6, max_capacity: 6, table_number: 'T2', can_combine: true) }
-    let(:reservation) { create(:reservation, restaurant: restaurant) }
-    
     subject do
       # First ensure tables are created
       table1 # Force creation
       table2 # Force creation
-      
+
       # Create combination with default factory (which includes tables)
       combination = create(:table_combination, reservation: reservation, name: '特別併桌')
-      
+
       # Replace the default tables with our specific ones
       combination.restaurant_tables.clear
       combination.restaurant_tables = [table1, table2]
       combination.save!
       combination
     end
+
+    let(:restaurant) { create(:restaurant) }
+    let(:table_group) { create(:table_group, restaurant: restaurant) }
+    let(:table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, table_number: 'T1', can_combine: true) }
+    let(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 6, max_capacity: 6, table_number: 'T2', can_combine: true) }
+    let(:reservation) { create(:reservation, restaurant: restaurant) }
 
     describe '#total_capacity' do
       it 'returns sum of all table capacities' do
@@ -231,7 +231,7 @@ RSpec.describe TableCombination do
         combination = build(:table_combination, :without_tables, reservation: reservation)
         combination.restaurant_tables = [table1, table2, table3]
         combination.save!
-        
+
         expect(combination.total_capacity).to eq(14) # 4 + 4 + 6
         expect(combination.can_accommodate?(8)).to be true
       end
@@ -244,17 +244,17 @@ RSpec.describe TableCombination do
       it 'prevents combinations with insufficient tables' do
         combination = build(:table_combination, :without_tables, reservation: reservation)
         combination.restaurant_tables = [table1] # Only one table
-        
+
         expect(combination).not_to be_valid
         expect(combination.errors[:restaurant_tables]).to include('併桌至少需要兩張桌位')
       end
 
       it 'prevents duplicate combinations for same reservation' do
         create(:table_combination, reservation: reservation)
-        
+
         duplicate_combination = build(:table_combination, :without_tables, reservation: reservation)
-        duplicate_combination.restaurant_tables = [table1, table2]  # 設定桌位以通過基本驗證
-        
+        duplicate_combination.restaurant_tables = [table1, table2] # 設定桌位以通過基本驗證
+
         expect(duplicate_combination).not_to be_valid
         expect(duplicate_combination.errors[:reservation_id]).to include('已經被使用')
       end
@@ -262,26 +262,26 @@ RSpec.describe TableCombination do
 
     context 'realistic business scenarios' do
       let(:table_group) { create(:table_group, restaurant: restaurant, name: '包廂區') }
-      
+
       before do
         # Create tables with different capacities and statuses
-        @table1 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 4, max_capacity: 4, can_combine: true, table_number: 'A1')
-        @table2 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 4, max_capacity: 6, can_combine: true, table_number: 'A2')
-        @table3 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 6, max_capacity: 6, can_combine: true, table_number: 'A3')
+        @table1 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 4, max_capacity: 4, can_combine: true, table_number: 'A1')
+        @table2 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 4, max_capacity: 6, can_combine: true, table_number: 'A2')
+        @table3 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 6, max_capacity: 6, can_combine: true, table_number: 'A3')
       end
 
       it 'successfully handles typical table combination workflow' do
         # Create combination for large party
         combination = build(:table_combination, :without_tables,
-                          reservation: reservation,
-                          name: '大型聚會併桌',
-                          notes: '慶祝活動，需要較大空間')
-        
+                            reservation: reservation,
+                            name: '大型聚會併桌',
+                            notes: '慶祝活動，需要較大空間')
+
         combination.restaurant_tables = [@table1, @table2, @table3]
-        
+
         expect(combination.save!).to be true
         expect(combination.total_capacity).to eq(14) # 4 + 4 + 6
         expect(combination.can_accommodate?(8)).to be true

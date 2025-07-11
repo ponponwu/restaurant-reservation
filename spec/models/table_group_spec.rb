@@ -10,9 +10,9 @@ RSpec.describe TableGroup do
 
   # 2. 驗證測試
   describe 'validations' do
-    let(:restaurant) { create(:restaurant) }
-    
     subject { build(:table_group, restaurant: restaurant) }
+
+    let(:restaurant) { create(:restaurant) }
 
     describe 'name' do
       it { is_expected.to validate_presence_of(:name) }
@@ -27,7 +27,7 @@ RSpec.describe TableGroup do
         group.valid?
         expect(group.sort_order).to be_present
       end
-      
+
       it { is_expected.to validate_numericality_of(:sort_order).is_greater_than_or_equal_to(0) }
     end
   end
@@ -175,7 +175,7 @@ RSpec.describe TableGroup do
       let!(:table1) { create(:table, restaurant: restaurant, table_group: table_group, active: true) }
       let!(:table2) { create(:table, restaurant: restaurant, table_group: table_group, active: true) }
       let!(:table3) { create(:table, restaurant: restaurant, table_group: table_group, active: true) }
-      
+
       it 'returns count based on current reservations' do
         # This test is complex due to time-based validation constraints
         # Test that the method exists and returns a numeric value
@@ -201,27 +201,27 @@ RSpec.describe TableGroup do
 
     describe 'before_validation :set_defaults' do
       it 'sets default sort_order' do
-        existing_group = create(:table_group, restaurant: restaurant, sort_order: 3)
+        create(:table_group, restaurant: restaurant, sort_order: 3)
         new_group = build(:table_group, restaurant: restaurant, sort_order: nil)
-        
+
         new_group.valid?
-        
+
         expect(new_group.sort_order).to eq(4) # next_sort_order
       end
 
       it 'sets default active to true' do
         group = build(:table_group, restaurant: restaurant, active: nil)
-        
+
         group.valid?
-        
+
         expect(group.active).to be true
       end
 
       it 'does not override existing values' do
         group = build(:table_group, restaurant: restaurant, sort_order: 10, active: false)
-        
+
         group.valid?
-        
+
         expect(group.sort_order).to eq(10)
         expect(group.active).to be false
       end
@@ -229,20 +229,20 @@ RSpec.describe TableGroup do
 
     describe 'before_validation :sanitize_inputs' do
       it 'strips whitespace from name and description' do
-        group = build(:table_group, 
-                     restaurant: restaurant,
-                     name: '  大廳區  ',
-                     description: '  主要用餐區域  ')
-        
+        group = build(:table_group,
+                      restaurant: restaurant,
+                      name: '  大廳區  ',
+                      description: '  主要用餐區域  ')
+
         group.valid?
-        
+
         expect(group.name).to eq('大廳區')
         expect(group.description).to eq('主要用餐區域')
       end
 
       it 'handles nil values gracefully' do
         group = build(:table_group, restaurant: restaurant, name: '大廳區', description: nil)
-        
+
         expect { group.valid? }.not_to raise_error
         expect(group.description).to be_nil
       end
@@ -257,10 +257,10 @@ RSpec.describe TableGroup do
       it 'assigns sort orders automatically' do
         # Use a fresh restaurant to avoid conflicts
         fresh_restaurant = create(:restaurant)
-        
+
         group1 = create(:table_group, restaurant: fresh_restaurant, sort_order: 1)
         group2 = create(:table_group, restaurant: fresh_restaurant, sort_order: 2)
-        
+
         # Test that sort orders are assigned and are positive
         expect(group1.sort_order).to eq(1)
         expect(group2.sort_order).to eq(2)
@@ -268,10 +268,10 @@ RSpec.describe TableGroup do
 
       it 'handles custom sort orders and generates next one correctly' do
         fresh_restaurant = create(:restaurant)
-        
+
         group1 = create(:table_group, restaurant: fresh_restaurant, sort_order: 5)
         next_order = TableGroup.next_sort_order(fresh_restaurant)
-        
+
         expect(group1.sort_order).to eq(5)
         expect(next_order).to eq(6)
       end
@@ -279,17 +279,17 @@ RSpec.describe TableGroup do
 
     context 'table group with multiple tables and reservations' do
       let(:table_group) { create(:table_group, restaurant: restaurant, name: '包廂區') }
-      
+
       before do
         # Create tables with different capacities and statuses
-        @table1 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 4, max_capacity: 4, operational_status: 'normal', active: true)
-        @table2 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 4, max_capacity: 6, operational_status: 'normal', active: true)
-        @table3 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 6, max_capacity: 8, operational_status: 'maintenance', active: true)
-        @table4 = create(:table, restaurant: restaurant, table_group: table_group, 
-                        capacity: 4, max_capacity: 4, operational_status: 'normal', active: false)
+        @table1 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 4, max_capacity: 4, operational_status: 'normal', active: true)
+        @table2 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 4, max_capacity: 6, operational_status: 'normal', active: true)
+        @table3 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 6, max_capacity: 8, operational_status: 'maintenance', active: true)
+        @table4 = create(:table, restaurant: restaurant, table_group: table_group,
+                                 capacity: 4, max_capacity: 4, operational_status: 'normal', active: false)
       end
 
       it 'provides accurate capacity and availability metrics' do
@@ -310,12 +310,12 @@ RSpec.describe TableGroup do
         TableGroup.reorder!([group3.id, group1.id, group2.id])
 
         ordered_groups = restaurant.table_groups.ordered
-        expect(ordered_groups.map(&:name)).to eq(['C區', 'A區', 'B區'])
-        
+        expect(ordered_groups.map(&:name)).to eq(%w[C區 A區 B區])
+
         group1.reload
         group2.reload
         group3.reload
-        
+
         expect(group3.sort_order).to eq(1)
         expect(group1.sort_order).to eq(2)
         expect(group2.sort_order).to eq(3)

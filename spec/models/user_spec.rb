@@ -39,11 +39,13 @@ RSpec.describe User do
 
   # 3. 枚舉測試
   describe 'enums' do
-    it { is_expected.to define_enum_for(:role).with_values(
-      super_admin: 0,
-      manager: 1,
-      employee: 2
-    ) }
+    it {
+      expect(subject).to define_enum_for(:role).with_values(
+        super_admin: 0,
+        manager: 1,
+        employee: 2
+      )
+    }
 
     describe 'role methods' do
       let(:super_admin) { build_stubbed(:user, role: :super_admin) }
@@ -163,7 +165,7 @@ RSpec.describe User do
       it 'marks user as inactive and sets deleted_at' do
         travel_to Time.current do
           user.soft_delete!
-          
+
           expect(user.active).to be false
           expect(user.deleted_at).to eq(Time.current)
         end
@@ -172,7 +174,7 @@ RSpec.describe User do
       it 'persists the changes' do
         user.soft_delete!
         user.reload
-        
+
         expect(user.active).to be false
         expect(user.deleted_at).to be_present
       end
@@ -183,7 +185,7 @@ RSpec.describe User do
 
       it 'generates a random password' do
         user.generate_random_password
-        
+
         expect(user.password).to be_present
         expect(user.password.length).to eq(16) # SecureRandom.hex(8) generates 16 chars
         expect(user.password_confirmation).to eq(user.password)
@@ -197,10 +199,10 @@ RSpec.describe User do
       it 'generates different passwords each time' do
         user.generate_random_password
         first_password = user.password
-        
+
         user.generate_random_password
         second_password = user.password
-        
+
         expect(first_password).not_to eq(second_password)
       end
     end
@@ -212,7 +214,7 @@ RSpec.describe User do
       it 'sets default values on create' do
         user = build(:user, active: nil)
         user.valid?
-        
+
         # Default values should be set (implementation may vary)
         expect(user.active).not_to be_nil
       end
@@ -222,7 +224,7 @@ RSpec.describe User do
       it 'sanitizes string inputs' do
         user = build(:user, first_name: '  John  ', last_name: '  Doe  ')
         user.valid?
-        
+
         # Sanitization behavior depends on implementation
         expect(user.first_name.strip).to eq('John')
         expect(user.last_name.strip).to eq('Doe')
@@ -284,7 +286,7 @@ RSpec.describe User do
     it 'requires unique email addresses' do
       create(:user, email: 'test@example.com')
       duplicate_user = build(:user, email: 'test@example.com')
-      
+
       expect(duplicate_user).not_to be_valid
       expect(duplicate_user.errors[:email]).to include('已經被使用')
     end
@@ -296,7 +298,7 @@ RSpec.describe User do
 
     it 'validates email format' do
       invalid_emails = ['invalid', 'test@', '@example.com']
-      
+
       invalid_emails.each do |invalid_email|
         user = build(:user, email: invalid_email)
         expect(user).not_to be_valid, "Expected #{invalid_email} to be invalid"
@@ -322,13 +324,13 @@ RSpec.describe User do
 
       it 'handles user deactivation workflow' do
         user = create(:user, active: true)
-        
+
         # Soft delete user
         user.soft_delete!
-        
+
         # User should be excluded from active scope
         expect(User.active).not_to include(user)
-        
+
         # But user record still exists
         expect(User.unscoped.find(user.id)).to eq(user)
       end
@@ -339,17 +341,17 @@ RSpec.describe User do
 
       it 'assigns manager to restaurant' do
         manager = create(:user, :manager, restaurant: restaurant)
-        
+
         expect(manager.restaurant).to eq(restaurant)
         expect(restaurant.users).to include(manager)
       end
 
       it 'handles user role changes' do
         employee = create(:user, :employee, restaurant: restaurant)
-        
+
         # Promote to manager
         employee.update!(role: :manager)
-        
+
         expect(employee.manager?).to be true
         expect(employee.restaurant).to eq(restaurant) # Still associated
       end
@@ -358,14 +360,14 @@ RSpec.describe User do
     context 'authentication and password management' do
       it 'supports password reset workflow' do
         user = create(:user, email: 'reset@example.com')
-        
+
         # Generate random password (simulating admin reset)
         user.generate_random_password
         user.save!
-        
+
         # User should be forced to change password
         expect(user.password_changed_at).to be_nil
-        
+
         # User can authenticate with new password
         expect(user.valid_password?(user.password)).to be true
       end
