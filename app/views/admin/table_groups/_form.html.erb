@@ -1,6 +1,11 @@
 <%= form_with model: table_group, 
     url: table_group.persisted? ? admin_restaurant_table_group_path(@restaurant, table_group) : admin_restaurant_table_groups_path(@restaurant),
-    data: { turbo_frame: "modal" },
+    data: { 
+      turbo_frame: "modal",
+      controller: "form-validation",
+      form_validation_restaurant_id_value: @restaurant.slug,
+      form_validation_current_name_value: table_group.persisted? ? table_group.name : ""
+    },
     class: "space-y-4" do |f| %>
   
   <% if table_group.errors.any? %>
@@ -29,7 +34,12 @@
     <%= f.label :name, "群組名稱", class: "block text-sm font-medium text-gray-700" %>
     <%= f.text_field :name, 
         placeholder: "例如：大廳區、包廂區",
+        data: { 
+          form_validation_target: "nameInput",
+          action: "input->form-validation#validateName"
+        },
         class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+    <div data-form-validation-target="validationMessage" class="mt-1 text-sm" style="display: none;"></div>
   </div>
   
   <div>

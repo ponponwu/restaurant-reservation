@@ -13,7 +13,7 @@
       
       <!-- 優先順序號碼 -->
       <span class="priority-number inline-flex items-center justify-center w-6 h-6 bg-blue-100 text-blue-800 text-xs font-bold rounded-full mr-3">
-        <%= table.sort_order %>
+        <%= global_priorities[table.id] || table.global_priority %>
       </span>
       
       <!-- 桌位圖示和群組名稱 -->

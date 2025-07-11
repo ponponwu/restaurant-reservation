@@ -16,14 +16,29 @@
         <% end %>
       <% end %>
       
-      <!-- 公休管理 -->
+      <!-- 特殊日期 (新系統) -->
+      <%= link_to admin_restaurant_settings_restaurant_special_dates_path(restaurant),
+          class: "#{current_tab == 'special_dates' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center",
+          data: { turbo_prefetch: false } do %>
+        <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        特殊日期
+        <% if current_tab == 'special_dates' %>
+          <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
+            <%= restaurant.special_reservation_dates.active.count %>
+          </span>
+        <% end %>
+      <% end %>
+      
+      <!-- 公休管理 (舊系統) -->
       <%= link_to admin_restaurant_settings_restaurant_closure_dates_path(restaurant),
           class: "#{current_tab == 'closure_dates' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center",
           data: { turbo_prefetch: false } do %>
         <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        公休管理
+        公休管理 (舊)
         <% if current_tab == 'closure_dates' %>
           <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
             <%= restaurant.closure_dates.where('date >= ?', Date.current).count %>
@@ -67,12 +82,19 @@
         </svg>
         設定餐廳的營業時間，包含午餐、晚餐等不同時段的營業時間和預約設定
       </div>
+    <% when 'special_dates' %>
+      <div class="flex items-center text-sm text-gray-600">
+        <svg class="mr-2 h-4 w-4 text-purple-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        管理特殊日期設定，包含公休日和自訂營業時段，支援日期範圍和靈活的時段配置
+      </div>
     <% when 'closure_dates' %>
       <div class="flex items-center text-sm text-gray-600">
         <svg class="mr-2 h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        管理餐廳的公休日、國定假日和特殊營業時間，支援重複設定和部分時間公休
+        舊版公休日管理系統 (建議使用新版特殊日期功能)
       </div>
     <% when 'reservation_policies' %>
       <div class="flex items-center text-sm text-gray-600">
