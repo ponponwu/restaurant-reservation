@@ -102,9 +102,9 @@ RSpec.describe Admin::ReservationsController do
         # 但實際上台北時間是UTC+8，所以UTC 11:00 = 台北19:00
         datetime = 3.days.from_now.change(hour: 11, min: 0).utc
         local_time = datetime.in_time_zone('Asia/Taipei')
-        
+
         result = controller_instance.send(:determine_business_period, datetime)
-        
+
         # 根據實際時間判斷應該屬於哪個時段
         if local_time.hour >= 17 && local_time.hour <= 21
           expect(result).to eq(@dinner_period.id)
@@ -112,7 +112,7 @@ RSpec.describe Admin::ReservationsController do
           expect(result).to eq(@lunch_period.id)
         else
           # 如果不在營業時段內，應該返回最接近的時段
-          expect([(@lunch_period.id), (@dinner_period.id)]).to include(result)
+          expect([@lunch_period.id, @dinner_period.id]).to include(result)
         end
       end
     end
@@ -125,6 +125,21 @@ RSpec.describe Admin::ReservationsController do
         description: '主要用餐區域',
         active: true
       )
+    end
+    let(:reservation_params) do
+      # 選擇明天晚上7點，確保在晚餐時段(17:30-21:30)內且滿足提前預訂需求
+      dinner_time = 1.day.from_now.change(hour: 19, min: 0)
+      {
+        customer_name: 'Test Customer',
+        customer_phone: '0912345678',
+        customer_email: 'test@example.com',
+        party_size: 2,
+        adults_count: 2,
+        children_count: 0,
+        reservation_datetime: dinner_time.strftime('%Y-%m-%dT%H:%M'),
+        table_id: table.id,
+        admin_override: false
+      }
     end
 
     let!(:table) do
@@ -140,22 +155,6 @@ RSpec.describe Admin::ReservationsController do
 
     before do
       Reservation.destroy_all
-    end
-
-    let(:reservation_params) do
-      # 選擇明天晚上7點，確保在晚餐時段(17:30-21:30)內且滿足提前預訂需求
-      dinner_time = 1.day.from_now.change(hour: 19, min: 0)
-      {
-        customer_name: 'Test Customer',
-        customer_phone: '0912345678',
-        customer_email: 'test@example.com',
-        party_size: 2,
-        adults_count: 2,
-        children_count: 0,
-        reservation_datetime: dinner_time.strftime('%Y-%m-%dT%H:%M'),
-        table_id: table.id,
-        admin_override: false
-      }
     end
 
     it 'correctly assigns dinner period for 19:00 reservation' do
