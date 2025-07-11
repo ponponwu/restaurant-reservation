@@ -53,7 +53,7 @@ class AvailabilityService
     return slots if available_time_options.empty?
 
     # 預載入營業時段資料
-    business_period_ids = available_time_options.pluck(:business_period_id).uniq
+    business_period_ids = available_time_options.pluck(:business_period_id).compact.uniq
     business_periods_cache = @restaurant.business_periods.where(id: business_period_ids)
       .index_by(&:id)
 
@@ -77,12 +77,14 @@ class AvailabilityService
     available_time_options.each do |time_option|
       business_period_id = time_option[:business_period_id]
       datetime = time_option[:datetime]
+      is_special_date = business_period_id.nil?
 
-      # 使用快取的營業時段資料
-      business_period = business_periods_cache[business_period_id]
-      next unless business_period
+      # 如果是常規日，但找不到對應的餐期，則跳過
+      business_period = business_periods_cache[business_period_id] unless is_special_date
+      next if !is_special_date && !business_period
 
       # 檢查該時段是否有可用桌位
+      # 對於特殊日，reservations_by_period[nil] 會回傳對應的訂位
       next unless has_availability_for_slot?(
         restaurant_tables,
         reservations_by_period[business_period_id] || [],
@@ -94,7 +96,7 @@ class AvailabilityService
       slots << {
         time: time_option[:time],
         period_id: business_period_id,
-        period_name: business_period.name,
+        period_name: is_special_date ? '特別營業時段' : business_period.name,
         available: true
       }
     end
@@ -128,13 +130,8 @@ class AvailabilityService
     business_periods = @restaurant.business_periods.active.to_a
     business_periods_cache = business_periods.index_by(&:id)
 
-    # 預載入休息日資料
-    closure_dates = @restaurant.closure_dates
-      .where('date BETWEEN ? AND ? OR recurring = ?', start_date, end_date, true)
-      .to_a
-
-    # 建立休息日快取
-    closed_dates_cache = build_closed_dates_cache(closure_dates, date_range)
+    # 建立統一的休息日快取 (同時檢查兩套系統)
+    closed_dates_cache = build_unified_closed_dates_cache(date_range)
 
     # 批量檢查每天的可用性
     date_range.each do |date|
@@ -182,19 +179,27 @@ class AvailabilityService
     # 預載入營業時段資料
     business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
 
-    # 預載入休息日資料，避免在迴圈中重複查詢
-    closure_dates = @restaurant.closure_dates
-      .where('date BETWEEN ? AND ? OR recurring = ?', start_date, end_date, true)
-      .to_a
+    # 建立統一的休息日快取 (同時檢查兩套系統)
+    closed_dates_cache = build_unified_closed_dates_cache(date_range)
+    
+    # 預載入特殊日期設定
+    special_dates_cache = @restaurant.special_reservation_dates.active
+                                     .where('start_date <= ? AND end_date >= ?', end_date, start_date)
+                                     .group_by { |sd| (sd.start_date..sd.end_date).to_a }.transform_values(&:first)
+                                     .flat_map { |k, v| k.map { |date| [date, v] } }.to_h
 
-    # 建立休息日快取
-    closed_dates_cache = build_closed_dates_cache(closure_dates, date_range)
 
     # 批量檢查每天的可用性
     date_range.each do |date|
       # 跳過公休日
       next if closed_dates_cache.include?(date)
-      next unless business_periods_cache.values.any? { |bp| bp.operates_on_weekday?(date.wday) }
+      
+      special_date = special_dates_cache[date]
+
+      # 如果不是特殊營業日，且沒有常規營業時段，則跳過
+      if special_date.nil? || !special_date.custom_hours?
+        next unless business_periods_cache.values.any? { |bp| bp.operates_on_weekday?(date.wday) }
+      end
 
       # 檢查當天是否有任何時段可以容納該人數
       next if has_availability_on_date_cached?(
@@ -225,18 +230,30 @@ class AvailabilityService
       business_period_id = time_option[:business_period_id]
       datetime = time_option[:datetime]
 
-      # 使用快取的營業時段資料
-      business_period = business_periods_cache[business_period_id]
-      next false unless business_period
+      # 處理特殊訂位日（business_period_id 為 nil）
+      if business_period_id.nil?
+        # 特殊訂位日不需要檢查營業時段，直接檢查桌位可用性
+        has_availability_for_slot_optimized?(
+          restaurant_tables,
+          reservations_by_period[business_period_id] || [],
+          datetime,
+          party_size,
+          business_period_id
+        )
+      else
+        # 使用快取的營業時段資料
+        business_period = business_periods_cache[business_period_id]
+        next false unless business_period
 
-      # 檢查該時段是否有可用桌位
-      has_availability_for_slot_optimized?(
-        restaurant_tables,
-        reservations_by_period[business_period_id] || [],
-        datetime,
-        party_size,
-        business_period_id
-      )
+        # 檢查該時段是否有可用桌位
+        has_availability_for_slot_optimized?(
+          restaurant_tables,
+          reservations_by_period[business_period_id] || [],
+          datetime,
+          party_size,
+          business_period_id
+        )
+      end
     end
   end
 
@@ -298,6 +315,11 @@ class AvailabilityService
 
   # 檢查時間衝突（優化版本）
   def has_time_conflict_optimized?(reservation, target_datetime, target_business_period_id)
+    # 特殊訂位日處理（business_period_id 為 nil）
+    if target_business_period_id.nil?
+      return has_time_conflict_for_special_date?(reservation, target_datetime)
+    end
+
     # 如果是無限時模式，檢查同一餐期的衝突
     if @restaurant.unlimited_dining_time?
       return reservation.business_period_id == target_business_period_id &&
@@ -305,7 +327,7 @@ class AvailabilityService
     end
 
     # 限時模式：檢查時間重疊
-    duration_minutes = @restaurant.dining_duration_with_buffer
+    duration_minutes = @restaurant.dining_duration_with_buffer_for_date(target_datetime.to_date)
     return false unless duration_minutes
 
     reservation_start = reservation.reservation_datetime
@@ -373,6 +395,11 @@ class AvailabilityService
 
   # 檢查時間衝突
   def has_time_conflict?(reservation, target_datetime, target_business_period_id)
+    # 特殊訂位日處理（business_period_id 為 nil）
+    if target_business_period_id.nil?
+      return has_time_conflict_for_special_date?(reservation, target_datetime)
+    end
+
     # 如果是無限時模式，檢查同一餐期的衝突
     if @restaurant.unlimited_dining_time?
       return reservation.business_period_id == target_business_period_id &&
@@ -380,9 +407,29 @@ class AvailabilityService
     end
 
     # 限時模式：檢查時間重疊
-    duration_minutes = @restaurant.dining_duration_with_buffer
+    duration_minutes = @restaurant.dining_duration_with_buffer_for_date(target_datetime.to_date)
     return false unless duration_minutes
 
+    reservation_start = reservation.reservation_datetime
+    reservation_end = reservation_start + duration_minutes.minutes
+    target_start = target_datetime
+    target_end = target_start + duration_minutes.minutes
+
+    # 檢查時間區間是否重疊
+    !(reservation_end <= target_start || target_end <= reservation_start)
+  end
+
+  # 檢查特殊訂位日的時間衝突
+  def has_time_conflict_for_special_date?(reservation, target_datetime)
+    target_date = target_datetime.to_date
+    
+    # 檢查是否為同一天的訂位
+    return false unless reservation.reservation_datetime.to_date == target_date
+    
+    # 獲取特殊訂位日的用餐時間設定
+    duration_minutes = @restaurant.dining_duration_with_buffer_for_date(target_date)
+    return false unless duration_minutes
+    
     reservation_start = reservation.reservation_datetime
     reservation_end = reservation_start + duration_minutes.minutes
     target_start = target_datetime
@@ -458,10 +505,11 @@ class AvailabilityService
     false
   end
 
-  # 建立休息日快取
+  # 建立休息日快取 (支援兩套系統)
   def build_closed_dates_cache(closure_dates, date_range)
     closed_dates_cache = Set.new
 
+    # 處理舊的 ClosureDate 系統
     closure_dates.each do |closure|
       if closure.recurring?
         # 處理週期性休息日
@@ -473,6 +521,35 @@ class AvailabilityService
       end
     end
 
+    # 處理新的 SpecialReservationDate 系統
+    special_dates = @restaurant.special_reservation_dates
+                               .active
+                               .where('start_date <= ? AND end_date >= ?', date_range.last, date_range.first)
+                               .to_a
+
+    special_dates.each do |special_date|
+      if special_date.closed?
+        # 對於公休的特殊日期，將所有覆蓋的日期加入關閉快取
+        date_range.each do |date|
+          closed_dates_cache.add(date) if special_date.covers_date?(date)
+        end
+      end
+      # 注意：自訂時段的特殊日期不會加入 closed_dates_cache
+      # 因為它們不是完全關閉，而是有特殊的營業時間
+    end
+
     closed_dates_cache
+  end
+
+  # 建立統一的休息日檢查方法 (同時檢查兩套系統)
+  def build_unified_closed_dates_cache(date_range)
+    # 預載入舊系統的休息日資料
+    closure_dates = @restaurant.closure_dates
+                               .where('date BETWEEN ? AND ? OR recurring = ?', 
+                                      date_range.first, date_range.last, true)
+                               .to_a
+
+    # 使用現有方法建立快取
+    build_closed_dates_cache(closure_dates, date_range)
   end
 end

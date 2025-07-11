@@ -6,14 +6,14 @@ class RestaurantAvailabilityService
   end
 
   # 獲取可預約日期
-  def get_available_dates(party_size, adults = nil, children = nil)
+  def get_available_dates(party_size, _adults = nil, _children = nil)
     start_date = Date.current
     advance_booking_days = @restaurant.reservation_policy&.advance_booking_days || 30
     end_date = start_date + advance_booking_days.days
 
     available_dates = []
     availability_service = AvailabilityService.new(@restaurant)
-    
+
     # 使用快取避免重複查詢
     all_reservations = cached_reservations_for_date_range(start_date, end_date)
 
@@ -28,7 +28,7 @@ class RestaurantAvailabilityService
     (start_date..end_date).each do |date|
       # 跳過今天，不允許當天預訂
       next if date <= Date.current
-      
+
       # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
       day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
 
@@ -48,7 +48,7 @@ class RestaurantAvailabilityService
   end
 
   # 獲取可預約時段
-  def get_available_times(date, party_size, adults = nil, children = nil)
+  def get_available_times(date, party_size, _adults = nil, _children = nil)
     available_times = []
     target_date = date.is_a?(Date) ? date : Date.parse(date.to_s)
 
@@ -93,7 +93,7 @@ class RestaurantAvailabilityService
   end
 
   # 計算額滿日期
-  def calculate_full_booked_until(party_size, adults = nil, children = nil)
+  def calculate_full_booked_until(party_size, _adults = nil, _children = nil)
     start_date = Date.current
     advance_booking_days = @restaurant.reservation_policy&.advance_booking_days || 30
     end_date = start_date + advance_booking_days.days
@@ -115,7 +115,7 @@ class RestaurantAvailabilityService
     (start_date..end_date).each do |date|
       # 跳過今天，不允許當天預訂
       next if date <= Date.current
-      
+
       # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
       day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
 
@@ -136,7 +136,7 @@ class RestaurantAvailabilityService
   end
 
   # 檢查特定日期是否有可用性
-  def has_availability_on_date?(date, party_size, adults = nil, children = nil)
+  def has_availability_on_date?(date, party_size, _adults = nil, _children = nil)
     # 使用餐廳的動態時間產生方法
     available_time_options = @restaurant.available_time_options_for_date(date)
     return false if available_time_options.empty?
@@ -177,9 +177,9 @@ class RestaurantAvailabilityService
   # 快取查詢結果以避免重複資料庫查詢
   def cached_reservations_for_date_range(start_date, end_date)
     cache_key = "#{start_date}_#{end_date}"
-    
+
     return @reservations_cache[cache_key] if @reservations_cache[cache_key]
-    
+
     # 簡化策略：只在需要時才載入table_combinations
     # 大部分reservation都沒有table_combination，所以先不載入
     @reservations_cache[cache_key] = @restaurant.reservations
@@ -194,15 +194,15 @@ class RestaurantAvailabilityService
     @reservations_cache&.each do |cache_key, reservations|
       # 只檢查範圍快取（包含 '_' 的key）
       next unless cache_key.include?('_')
-      
+
       parts = cache_key.split('_')
       next unless parts.length == 2 && parts.all?(&:present?)
-      
+
       start_date_str, end_date_str = parts
       begin
         start_date = Date.parse(start_date_str)
         end_date = Date.parse(end_date_str)
-        
+
         if date >= start_date && date <= end_date
           return reservations.select { |r| r.reservation_datetime.to_date == date }
         end
@@ -211,13 +211,13 @@ class RestaurantAvailabilityService
         next
       end
     end
-    
+
     # 如果沒有範圍快取，則建立單日快取
     cache_key = date.to_s
     @reservations_cache ||= {}
-    
+
     return @reservations_cache[cache_key] if @reservations_cache[cache_key]
-    
+
     @reservations_cache[cache_key] = @restaurant.reservations
       .where(status: %w[pending confirmed])
       .where('DATE(reservation_datetime) = ?', date)
@@ -228,16 +228,16 @@ class RestaurantAvailabilityService
   # 懶載入table_combinations：只在需要時才查詢
   def ensure_table_combinations_loaded(reservations)
     return if @table_combinations_loaded
-    
+
     reservation_ids = reservations.map(&:id)
     return if reservation_ids.empty?
-    
+
     # 批次載入所有table_combinations
     table_combinations = TableCombination
       .where(reservation_id: reservation_ids)
       .includes(table_combination_tables: :restaurant_table)
       .index_by(&:reservation_id)
-    
+
     # 手動設定關聯以避免額外查詢
     reservations.each do |reservation|
       if table_combinations[reservation.id]
@@ -245,7 +245,7 @@ class RestaurantAvailabilityService
         reservation.association(:table_combination).set_inverse_instance(table_combinations[reservation.id])
       end
     end
-    
+
     @table_combinations_loaded = true
   end
 end
