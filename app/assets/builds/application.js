@@ -11871,6 +11871,92 @@ var flash_controller_default = class extends Controller {
   }
 };
 
+// app/javascript/controllers/form_validation_controller.js
+var form_validation_controller_default = class extends Controller {
+  static targets = ["nameInput", "validationMessage"];
+  static values = {
+    restaurantId: String,
+    currentName: String
+    // 用於編輯時排除當前記錄
+  };
+  connect() {
+    console.log("\u{1F525} Form validation controller connected");
+    this.debounceTimer = null;
+  }
+  validateName() {
+    const name = this.nameInputTarget.value.trim();
+    if (this.debounceTimer) {
+      clearTimeout(this.debounceTimer);
+    }
+    if (!name || name === this.currentNameValue) {
+      this.clearValidationMessage();
+      return;
+    }
+    this.debounceTimer = setTimeout(() => {
+      this.checkNameUniqueness(name);
+    }, 500);
+  }
+  checkNameUniqueness(name) {
+    const csrfToken = document.querySelector('[name="csrf-token"]').content;
+    fetch(`/admin/restaurants/${this.restaurantIdValue}/table_groups/check_name_uniqueness`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-CSRF-Token": csrfToken
+      },
+      body: JSON.stringify({
+        name,
+        current_name: this.currentNameValue
+      })
+    }).then((response) => response.json()).then((data) => {
+      if (data.unique) {
+        this.showValidationMessage("\u540D\u7A31\u53EF\u7528", "success");
+      } else {
+        this.showValidationMessage("\u8A72\u540D\u7A31\u5DF2\u5B58\u5728\uFF0C\u8ACB\u4F7F\u7528\u5176\u4ED6\u540D\u7A31", "error");
+      }
+    }).catch((error2) => {
+      console.error("\u{1F525} Validation error:", error2);
+      this.clearValidationMessage();
+    });
+  }
+  showValidationMessage(message, type) {
+    const messageElement = this.validationMessageTarget;
+    const isError = type === "error";
+    messageElement.textContent = message;
+    messageElement.className = `mt-1 text-sm ${isError ? "text-red-600" : "text-green-600"}`;
+    messageElement.style.display = "block";
+    this.nameInputTarget.className = this.nameInputTarget.className.replace(
+      /border-gray-300|border-red-300|border-green-300/,
+      isError ? "border-red-300" : "border-green-300"
+    );
+    const submitButton = this.element.querySelector('input[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = isError;
+      submitButton.className = submitButton.className.replace(
+        /bg-blue-600|bg-gray-400/,
+        isError ? "bg-gray-400" : "bg-blue-600"
+      );
+    }
+  }
+  clearValidationMessage() {
+    const messageElement = this.validationMessageTarget;
+    messageElement.style.display = "none";
+    messageElement.textContent = "";
+    this.nameInputTarget.className = this.nameInputTarget.className.replace(
+      /border-red-300|border-green-300/,
+      "border-gray-300"
+    );
+    const submitButton = this.element.querySelector('input[type="submit"]');
+    if (submitButton) {
+      submitButton.disabled = false;
+      submitButton.className = submitButton.className.replace(
+        /bg-gray-400/,
+        "bg-blue-600"
+      );
+    }
+  }
+};
+
 // app/javascript/controllers/hello_controller.js
 var hello_controller_default = class extends Controller {
   connect() {
@@ -11889,10 +11975,15 @@ var modal_controller_default = class extends Controller {
     };
     this.boundHandleModalClose = this.handleModalClose.bind(this);
     document.addEventListener("click", this.boundHandleModalClose);
+    this.boundCloseEvent = this.close.bind(this);
+    document.addEventListener("close-modal", this.boundCloseEvent);
   }
   disconnect() {
     if (this.boundHandleModalClose) {
       document.removeEventListener("click", this.boundHandleModalClose);
+    }
+    if (this.boundCloseEvent) {
+      document.removeEventListener("close-modal", this.boundCloseEvent);
     }
   }
   // 處理 modal 關閉按鈕的全域點擊事件
@@ -14434,6 +14525,79 @@ var restaurant_management_controller_default = class extends Controller {
   }
 };
 
+// app/javascript/controllers/sidebar_controller.js
+var sidebar_controller_default = class extends Controller {
+  static targets = ["sidebar", "overlay", "mainContainer"];
+  connect() {
+    this.setupEventListeners();
+  }
+  setupEventListeners() {
+    window.addEventListener("resize", this.handleResize.bind(this));
+    document.addEventListener("keydown", this.handleKeydown.bind(this));
+  }
+  toggle() {
+    if (this.isMobile()) {
+      if (this.sidebarTarget.classList.contains("sidebar-open")) {
+        this.close();
+      } else {
+        this.show();
+      }
+    }
+  }
+  show() {
+    if (this.isMobile()) {
+      this.sidebarTarget.classList.add("sidebar-open");
+      if (this.hasOverlayTarget) {
+        this.overlayTarget.style.display = "block";
+        this.overlayTarget.offsetHeight;
+        this.overlayTarget.classList.add("opacity-75");
+      }
+      document.body.classList.add("overflow-hidden");
+      if (this.hasMainContainerTarget) {
+        this.mainContainerTarget.style.transition = "transform 0.3s ease-in-out";
+        this.mainContainerTarget.style.transform = "translateX(18rem)";
+      }
+    }
+  }
+  close() {
+    if (this.isMobile()) {
+      this.sidebarTarget.classList.remove("sidebar-open");
+      if (this.hasOverlayTarget) {
+        this.overlayTarget.classList.remove("opacity-75");
+        setTimeout(() => {
+          this.overlayTarget.style.display = "none";
+        }, 300);
+      }
+      document.body.classList.remove("overflow-hidden");
+      if (this.hasMainContainerTarget) {
+        this.mainContainerTarget.style.transform = "";
+      }
+    }
+  }
+  handleResize() {
+    if (!this.isMobile()) {
+      this.close();
+      if (this.hasMainContainerTarget) {
+        this.mainContainerTarget.style.transform = "";
+        this.mainContainerTarget.style.transition = "";
+      }
+    }
+  }
+  handleKeydown(event) {
+    if (event.key === "Escape") {
+      this.close();
+    }
+  }
+  isMobile() {
+    return window.innerWidth < 1024;
+  }
+  disconnect() {
+    window.removeEventListener("resize", this.handleResize.bind(this));
+    document.removeEventListener("keydown", this.handleKeydown.bind(this));
+    document.body.classList.remove("overflow-hidden");
+  }
+};
+
 // node_modules/sortablejs/modular/sortable.esm.js
 function ownKeys(object, enumerableOnly) {
   var keys = Object.keys(object);
@@ -16864,9 +17028,22 @@ var sortable_controller_default = class extends Controller {
   }
   updateGlobalPriorities() {
     console.log("\u{1F525} Updating global priorities...");
-    setTimeout(() => {
-      window.location.reload();
-    }, 1e3);
+    const csrfToken = document.querySelector('[name="csrf-token"]').content;
+    const restaurantId = this.restaurantIdValue;
+    fetch(`/admin/restaurants/${restaurantId}/table_groups/refresh_priorities`, {
+      method: "GET",
+      headers: {
+        "Accept": "text/vnd.turbo-stream.html",
+        "X-CSRF-Token": csrfToken
+      }
+    }).then((response) => response.text()).then((html) => {
+      Turbo.renderStreamMessage(html);
+    }).catch((error2) => {
+      console.error("\u{1F525} Error refreshing priorities:", error2);
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    });
   }
   showFlash(message, type) {
     const flashContainer = document.getElementById("flash_messages");
@@ -16890,6 +17067,164 @@ var sortable_controller_default = class extends Controller {
   }
 };
 
+// app/javascript/controllers/special_date_form_controller.js
+var special_date_form_controller_default = class extends Controller {
+  static targets = [
+    "customHoursSection",
+    "periods",
+    "periodsContainer",
+    "period"
+  ];
+  static identifier = "special-date-form";
+  connect() {
+    console.log("SpecialDateForm controller connected");
+    this.periodIndex = this.periodTargets.length;
+  }
+  // 切換營業模式時顯示/隱藏自訂時段區塊
+  toggleMode(event) {
+    const operationMode = event.target.value;
+    const customHoursSection = this.customHoursSectionTarget;
+    if (operationMode === "custom_hours") {
+      customHoursSection.classList.remove("hidden");
+    } else {
+      customHoursSection.classList.add("hidden");
+    }
+  }
+  // 新增時段
+  addPeriod(event) {
+    event.preventDefault();
+    const newPeriodHTML = this.generatePeriodHTML(this.periodIndex);
+    this.periodsTarget.insertAdjacentHTML("beforeend", newPeriodHTML);
+    this.periodIndex++;
+  }
+  // 移除時段
+  removePeriod(event) {
+    event.preventDefault();
+    const periodElement = event.target.closest('[data-special-date-form-target="period"]');
+    if (this.periodTargets.length > 1) {
+      periodElement.remove();
+    } else {
+      alert("\u81F3\u5C11\u9700\u8981\u4FDD\u7559\u4E00\u500B\u71DF\u696D\u6642\u6BB5");
+    }
+  }
+  // 生成時段 HTML
+  generatePeriodHTML(index2) {
+    return `
+            <div class="flex items-center space-x-3 mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50" 
+                 data-special-date-form-target="period">
+                <div class="flex-1 grid grid-cols-3 gap-3">
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">\u958B\u59CB\u6642\u9593</label>
+                        <input type="time" 
+                               name="special_reservation_date[custom_periods][${index2}][start_time]" 
+                               value="18:00"
+                               class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">\u7D50\u675F\u6642\u9593</label>
+                        <input type="time" 
+                               name="special_reservation_date[custom_periods][${index2}][end_time]" 
+                               value="21:00"
+                               class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">\u9593\u9694 (\u5206\u9418)</label>
+                        <select name="special_reservation_date[custom_periods][${index2}][interval_minutes]" 
+                                class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                            <option value="30">30\u5206\u9418</option>
+                            <option value="60">60\u5206\u9418</option>
+                            <option value="90">90\u5206\u9418</option>
+                            <option value="120" selected>120\u5206\u9418</option>
+                            <option value="180">180\u5206\u9418</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <button type="button" 
+                        data-action="click->special-date-form#removePeriod"
+                        class="flex-shrink-0 p-2 text-red-600 hover:text-red-800"
+                        title="\u79FB\u9664\u6B64\u6642\u6BB5">
+                    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
+  }
+  // 表單驗證
+  validateForm(event) {
+    const form = event.target;
+    const operationMode = form.querySelector('select[name="special_reservation_date[operation_mode]"]').value;
+    const startDate = form.querySelector('input[name="special_reservation_date[start_date]"]').value;
+    const endDate = form.querySelector('input[name="special_reservation_date[end_date]"]').value;
+    if (!startDate || !endDate) {
+      alert("\u8ACB\u8A2D\u5B9A\u958B\u59CB\u548C\u7D50\u675F\u65E5\u671F");
+      event.preventDefault();
+      return false;
+    }
+    if (new Date(startDate) > new Date(endDate)) {
+      alert("\u7D50\u675F\u65E5\u671F\u4E0D\u80FD\u65E9\u65BC\u958B\u59CB\u65E5\u671F");
+      event.preventDefault();
+      return false;
+    }
+    if (operationMode === "custom_hours") {
+      const periods = this.periodTargets;
+      let hasValidPeriod = false;
+      periods.forEach((period) => {
+        const startTimeInput = period.querySelector('input[name*="[start_time]"]');
+        const endTimeInput = period.querySelector('input[name*="[end_time]"]');
+        if (startTimeInput && endTimeInput) {
+          const startTime = startTimeInput.value;
+          const endTime = endTimeInput.value;
+          if (startTime && endTime && startTime < endTime) {
+            hasValidPeriod = true;
+          }
+        }
+      });
+      if (!hasValidPeriod) {
+        alert("\u81EA\u8A02\u6642\u6BB5\u6A21\u5F0F\u4E0B\uFF0C\u81F3\u5C11\u9700\u8981\u8A2D\u5B9A\u4E00\u500B\u6709\u6548\u7684\u71DF\u696D\u6642\u6BB5");
+        event.preventDefault();
+        return false;
+      }
+    }
+    return true;
+  }
+};
+
+// app/javascript/controllers/special_dates_controller.js
+var special_dates_controller_default = class extends Controller {
+  static targets = [];
+  static values = {
+    restaurantSlug: String
+  };
+  static identifier = "special-dates";
+  connect() {
+    console.log("SpecialDates controller connected");
+    this.boundTurboFrameLoad = this.handleTurboFrameLoad.bind(this);
+    this.boundBeforeStreamAction = this.handleBeforeStreamAction.bind(this);
+    document.addEventListener("turbo:frame-load", this.boundTurboFrameLoad);
+    document.addEventListener("turbo:before-stream-action", this.boundBeforeStreamAction);
+  }
+  disconnect() {
+    if (this.boundTurboFrameLoad) {
+      document.removeEventListener("turbo:frame-load", this.boundTurboFrameLoad);
+    }
+    if (this.boundBeforeStreamAction) {
+      document.removeEventListener("turbo:before-stream-action", this.boundBeforeStreamAction);
+    }
+  }
+  handleTurboFrameLoad(event) {
+    if (event.target.id === "modal") {
+      console.log("Modal loaded for special dates");
+    }
+  }
+  handleBeforeStreamAction(event) {
+    console.log("Turbo stream action:", event.detail.action);
+  }
+};
+
 // app/javascript/controllers/index.js
 application.register("admin-reservation", admin_reservation_controller_default);
 application.register("calendar", calendar_controller_default);
@@ -16898,6 +17233,7 @@ application.register("confirmation", confirmation_controller_default);
 application.register("dining-settings", dining_settings_controller_default);
 application.register("dropdown", dropdown_controller_default);
 application.register("flash", flash_controller_default);
+application.register("form-validation", form_validation_controller_default);
 application.register("hello", hello_controller_default);
 application.register("modal", modal_controller_default);
 application.register("reservation-calendar", reservation_calendar_controller_default);
@@ -16906,7 +17242,10 @@ application.register("reservation-form", reservation_form_controller_default);
 application.register("reservation-policy", reservation_policy_controller_default);
 application.register("restaurant-info", restaurant_info_controller_default);
 application.register("restaurant-management", restaurant_management_controller_default);
+application.register("sidebar", sidebar_controller_default);
 application.register("sortable", sortable_controller_default);
+application.register("special-date-form", special_date_form_controller_default);
+application.register("special-dates", special_dates_controller_default);
 /*! Bundled license information:
 
 @hotwired/turbo/dist/turbo.es2017-esm.js:
