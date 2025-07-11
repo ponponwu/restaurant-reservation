@@ -113,14 +113,28 @@ class Admin::BusinessPeriodsController < AdminController
 
     respond_to do |format|
       format.turbo_stream do
-        render turbo_stream: [
-          turbo_stream.replace("business_period_#{@business_period.id}",
-                               partial: 'business_period_row',
-                               locals: { business_period: @business_period }),
-          turbo_stream.update('flash_messages',
-                              partial: 'shared/flash',
-                              locals: { message: "營業時段已#{@business_period.active? ? '啟用' : '停用'}", type: 'success' })
-        ]
+        # 檢查是否來自設定頁面
+        if request.referer&.include?('restaurant_settings')
+          # 來自設定頁面，重新載入整個頁面內容或只更新狀態
+          render turbo_stream: [
+            turbo_stream.update('flash_messages',
+                                partial: 'shared/flash',
+                                locals: { message: "營業時段已#{@business_period.active? ? '啟用' : '停用'}", type: 'success' }),
+            turbo_stream.replace("business_period_#{@business_period.id}",
+                                 partial: 'admin/restaurant_settings/restaurant_settings/business_period_item',
+                                 locals: { period: @business_period, restaurant: @restaurant })
+          ]
+        else
+          # 來自一般管理頁面，使用原本的 partial
+          render turbo_stream: [
+            turbo_stream.replace("business_period_#{@business_period.id}",
+                                 partial: 'business_period_row',
+                                 locals: { business_period: @business_period }),
+            turbo_stream.update('flash_messages',
+                                partial: 'shared/flash',
+                                locals: { message: "營業時段已#{@business_period.active? ? '啟用' : '停用'}", type: 'success' })
+          ]
+        end
       end
       format.html { redirect_to admin_restaurant_business_periods_path(@restaurant) }
     end
@@ -133,12 +147,14 @@ class Admin::BusinessPeriodsController < AdminController
                     Restaurant.find_by!(slug: params[:restaurant_id])
                   else
                     # 餐廳管理員和員工只能存取自己的餐廳
-                    if current_user.restaurant_id.present?
-                      Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:restaurant_id])
-                    else
-                      # 如果用戶沒有餐廳關聯，直接拋出記錄未找到錯誤
-                      raise ActiveRecord::RecordNotFound, "User has no restaurant association"
+                    unless current_user.restaurant_id.present?
+                      raise ActiveRecord::RecordNotFound, 'User has no restaurant association'
                     end
+
+                    Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:restaurant_id])
+
+                    # 如果用戶沒有餐廳關聯，直接拋出記錄未找到錯誤
+
                   end
   rescue ActiveRecord::RecordNotFound => e
     Rails.logger.warn "Restaurant access denied: #{e.message} for user #{current_user.id}"

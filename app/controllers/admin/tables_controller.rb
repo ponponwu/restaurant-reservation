@@ -30,8 +30,10 @@ class Admin::TablesController < AdminController
       @table.sort_order = last_sort_order + 1
     end
 
-    if @table.save
-      respond_to do |format|
+    # 使用單一 respond_to 區塊來處理成功和失敗的情況
+    respond_to do |format|
+      if @table.save
+        # 成功情況
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.remove('modal'),
@@ -48,14 +50,18 @@ class Admin::TablesController < AdminController
           ]
         end
         format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '桌位建立成功' }
-      end
-    else
-      # 優先使用 turbo_stream 回應，避免跳頁
-      respond_to do |format|
+      else
+        # 失敗情況
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('modal',
-                                                   partial: 'new',
-                                                   locals: { table: @table })
+          # 檢查是否是重複桌號錯誤
+          duplicate_table_error = @table.errors[:table_number].any? { |msg| msg.include?('已經存在') }
+          error_message = duplicate_table_error ? '桌號重複，請使用不同的桌號' : '建立桌位失敗，請檢查輸入資料'
+
+          render turbo_stream: [
+            turbo_stream.update('modal', partial: 'new', locals: { table: @table }),
+            turbo_stream.update('flash_messages', partial: 'shared/flash',
+                                                  locals: { message: error_message, type: 'error' })
+          ]
         end
         format.html do
           # 如果是 turbo_frame 請求，渲染 modal 內容
@@ -70,8 +76,10 @@ class Admin::TablesController < AdminController
   end
 
   def update
-    if @table.update(table_params)
-      respond_to do |format|
+    # 使用單一 respond_to 區塊來處理成功和失敗的情況
+    respond_to do |format|
+      if @table.update(table_params)
+        # 成功情況
         format.turbo_stream do
           render turbo_stream: [
             turbo_stream.remove('modal'),
@@ -87,14 +95,18 @@ class Admin::TablesController < AdminController
           ]
         end
         format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '桌位更新成功' }
-      end
-    else
-      # 優先使用 turbo_stream 回應，避免跳頁
-      respond_to do |format|
+      else
+        # 失敗情況
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('modal',
-                                                   partial: 'edit',
-                                                   locals: { table: @table })
+          # 檢查是否是重複桌號錯誤
+          duplicate_table_error = @table.errors[:table_number].any? { |msg| msg.include?('已經存在') }
+          error_message = duplicate_table_error ? '桌號重複，請使用不同的桌號' : '更新桌位失敗，請檢查輸入資料'
+
+          render turbo_stream: [
+            turbo_stream.update('modal', partial: 'edit', locals: { table: @table }),
+            turbo_stream.update('flash_messages', partial: 'shared/flash',
+                                                  locals: { message: error_message, type: 'error' })
+          ]
         end
         format.html do
           # 如果是 turbo_frame 請求，渲染 modal 內容

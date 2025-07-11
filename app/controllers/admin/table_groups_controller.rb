@@ -41,9 +41,15 @@ class Admin::TableGroupsController < AdminController
     else
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('modal',
-                                                   partial: 'new',
-                                                   locals: { table_group: @table_group })
+          # 檢查是否是重複名稱錯誤
+          duplicate_name_error = @table_group.errors[:name].any? { |msg| msg.include?('已存在相同名稱') }
+          error_message = duplicate_name_error ? '群組名稱重複，請使用不同的名稱' : '建立桌位群組失敗，請檢查輸入資料'
+
+          render turbo_stream: [
+            turbo_stream.update('modal', partial: 'new', locals: { table_group: @table_group }),
+            turbo_stream.update('flash_messages', partial: 'shared/flash',
+                                                  locals: { message: error_message, type: 'error' })
+          ]
         end
         format.html { render :new, status: :unprocessable_entity }
       end
@@ -67,9 +73,15 @@ class Admin::TableGroupsController < AdminController
     else
       respond_to do |format|
         format.turbo_stream do
-          render turbo_stream: turbo_stream.update('modal',
-                                                   partial: 'edit',
-                                                   locals: { table_group: @table_group })
+          # 檢查是否是重複名稱錯誤
+          duplicate_name_error = @table_group.errors[:name].any? { |msg| msg.include?('已存在相同名稱') }
+          error_message = duplicate_name_error ? '群組名稱重複，請使用不同的名稱' : '更新桌位群組失敗，請檢查輸入資料'
+
+          render turbo_stream: [
+            turbo_stream.update('modal', partial: 'edit', locals: { table_group: @table_group }),
+            turbo_stream.update('flash_messages', partial: 'shared/flash',
+                                                  locals: { message: error_message, type: 'error' })
+          ]
         end
         format.html { render :edit, status: :unprocessable_entity }
       end
@@ -168,6 +180,36 @@ class Admin::TableGroupsController < AdminController
       end
       format.html { redirect_to admin_restaurant_table_groups_path(@restaurant) }
     end
+  end
+
+  def refresh_priorities
+    @table_groups = @restaurant.table_groups.active.ordered
+      .includes(restaurant_tables: :table_group)
+
+    # 重新計算全域優先順序
+    @global_priorities = calculate_global_priorities(@table_groups)
+
+    respond_to do |format|
+      format.turbo_stream do
+        render turbo_stream: turbo_stream.replace('table-groups-tbody',
+                                                  partial: 'table_groups_tbody',
+                                                  locals: { table_groups: @table_groups,
+                                                            global_priorities: @global_priorities })
+      end
+    end
+  end
+
+  def check_name_uniqueness
+    name = params[:name]
+    current_name = params[:current_name]
+
+    # 檢查名稱是否唯一（排除當前記錄）
+    query = @restaurant.table_groups.where(name: name)
+    query = query.where.not(name: current_name) if current_name.present?
+
+    is_unique = !query.exists?
+
+    render json: { unique: is_unique }
   end
 
   private
