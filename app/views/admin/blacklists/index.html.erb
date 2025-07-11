@@ -8,15 +8,6 @@
       <h1 class="text-xl font-semibold text-gray-900">黑名單管理</h1>
     </div>
     <div class="flex space-x-3">
-      <% if current_user&.restaurant.present? %>
-        <%= link_to admin_restaurant_path(current_user.restaurant),
-            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
-          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-          </svg>
-          回到餐廳
-        <% end %>
-      <% end %>
       <%= link_to "新增黑名單", new_admin_restaurant_blacklist_path(@restaurant), 
                   class: "bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors",
                   data: { 
