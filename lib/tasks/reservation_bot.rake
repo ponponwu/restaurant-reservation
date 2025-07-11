@@ -1,8 +1,6 @@
-require 'set'
-
 namespace :reservation_bot do
   desc '測試用訂位機器人 - 將指定餐廳的指定日期範圍內的所有時段訂滿'
-  task :fill_reservations, [:restaurant_slug, :start_date, :end_date, :party_size] => :environment do |_task, args|
+  task :fill_reservations, %i[restaurant_slug start_date end_date party_size] => :environment do |_task, args|
     puts '🤖 啟動訂位機器人...'
 
     # 驗證參數
@@ -64,11 +62,11 @@ namespace :reservation_bot do
 
     # 確認執行
     puts "\n⚠️  這個操作將會在指定的日期範圍內建立大量測試訂位資料"
-    puts "⚠️  建議只在開發環境使用"
-    print "是否繼續？(y/N): "
-    
+    puts '⚠️  建議只在開發環境使用'
+    print '是否繼續？(y/N): '
+
     unless STDIN.gets.chomp.downcase == 'y'
-      puts "❌ 操作已取消"
+      puts '❌ 操作已取消'
       exit 0
     end
 
@@ -77,7 +75,7 @@ namespace :reservation_bot do
     total_failed = 0
     failed_dates = []
 
-    availability_service = AvailabilityService.new(restaurant)
+    AvailabilityService.new(restaurant)
 
     puts "\n🚀 開始建立訂位..."
 
@@ -86,14 +84,14 @@ namespace :reservation_bot do
 
       # 檢查餐廳是否營業
       unless restaurant.open_on_date?(date)
-        puts "   ⏸️  餐廳當天不營業，跳過"
+        puts '   ⏸️  餐廳當天不營業，跳過'
         next
       end
 
       # 獲取當天所有可用時間選項
       available_time_options = restaurant.available_time_options_for_date(date)
       if available_time_options.empty?
-        puts "   ⏸️  沒有可用時間選項，跳過"
+        puts '   ⏸️  沒有可用時間選項，跳過'
         next
       end
 
@@ -108,9 +106,7 @@ namespace :reservation_bot do
         business_period_id = time_option[:business_period_id]
 
         # 跳過過去的時間
-        if datetime < Time.current
-          next
-        end
+        next if datetime < Time.current
 
         # 策略性填滿桌位：優先使用大桌位，然後中桌位，最後單人桌
         tables_filled = fill_tables_strategically(restaurant, datetime, business_period_id, date)
@@ -127,20 +123,18 @@ namespace :reservation_bot do
         sleep(0.05)
       end
 
-      if date_failed > 0
-        failed_dates << { date: date, failed_count: date_failed }
-      end
+      failed_dates << { date: date, failed_count: date_failed } if date_failed > 0
 
       puts "   📊 當天結果: #{date_created} 成功, #{date_failed} 失敗"
     end
 
     # 總結報告
-    puts "\n" + "="*50
-    puts "🎯 訂位機器人執行完成"
-    puts "📊 總結報告:"
+    puts "\n" + ('=' * 50)
+    puts '🎯 訂位機器人執行完成'
+    puts '📊 總結報告:'
     puts "   ✅ 成功建立: #{total_created} 筆訂位"
     puts "   ❌ 建立失敗: #{total_failed} 筆"
-    
+
     if failed_dates.any?
       puts "\n⚠️  有失敗記錄的日期:"
       failed_dates.each do |item|
@@ -150,7 +144,7 @@ namespace :reservation_bot do
 
     if total_created > 0
       puts "\n🧹 清理訂位資料:"
-      puts "   可使用以下指令清理測試資料:"
+      puts '   可使用以下指令清理測試資料:'
       puts "   rails reservation_bot:cleanup_test_reservations[#{restaurant.slug}]"
     end
 
@@ -181,65 +175,63 @@ namespace :reservation_bot do
       .where('reservation_datetime >= ?', Date.current)
 
     if test_reservations.empty?
-      puts "📝 沒有找到測試訂位資料"
+      puts '📝 沒有找到測試訂位資料'
       exit 0
     end
 
     puts "📊 找到 #{test_reservations.count} 筆測試訂位資料"
-    
+
     # 確認刪除
-    print "是否確定要刪除這些測試資料？(y/N): "
+    print '是否確定要刪除這些測試資料？(y/N): '
     unless STDIN.gets.chomp.downcase == 'y'
-      puts "❌ 操作已取消"
+      puts '❌ 操作已取消'
       exit 0
     end
 
     # 執行刪除
     deleted_count = 0
     test_reservations.find_each do |reservation|
-      begin
-        reservation.destroy!
-        deleted_count += 1
-        print "."
-      rescue StandardError => e
-        puts "\n❌ 刪除訂位 ##{reservation.id} 失敗: #{e.message}"
-      end
+      reservation.destroy!
+      deleted_count += 1
+      print '.'
+    rescue StandardError => e
+      puts "\n❌ 刪除訂位 ##{reservation.id} 失敗: #{e.message}"
     end
 
     puts "\n✅ 成功刪除 #{deleted_count} 筆測試訂位資料"
-    puts "🧹 清理完成！"
+    puts '🧹 清理完成！'
   end
 
   desc '顯示訂位機器人使用說明'
-  task :help => :environment do
+  task help: :environment do
     puts <<~HELP
       🤖 訂位機器人使用說明
-      
+
       主要功能：
       ========
-      
+
       1. 填滿指定餐廳的訂位時段
          rails reservation_bot:fill_reservations[restaurant-slug,start-date,end-date,party-size]
-         
+      #{'   '}
          參數說明：
          - restaurant-slug: 餐廳的 slug (必填)
          - start-date: 開始日期，格式 YYYY-MM-DD (選填，預設今天)
          - end-date: 結束日期，格式 YYYY-MM-DD (選填，預設開始日期+7天)
          - party-size: 預訂人數 (選填，預設2人)
-         
+      #{'   '}
          範例：
          rails reservation_bot:fill_reservations[my-restaurant,2025-07-01,2025-07-20,4]
          rails reservation_bot:fill_reservations[my-restaurant]  # 使用預設值
-      
+
       2. 清理測試訂位資料
          rails reservation_bot:cleanup_test_reservations[restaurant-slug]
-         
+      #{'   '}
          範例：
          rails reservation_bot:cleanup_test_reservations[my-restaurant]
-      
+
       3. 顯示此說明
          rails reservation_bot:help
-      
+
       注意事項：
       ========
       - 建議只在開發環境使用
@@ -253,7 +245,7 @@ namespace :reservation_bot do
   private
 
   # 策略性填滿桌位：按容量從大到小分配
-  def fill_tables_strategically(restaurant, datetime, business_period_id, date)
+  def fill_tables_strategically(restaurant, datetime, business_period_id, _date)
     created_count = 0
 
     # 獲取該確切時間點已有的訂位
@@ -344,7 +336,7 @@ namespace :reservation_bot do
   def generate_fake_name
     first_names = %w[王小明 李小華 張小美 陳小強 林小雅 黃小傑 劉小君 郭小豪 何小玲 吳小偉]
     surnames = %w[測試 機器人 假資料 範例 Demo Test Bot Sample Fake Mock]
-    
+
     "#{surnames.sample}#{first_names.sample}"
   end
 
@@ -358,7 +350,7 @@ namespace :reservation_bot do
   def generate_fake_email
     domains = %w[test.com example.com fake.mail bot.test]
     username = "testbot#{rand(1000..9999)}"
-    
+
     "#{username}@#{domains.sample}"
   end
 end
