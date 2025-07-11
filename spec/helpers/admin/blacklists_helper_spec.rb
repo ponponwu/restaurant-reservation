@@ -19,7 +19,7 @@ RSpec.describe Admin::BlacklistsHelper do
       test_class = Class.new do
         include Admin::BlacklistsHelper
       end
-      
+
       expect(test_class.ancestors).to include(Admin::BlacklistsHelper)
     end
   end

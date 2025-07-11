@@ -19,7 +19,7 @@ RSpec.describe HomeHelper do
       test_class = Class.new do
         include HomeHelper
       end
-      
+
       expect(test_class.ancestors).to include(HomeHelper)
     end
   end

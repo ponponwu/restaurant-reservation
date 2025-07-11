@@ -19,7 +19,7 @@ RSpec.describe Admin::BusinessPeriodsHelper do
       test_class = Class.new do
         include Admin::BusinessPeriodsHelper
       end
-      
+
       expect(test_class.ancestors).to include(Admin::BusinessPeriodsHelper)
     end
   end

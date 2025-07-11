@@ -19,7 +19,7 @@ RSpec.describe Admin::RestaurantSettingsHelper do
       test_class = Class.new do
         include Admin::RestaurantSettingsHelper
       end
-      
+
       expect(test_class.ancestors).to include(Admin::RestaurantSettingsHelper)
     end
   end
