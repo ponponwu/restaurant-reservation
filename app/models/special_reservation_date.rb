@@ -100,8 +100,8 @@ class SpecialReservationDate < ApplicationRecord
       next unless INTERVAL_OPTIONS.include?(interval)
       
       current_time = start_time
-      # 迴圈條件改為 <，確保最後一個時段的開始時間加上用餐時間不會超過結束時間
-      while current_time < end_time
+      # 包含結束時間作為可用時段（迴圈條件改為 <=）
+      while current_time <= end_time
         time_slots << current_time.strftime('%H:%M')
         current_time += interval.minutes
       end

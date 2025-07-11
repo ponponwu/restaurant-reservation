@@ -23,6 +23,9 @@ class Restaurant < ApplicationRecord
   has_many :reservation_slots, through: :business_periods
   has_many :closure_dates, dependent: :destroy
   has_one :reservation_policy, dependent: :destroy
+  
+  # 特殊訂位日關聯
+  has_many :special_reservation_dates, dependent: :destroy
 
   # 2. 驗證規則
   validates :name, presence: true, length: { maximum: 100 }
