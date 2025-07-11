@@ -7,22 +7,6 @@
         <p class="mt-2 text-sm text-gray-600">設定餐廳的營業時間和預約時段</p>
       </div>
       <div class="flex space-x-3">
-        <%= link_to admin_restaurant_path(@restaurant),
-            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50",
-            data: { turbo_prefetch: false } do %>
-          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
-          </svg>
-          回到餐廳
-        <% end %>
-        <%= link_to admin_restaurant_settings_restaurant_index_path(@restaurant),
-            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50",
-            data: { turbo_prefetch: false } do %>
-          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-          </svg>
-          返回設定首頁
-        <% end %>
         <%= link_to new_admin_restaurant_business_period_path(@restaurant),
             class: "inline-flex items-center px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700",
             data: { turbo_prefetch: false } do %>
@@ -38,6 +22,9 @@
   <!-- 選項卡導覽 -->
   <%= render 'shared/settings_tabs', current_tab: 'business_periods', restaurant: @restaurant %>
 
+  <!-- Flash 訊息容器 -->
+  <div id="flash_messages"></div>
+
   <!-- 營業時段列表 -->
   <div class="bg-white shadow rounded-lg">
     <div class="px-4 py-5 sm:p-6">
@@ -51,62 +38,7 @@
       <% if @business_periods.any? %>
         <div class="space-y-4">
           <% @business_periods.each do |period| %>
-            <div class="border border-gray-200 rounded-lg p-4">
-              <div class="flex items-center justify-between">
-                <div class="flex-1">
-                  <div class="flex items-center space-x-3">
-                    <h4 class="text-lg font-medium text-gray-900">
-                      <%= period.display_name_or_name %>
-                    </h4>
-                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= period.active? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
-                      <%= period.active? ? '啟用' : '停用' %>
-                    </span>
-                  </div>
-                  
-                  <div class="mt-2 flex items-center space-x-6 text-sm text-gray-500">
-                    <div class="flex items-center">
-                      <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      <%= period.formatted_time_range %>
-                    </div>
-                    
-                    <div class="flex items-center">
-                      <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                      </svg>
-                      <%= period.days_of_week.map { |day| day.capitalize }.join(', ') %>
-                    </div>
-                    
-                    <div class="flex items-center">
-                      <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v10a2 2 0 002 2h8a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"></path>
-                      </svg>
-                      <%= period.reservation_slots.count %> 個時段
-                    </div>
-                  </div>
-                </div>
-                
-                <div class="flex items-center space-x-2">
-                  <%= link_to "查看詳情",
-                      admin_restaurant_business_period_path(@restaurant, period),
-                      class: "text-blue-600 hover:text-blue-900 text-sm font-medium",
-                      data: { turbo_prefetch: false } %>
-                  
-                  <%= link_to "編輯",
-                      edit_admin_restaurant_business_period_path(@restaurant, period),
-                      class: "text-gray-600 hover:text-gray-900 text-sm font-medium",
-                      data: { turbo_prefetch: false } %>
-                  
-                  <%= link_to toggle_active_admin_restaurant_business_period_path(@restaurant, period),
-                      method: :patch,
-                      class: "text-sm font-medium #{period.active? ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}",
-                      data: { turbo_prefetch: false } do %>
-                    <%= period.active? ? '停用' : '啟用' %>
-                  <% end %>
-                </div>
-              </div>
-            </div>
+            <%= render 'business_period_item', period: period, restaurant: @restaurant %>
           <% end %>
         </div>
       <% else %>
@@ -131,3 +63,6 @@
     </div>
   </div>
 </div>
+
+<!-- Modal 容器 for Turbo Frame modals -->
+<div id="modal"></div>
