@@ -113,10 +113,8 @@ RSpec.describe 'Reservations' do
       # 根據實際行為，如果發生錯誤，應該是內部伺服器錯誤
       # 因為 StandardError rescue 會捕獲所有未處理的例外
       expect([302, 500]).to include(response.status)
-      
-      if response.status == 302
-        expect(response).to redirect_to(root_path)
-      end
+
+      expect(response).to redirect_to(root_path) if response.status == 302
     end
 
     it '正確設定表單變數' do

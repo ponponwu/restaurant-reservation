@@ -14,7 +14,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: party_size }
 
       expect(response).to have_http_status(:success)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response).to have_key('weekly_closures')
       expect(json_response).to have_key('special_closures')
@@ -56,7 +56,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       get "/restaurants/#{restaurant.slug}/available_dates", params: { party_size: party_size }
 
       expect(response).to have_http_status(:success)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response).to have_key('available_dates')
       expect(json_response).to have_key('has_capacity')
@@ -70,7 +70,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       allow_any_instance_of(Restaurant)
         .to receive(:has_capacity_for_party_size?)
         .and_return(true)
-      
+
       allow_any_instance_of(RestaurantAvailabilityService)
         .to receive(:get_available_dates)
         .and_return([])
@@ -99,13 +99,13 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       get "/restaurants/#{restaurant.slug}/available_dates", params: { party_size: 15 }
 
       expect(response).to have_http_status(:bad_request)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('人數必須在 1-12 人之間')
     end
 
     it 'handles adults and children parameters' do
-      get "/restaurants/#{restaurant.slug}/available_dates", 
+      get "/restaurants/#{restaurant.slug}/available_dates",
           params: { party_size: party_size, adults: 3, children: 1 }
 
       expect(response).to have_http_status(:success)
@@ -117,7 +117,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
         .with(party_size, party_size, 0)
         .and_return([])
 
-      get "/restaurants/#{restaurant.slug}/available_dates", 
+      get "/restaurants/#{restaurant.slug}/available_dates",
           params: { party_size: party_size }
     end
 
@@ -129,7 +129,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       get "/restaurants/#{restaurant.slug}/available_dates", params: { party_size: party_size }
 
       expect(response).to have_http_status(:internal_server_error)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('伺服器錯誤')
     end
@@ -139,46 +139,46 @@ RSpec.describe 'Restaurant Availability API', type: :request do
     let(:future_date) { 1.week.from_now.strftime('%Y-%m-%d') }
 
     it 'returns available times for a valid date' do
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: party_size }
 
       expect(response).to have_http_status(:success)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response).to have_key('available_times')
       expect(json_response['available_times']).to be_an(Array)
     end
 
     it 'validates date format' do
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: 'invalid-date', party_size: party_size }
 
       expect(response).to have_http_status(:bad_request)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('日期格式錯誤')
     end
 
     it 'rejects past dates' do
       past_date = 1.day.ago.strftime('%Y-%m-%d')
-      
-      get "/restaurants/#{restaurant.slug}/available_times", 
+
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: past_date, party_size: party_size }
 
       expect(response).to have_http_status(:unprocessable_entity)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('不可預定當天或過去的日期')
     end
 
     it 'rejects today\'s date' do
       today = Date.current.strftime('%Y-%m-%d')
-      
-      get "/restaurants/#{restaurant.slug}/available_times", 
+
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: today, party_size: party_size }
 
       expect(response).to have_http_status(:unprocessable_entity)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('不可預定當天或過去的日期')
     end
@@ -186,12 +186,12 @@ RSpec.describe 'Restaurant Availability API', type: :request do
     it 'validates party size against restaurant policy' do
       # 設定餐廳政策限制
       restaurant.reservation_policy.update!(min_party_size: 2, max_party_size: 8)
-      
-      get "/restaurants/#{restaurant.slug}/available_times", 
+
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: 10 }
 
       expect(response).to have_http_status(:unprocessable_entity)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('人數超出限制')
     end
@@ -200,12 +200,12 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       # 設定只能預約7天內
       restaurant.reservation_policy.update!(advance_booking_days: 7)
       far_future_date = 10.days.from_now.strftime('%Y-%m-%d')
-      
-      get "/restaurants/#{restaurant.slug}/available_times", 
+
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: far_future_date, party_size: party_size }
 
       expect(response).to have_http_status(:unprocessable_entity)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('超出預約範圍')
     end
@@ -216,11 +216,11 @@ RSpec.describe 'Restaurant Availability API', type: :request do
         .to receive(:closed_on_date?)
         .and_return(true)
 
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: party_size }
 
       expect(response).to have_http_status(:success)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['available_times']).to be_empty
       expect(json_response['message']).to eq('餐廳當天公休')
@@ -228,30 +228,30 @@ RSpec.describe 'Restaurant Availability API', type: :request do
 
     it 'checks phone booking limits when phone provided' do
       phone_number = '0912345678'
-      
+
       # 模擬電話預約限制
       allow_any_instance_of(ReservationPolicy)
         .to receive(:phone_booking_limit_exceeded?)
         .with(phone_number)
         .and_return(true)
 
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: party_size, phone: phone_number }
 
       expect(response).to have_http_status(:success)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['phone_limit_exceeded']).to be true
       expect(json_response['phone_limit_message']).to eq('訂位失敗，請聯繫餐廳')
     end
 
     it 'sorts available times correctly' do
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: party_size }
 
       json_response = JSON.parse(response.body)
       times = json_response['available_times']
-      
+
       if times.length > 1
         time_strings = times.map { |t| t['time'] }
         expect(time_strings).to eq(time_strings.sort)
@@ -259,12 +259,12 @@ RSpec.describe 'Restaurant Availability API', type: :request do
     end
 
     it 'includes required time slot information' do
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: party_size }
 
       json_response = JSON.parse(response.body)
       times = json_response['available_times']
-      
+
       times.each do |time_slot|
         expect(time_slot).to have_key('time')
         expect(time_slot).to have_key('datetime')
@@ -277,11 +277,11 @@ RSpec.describe 'Restaurant Availability API', type: :request do
         .to receive(:get_available_times)
         .and_raise(StandardError.new('Test error'))
 
-      get "/restaurants/#{restaurant.slug}/available_times", 
+      get "/restaurants/#{restaurant.slug}/available_times",
           params: { date: future_date, party_size: party_size }
 
       expect(response).to have_http_status(:internal_server_error)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['error']).to include('伺服器錯誤')
     end
@@ -289,7 +289,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
 
   describe 'restaurant not found' do
     it 'redirects when restaurant slug not found' do
-      get "/restaurants/non-existent-restaurant/available_dates", 
+      get '/restaurants/non-existent-restaurant/available_dates',
           params: { party_size: party_size }
 
       expect(response).to have_http_status(:redirect)
@@ -302,11 +302,11 @@ RSpec.describe 'Restaurant Availability API', type: :request do
     end
 
     it 'returns service unavailable when reservations disabled' do
-      get "/restaurants/#{restaurant.slug}/available_dates", 
+      get "/restaurants/#{restaurant.slug}/available_dates",
           params: { party_size: party_size }
 
       expect(response).to have_http_status(:service_unavailable)
-      
+
       json_response = JSON.parse(response.body)
       expect(json_response['reservation_enabled']).to be false
       expect(json_response['message']).to include('暫停接受線上訂位')

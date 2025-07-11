@@ -196,12 +196,12 @@ RSpec.describe 'Security Configuration Tests' do
 
         # 檢查是否有設定參數過濾
         expect(filtered_params).not_to be_empty
-        
+
         # 檢查常見的敏感參數模式是否被過濾
         pattern_matched = filtered_params.any? do |filter|
           filter.to_s.match?(/passw|secret|token|key|crypt|salt|certificate|otp|ssn/i)
         end
-        
+
         expect(pattern_matched).to be true
       end
 
@@ -255,7 +255,7 @@ RSpec.describe 'Security Configuration Tests' do
 
       it 'properly handles preflight requests' do
         skip 'CORS not configured for this application' unless defined?(Rack::Cors)
-        
+
         options "/restaurants/#{restaurant.slug}", headers: {
           'Origin' => 'http://example.com',
           'Access-Control-Request-Method' => 'POST',

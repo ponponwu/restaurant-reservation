@@ -369,7 +369,7 @@ RSpec.describe RestaurantsController do
         params ||= {}
         send(method, path, params: params)
 
-      expect(response).to have_http_status(:service_unavailable)
+        expect(response).to have_http_status(:service_unavailable)
         json_response = response.parsed_body
         expect(json_response).to have_key('message')
         expect(json_response).to have_key('reservation_enabled')
