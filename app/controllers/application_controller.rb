@@ -1,7 +1,7 @@
 class ApplicationController < ActionController::Base
   # 防止 CSRF 攻擊
   protect_from_forgery with: :exception
-  
+
   # 加入 Pagy helper
   include Pagy::Backend
 
@@ -34,7 +34,7 @@ class ApplicationController < ActionController::Base
     logger.error exception.backtrace.join("\n")
 
     respond_to do |format|
-      format.html { render file: Rails.root.join('public', '500.html'), status: :internal_server_error, layout: false }
+      format.html { render file: Rails.public_path.join('500.html'), status: :internal_server_error, layout: false }
       format.json { render json: { error: '伺服器內部錯誤' }, status: :internal_server_error }
     end
   end

@@ -150,7 +150,7 @@ class RestaurantsController < ApplicationController
     # 檢查預約天數限制
     advance_booking_days = reservation_policy&.advance_booking_days || 30
     max_booking_date = Date.current + advance_booking_days.days
-    
+
     if date > max_booking_date
       Rails.logger.info "Rejected date #{date} because it's beyond advance booking limit of #{advance_booking_days} days"
       render json: { error: '超出預約範圍' }, status: :unprocessable_entity
