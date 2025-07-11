@@ -1,0 +1,179 @@
+<turbo-frame id="<%= dom_id(special_date, :form_modal) %>">
+  <div class="px-4 pt-5 pb-4 sm:p-6">
+    <div class="sm:flex sm:items-start">
+      <div class="w-full">
+        <!-- Header -->
+        <div class="flex items-center justify-between mb-6">
+          <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+            <% if special_date.new_record? %>
+              <%= special_date.closed? ? '新增公休日' : '新增自訂營業時段' %>
+            <% else %>
+              <%= special_date.closed? ? '編輯公休日' : '編輯自訂營業時段' %>
+            <% end %>
+          </h3>
+          <button type="button" 
+                  class="text-gray-400 hover:text-gray-500"
+                  title="關閉"
+                  data-action="click->modal#close">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+
+        <!-- 表單 -->
+        <%= form_with model: [special_date.restaurant, special_date], 
+            id: dom_id(special_date, :form),
+            url: special_date.new_record? ? 
+                  admin_restaurant_settings_restaurant_special_dates_path(special_date.restaurant) : 
+                  admin_restaurant_settings_restaurant_special_date_path(special_date.restaurant, special_date),
+            local: false,
+            data: { 
+              controller: "special-date-form",
+              action: "submit->special-date-form#validateForm"
+            },
+            class: "space-y-6" do |f| %>
+
+          <!-- Flash 訊息區域 -->
+          <div id="form_flash_messages">
+            <% if special_date.errors.any? %>
+              <div class="rounded-md bg-red-50 p-4 mb-4">
+                <div class="flex">
+                  <div class="flex-shrink-0">
+                    <svg class="h-5 w-5 text-red-400" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clip-rule="evenodd" />
+                    </svg>
+                  </div>
+                  <div class="ml-3">
+                    <h3 class="text-sm font-medium text-red-800">請修正以下錯誤：</h3>
+                    <ul class="mt-2 text-sm text-red-700 list-disc list-inside">
+                      <% special_date.errors.full_messages.each do |message| %>
+                        <li><%= message %></li>
+                      <% end %>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+            <% end %>
+          </div>
+
+          <!-- 基本資訊 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <%= f.label :name, "名稱", class: "block text-sm font-medium text-gray-700" %>
+              <%= f.text_field :name, 
+                  class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500",
+                  placeholder: special_date.closed? ? "例如：新年假期" : "例如：特別營業時段" %>
+            </div>
+
+            <div>
+              <%= f.label :operation_mode, "類型", class: "block text-sm font-medium text-gray-700" %>
+              <%= f.select :operation_mode, 
+                  options_for_select([
+                    ['公休日', 'closed'],
+                    ['自訂營業時段', 'custom_hours']
+                  ], special_date.operation_mode), 
+                  {},
+                  { class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500",
+                    data: { action: "change->special-date-form#toggleMode" } } %>
+            </div>
+          </div>
+
+          <!-- 日期設定 -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+              <%= f.label :start_date, "開始日期", class: "block text-sm font-medium text-gray-700" %>
+              <%= f.date_field :start_date, 
+                  class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+            </div>
+
+            <div>
+              <%= f.label :end_date, "結束日期", class: "block text-sm font-medium text-gray-700" %>
+              <%= f.date_field :end_date, 
+                  class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+              <p class="mt-1 text-sm text-gray-500">單日設定請將結束日期設為與開始日期相同</p>
+            </div>
+          </div>
+
+          <!-- 描述 -->
+          <div>
+            <%= f.label :description, "描述", class: "block text-sm font-medium text-gray-700" %>
+            <%= f.text_area :description, 
+                rows: 3,
+                class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500",
+                placeholder: "說明此特殊日期設定的原因或詳細資訊" %>
+          </div>
+
+          <!-- 自訂時段設定 (只在 custom_hours 模式下顯示) -->
+          <div data-special-date-form-target="customHoursSection" 
+               class="<%= 'hidden' if special_date.closed? %>">
+            
+            <div class="border-t pt-6">
+              <h4 class="text-md font-medium text-gray-900 mb-4">自訂營業時段設定</h4>
+              
+              <div class="mb-6">
+                <div>
+                  <%= f.label :table_usage_minutes, "用餐時間 (分鐘)", class: "block text-sm font-medium text-gray-700" %>
+                  <%= f.number_field :table_usage_minutes, 
+                      value: special_date.table_usage_minutes || 120,
+                      class: "mt-1 block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" %>
+                  <p class="mt-1 text-sm text-gray-500">每桌的用餐時間長度</p>
+                </div>
+              </div>
+
+              <!-- 時段設定 -->
+              <div data-special-date-form-target="periodsContainer">
+                <label class="block text-sm font-medium text-gray-700 mb-3">營業時段</label>
+                
+                <div data-special-date-form-target="periods">
+                  <% if special_date.custom_periods.present? %>
+                    <% special_date.custom_periods.each_with_index do |period, index| %>
+                      <%= render 'period_fields', period: period, index: index %>
+                    <% end %>
+                  <% else %>
+                    <%= render 'period_fields', period: { 'start_time' => '18:00', 'end_time' => '21:00', 'interval_minutes' => 120 }, index: 0 %>
+                  <% end %>
+                </div>
+                
+                <button type="button" 
+                        data-action="click->special-date-form#addPeriod"
+                        class="mt-3 inline-flex items-center px-3 py-2 border border-gray-300 shadow-sm text-sm leading-4 font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50">
+                  <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  新增時段
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- 進階設定 -->
+          <div class="border-t pt-6">
+            <div class="flex items-center justify-between">
+              <div>
+                <h4 class="text-md font-medium text-gray-900">啟用狀態</h4>
+                <p class="text-sm text-gray-500">停用的設定不會影響實際營業</p>
+              </div>
+              <div class="flex items-center">
+                <%= f.check_box :active, 
+                    class: "h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded" %>
+                <%= f.label :active, "啟用此設定", class: "ml-2 text-sm text-gray-700" %>
+              </div>
+            </div>
+          </div>
+
+          <!-- 表單按鈕 -->
+          <div class="flex justify-end space-x-3 pt-6 border-t">
+            <button type="button" 
+                    data-action="click->modal#close"
+                    class="px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50">
+              取消
+            </button>
+            <%= f.submit special_date.new_record? ? "建立設定" : "更新設定", 
+                class: "px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700" %>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</turbo-frame>

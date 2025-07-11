@@ -1,0 +1,41 @@
+<div class="flex items-center space-x-3 mb-3 p-3 border border-gray-200 rounded-lg bg-gray-50" 
+     data-special-date-form-target="period">
+  <div class="flex-1 grid grid-cols-3 gap-3">
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">開始時間</label>
+      <input type="time" 
+             name="special_reservation_date[custom_periods][<%= index %>][start_time]" 
+             value="<%= period['start_time'] %>"
+             class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+    </div>
+    
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">結束時間</label>
+      <input type="time" 
+             name="special_reservation_date[custom_periods][<%= index %>][end_time]" 
+             value="<%= period['end_time'] %>"
+             class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+    </div>
+    
+    <div>
+      <label class="block text-xs font-medium text-gray-600 mb-1">間隔 (分鐘)</label>
+      <select name="special_reservation_date[custom_periods][<%= index %>][interval_minutes]" 
+              class="block w-full text-sm border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500">
+        <option value="30" <%= 'selected' if period['interval_minutes'] == 30 %>>30分鐘</option>
+        <option value="60" <%= 'selected' if period['interval_minutes'] == 60 %>>60分鐘</option>
+        <option value="90" <%= 'selected' if period['interval_minutes'] == 90 %>>90分鐘</option>
+        <option value="120" <%= 'selected' if period['interval_minutes'] == 120 || period['interval_minutes'].nil? %>>120分鐘</option>
+        <option value="180" <%= 'selected' if period['interval_minutes'] == 180 %>>180分鐘</option>
+      </select>
+    </div>
+  </div>
+  
+  <button type="button" 
+          data-action="click->special-date-form#removePeriod"
+          class="flex-shrink-0 p-2 text-red-600 hover:text-red-800"
+          title="移除此時段">
+    <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+    </svg>
+  </button>
+</div>

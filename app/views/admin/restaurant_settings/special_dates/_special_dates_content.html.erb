@@ -1,0 +1,74 @@
+<!-- 主內容區域 -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+  <!-- 左側：公休日 -->
+  <div class="space-y-6">
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
+            <svg class="mr-2 h-5 w-5 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+            </svg>
+            公休日設定
+          </h3>
+          <span class="text-xs text-gray-500">
+            <%= special_dates.select(&:closed?).count %> 個設定
+          </span>
+        </div>
+
+        <% closed_dates = special_dates.select(&:closed?).sort_by(&:start_date) %>
+        <% if closed_dates.any? %>
+          <div class="space-y-3 max-h-80 overflow-y-auto">
+            <% closed_dates.each do |special_date| %>
+              <%= render 'special_date_item', special_date: special_date, restaurant: restaurant %>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h4 class="mt-2 text-sm font-medium text-gray-900">尚未設定公休日</h4>
+            <p class="mt-1 text-xs text-gray-500">點擊右上角「新增公休日」開始設定</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 右側：自訂營業時段 -->
+  <div class="space-y-6">
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
+            <svg class="mr-2 h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            自訂營業時段
+          </h3>
+          <span class="text-xs text-gray-500">
+            <%= special_dates.select(&:custom_hours?).count %> 個設定
+          </span>
+        </div>
+
+        <% custom_dates = special_dates.select(&:custom_hours?).sort_by(&:start_date) %>
+        <% if custom_dates.any? %>
+          <div class="space-y-3 max-h-80 overflow-y-auto">
+            <% custom_dates.each do |special_date| %>
+              <%= render 'special_date_item', special_date: special_date, restaurant: restaurant %>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="text-center py-8">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h4 class="mt-2 text-sm font-medium text-gray-900">尚未設定自訂時段</h4>
+            <p class="mt-1 text-xs text-gray-500">點擊右上角「新增自訂時段」開始設定</p>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+</div>
