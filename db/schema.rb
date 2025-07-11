@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_06_23_081659) do
+ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
@@ -169,7 +169,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_23_081659) do
     t.index ["restaurant_id", "customer_phone", "status", "reservation_datetime"], name: "index_reservations_on_restaurant_phone_status_datetime"
     t.index ["restaurant_id", "reservation_datetime", "status"], name: "index_reservations_on_restaurant_datetime_status"
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"
-    t.index ["table_id", "reservation_datetime", "restaurant_id"], name: "index_reservations_on_table_datetime_restaurant_active", unique: true, where: "((status)::text <> ALL ((ARRAY['cancelled'::character varying, 'no_show'::character varying])::text[]))"
+    t.index ["table_id", "reservation_datetime", "restaurant_id"], name: "index_reservations_on_table_datetime_restaurant_active", unique: true, where: "((status)::text <> ALL (ARRAY[('cancelled'::character varying)::text, ('no_show'::character varying)::text]))"
     t.index ["table_id"], name: "index_reservations_on_table_id"
   end
 
@@ -219,6 +219,23 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_23_081659) do
     t.index ["name"], name: "index_restaurants_on_name"
     t.index ["slug"], name: "index_restaurants_on_slug", unique: true
     t.index ["total_capacity"], name: "index_restaurants_on_total_capacity"
+  end
+
+  create_table "special_reservation_dates", force: :cascade do |t|
+    t.bigint "restaurant_id", null: false
+    t.string "name", limit: 100, null: false
+    t.text "description"
+    t.date "start_date", null: false
+    t.date "end_date", null: false
+    t.string "operation_mode", default: "closed", null: false
+    t.integer "table_usage_minutes"
+    t.json "custom_periods", default: []
+    t.boolean "active", default: true, null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active"], name: "index_special_reservation_dates_on_active"
+    t.index ["restaurant_id"], name: "index_special_reservation_dates_on_restaurant_id"
+    t.index ["start_date", "end_date"], name: "index_special_reservation_dates_on_start_date_and_end_date"
   end
 
   create_table "table_combination_tables", force: :cascade do |t|
@@ -286,6 +303,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_06_23_081659) do
   add_foreign_key "reservations", "restaurants"
   add_foreign_key "restaurant_tables", "restaurants"
   add_foreign_key "restaurant_tables", "table_groups"
+  add_foreign_key "special_reservation_dates", "restaurants"
   add_foreign_key "table_combination_tables", "restaurant_tables"
   add_foreign_key "table_combination_tables", "table_combinations"
   add_foreign_key "table_combinations", "reservations"
