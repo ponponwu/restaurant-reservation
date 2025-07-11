@@ -51,3 +51,442 @@
 .table-row:hover {
     background-color: #f9fafb !important;
 }
+
+/* 側邊導航相關樣式 */
+
+/* 側邊欄過渡動畫 */
+.sidebar-transition {
+    transition: transform 0.3s ease-in-out;
+}
+
+/* 側邊欄覆蓋層動畫 */
+.overlay-transition {
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* 當前頁面高亮效果 */
+.nav-item-active {
+    background-color: rgb(239 246 255); /* bg-blue-50 */
+    color: rgb(29 78 216); /* text-blue-700 */
+    border-right: 2px solid rgb(59 130 246); /* border-blue-500 */
+}
+
+.nav-item-active svg {
+    color: rgb(59 130 246); /* text-blue-500 */
+}
+
+/* 導航項目 hover 效果 */
+.nav-item {
+    transition: all 0.2s ease-in-out;
+}
+
+.nav-item:hover {
+    background-color: rgb(249 250 251); /* bg-gray-50 */
+}
+
+/* 側邊欄滾動條美化 */
+.sidebar-scroll::-webkit-scrollbar {
+    width: 6px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-track {
+    background: rgb(249 250 251); /* gray-50 */
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb {
+    background: rgb(209 213 219); /* gray-300 */
+    border-radius: 3px;
+}
+
+.sidebar-scroll::-webkit-scrollbar-thumb:hover {
+    background: rgb(156 163 175); /* gray-400 */
+}
+
+/* 手機版時阻止背景滾動 */
+.overflow-hidden {
+    overflow: hidden;
+}
+
+/* 響應式字體調整 */
+@media (max-width: 640px) {
+    .sidebar-text {
+        font-size: 0.875rem; /* text-sm */
+    }
+}
+
+/* 側邊欄陰影效果 */
+.sidebar-shadow {
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+}
+
+/* 主內容區域的最小高度 */
+.main-content {
+    min-height: calc(100vh - 4rem);
+}
+
+/* 快速動作按鈕樣式 */
+.quick-action-btn {
+    transition: all 0.2s ease-in-out;
+}
+
+.quick-action-btn:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+}
+
+/* 餐廳資訊卡片樣式 */
+.restaurant-info-card {
+    background: linear-gradient(135deg, rgb(243 244 246) 0%, rgb(249 250 251) 100%);
+    border: 1px solid rgb(229 231 235);
+}
+
+/* 側邊欄群組標題樣式 */
+.sidebar-group-title {
+    font-size: 0.75rem;
+    font-weight: 600;
+    color: rgb(107 114 128); /* text-gray-500 */
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: 0.5rem;
+}
+
+/* 狀態指示器樣式 */
+.status-indicator {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.25rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.75rem;
+    font-weight: 600;
+}
+
+.status-online {
+    background-color: rgb(220 252 231); /* green-100 */
+    color: rgb(22 101 52); /* green-800 */
+}
+
+.status-offline {
+    background-color: rgb(254 226 226); /* red-100 */
+    color: rgb(153 27 27); /* red-800 */
+}
+
+/* 導航圖示動畫 */
+.nav-icon {
+    transition: all 0.2s ease-in-out;
+}
+
+.nav-item:hover .nav-icon {
+    transform: scale(1.05);
+}
+
+/* 側邊欄底部樣式 */
+.sidebar-footer {
+    border-top: 1px solid rgb(229 231 235); /* border-gray-200 */
+    background: rgb(249 250 251); /* bg-gray-50 */
+}
+
+/* 手機版導航欄樣式 */
+.mobile-nav {
+    backdrop-filter: blur(10px);
+    background-color: rgba(255, 255, 255, 0.95);
+}
+
+/* loading 動畫 */
+@keyframes pulse {
+    0%,
+    100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.5;
+    }
+}
+
+.loading-pulse {
+    animation: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* 側邊欄項目計數徽章 */
+.nav-badge {
+    font-size: 0.75rem;
+    padding: 0.125rem 0.375rem;
+    border-radius: 9999px;
+    background-color: rgb(59 130 246); /* bg-blue-500 */
+    color: white;
+    font-weight: 600;
+    min-width: 1.25rem;
+    text-align: center;
+}
+
+/* 折疊動畫 */
+.collapse-enter {
+    opacity: 0;
+    max-height: 0;
+}
+
+.collapse-enter-active {
+    opacity: 1;
+    max-height: 200px;
+    transition: all 0.3s ease-in-out;
+}
+
+.collapse-exit {
+    opacity: 1;
+    max-height: 200px;
+}
+
+.collapse-exit-active {
+    opacity: 0;
+    max-height: 0;
+    transition: all 0.3s ease-in-out;
+}
+
+/* Admin Layout Styles */
+
+/* 側邊欄基本樣式 */
+.admin-sidebar {
+    scrollbar-width: thin;
+    scrollbar-color: #cbd5e0 transparent;
+}
+
+.admin-sidebar::-webkit-scrollbar {
+    width: 6px;
+}
+
+.admin-sidebar::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb {
+    background-color: #cbd5e0;
+    border-radius: 3px;
+}
+
+.admin-sidebar::-webkit-scrollbar-thumb:hover {
+    background-color: #a0aec0;
+}
+
+/* 導航連結樣式 */
+.sidebar-nav-link {
+    transition: all 0.15s ease-in-out;
+    border-radius: 0.375rem;
+}
+
+.sidebar-nav-link:hover {
+    background-color: #f7fafc;
+    transform: translateX(2px);
+}
+
+.sidebar-nav-link.active {
+    background-color: #ebf8ff;
+    color: #2b6cb0;
+    border-right: 2px solid #3182ce;
+}
+
+.sidebar-nav-link.active svg {
+    color: #3182ce;
+}
+
+/* 手機版響應式設計 */
+@media (max-width: 1023px) {
+    /* 側邊欄在手機版的調整 - 預設隱藏 */
+    .sidebar-mobile {
+        width: 80vw;
+        max-width: 320px;
+        transform: translateX(-100%) !important;
+    }
+
+    /* 當側邊欄打開時 */
+    .sidebar-mobile.sidebar-open {
+        transform: translateX(0) !important;
+    }
+
+    /* 手機版主內容區域 - 移除 left padding */
+    .main-content-mobile {
+        padding-left: 0 !important;
+    }
+
+    /* 側邊欄內容縮小 */
+    .sidebar-mobile .sidebar-header {
+        padding: 1rem 1.25rem;
+    }
+
+    .sidebar-mobile .sidebar-header h1 {
+        font-size: 1.125rem;
+    }
+
+    /* 用戶資訊區塊縮小 */
+    .sidebar-mobile .user-info {
+        padding: 1.25rem;
+    }
+
+    .sidebar-mobile .user-avatar {
+        width: 2rem;
+        height: 2rem;
+    }
+
+    .sidebar-mobile .user-name {
+        font-size: 0.875rem;
+    }
+
+    .sidebar-mobile .user-role {
+        font-size: 0.75rem;
+        padding: 0.125rem 0.5rem;
+    }
+
+    /* 餐廳選擇器縮小 */
+    .sidebar-mobile .restaurant-selector {
+        padding: 1.25rem;
+    }
+
+    .sidebar-mobile .restaurant-card {
+        padding: 0.75rem;
+    }
+
+    .sidebar-mobile .restaurant-icon {
+        width: 1.75rem;
+        height: 1.75rem;
+    }
+
+    /* 導航選單縮小 */
+    .sidebar-mobile .sidebar-nav {
+        padding: 1.25rem 1rem;
+    }
+
+    .sidebar-mobile .nav-section-title {
+        font-size: 0.625rem;
+        padding: 0 0.75rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .sidebar-mobile .nav-link {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .sidebar-mobile .nav-icon {
+        width: 1.125rem;
+        height: 1.125rem;
+        margin-right: 0.625rem;
+    }
+
+    /* 快速動作按鈕縮小 */
+    .sidebar-mobile .quick-actions {
+        padding-top: 1.25rem;
+    }
+
+    .sidebar-mobile .quick-action-btn {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.875rem;
+    }
+
+    .sidebar-mobile .quick-action-icon {
+        width: 1rem;
+        height: 1rem;
+        margin-right: 0.5rem;
+    }
+
+    /* 底部區域縮小 */
+    .sidebar-mobile .sidebar-footer {
+        padding: 0.75rem;
+    }
+
+    .sidebar-mobile .footer-link {
+        font-size: 0.75rem;
+    }
+
+    .sidebar-mobile .footer-icon {
+        width: 0.875rem;
+        height: 0.875rem;
+        margin-right: 0.375rem;
+    }
+}
+
+/* 平板設備的中等調整 */
+@media (min-width: 768px) and (max-width: 1023px) {
+    .sidebar-mobile {
+        width: 70vw;
+        max-width: 280px;
+    }
+}
+
+/* 側邊欄過渡動畫 */
+.sidebar-transition {
+    transition: transform 0.3s ease-in-out;
+}
+
+/* 覆蓋層淡入動畫 */
+.sidebar-overlay {
+    background-color: rgba(0, 0, 0, 0.5);
+    transition: opacity 0.3s ease-in-out;
+    opacity: 0;
+}
+
+.sidebar-overlay.opacity-75 {
+    opacity: 0.75;
+}
+
+/* 當側邊欄打開時，防止背景滾動 */
+.sidebar-open {
+    overflow: hidden;
+}
+
+/* 側邊欄項目懸停效果 */
+.sidebar-item-hover {
+    transition: all 0.2s ease-in-out;
+}
+
+.sidebar-item-hover:hover {
+    background-color: #f1f5f9;
+    transform: translateX(2px);
+}
+
+/* 當前頁面高亮樣式 */
+.current-page-highlight {
+    background-color: #dbeafe !important;
+    color: #1d4ed8 !important;
+    border-right: 3px solid #3b82f6;
+}
+
+.current-page-highlight svg {
+    color: #3b82f6 !important;
+}
+
+/* 系統管理區塊顏色 */
+.system-section .current-page-highlight {
+    background-color: #dbeafe !important;
+    color: #1d4ed8 !important;
+    border-right-color: #3b82f6 !important;
+}
+
+/* 餐廳營運區塊顏色 */
+.restaurant-section .current-page-highlight {
+    background-color: #dcfce7 !important;
+    color: #166534 !important;
+    border-right-color: #22c55e !important;
+}
+
+/* 進階設定區塊顏色 */
+.settings-section .current-page-highlight {
+    background-color: #e0e7ff !important;
+    color: #4338ca !important;
+    border-right-color: #6366f1 !important;
+}
+
+/* 黑名單管理特殊顏色 */
+.blacklist-highlight {
+    background-color: #fee2e2 !important;
+    color: #dc2626 !important;
+    border-right-color: #ef4444 !important;
+}
+
+/* 確保手機版覆蓋層正確顯示在內容上方 */
+@media (max-width: 1023px) {
+    .sidebar-overlay {
+        z-index: 40;
+    }
+
+    .admin-sidebar {
+        z-index: 50;
+    }
+}
