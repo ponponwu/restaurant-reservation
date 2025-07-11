@@ -18,7 +18,7 @@ RSpec.describe 'Enhanced User Experience Tests', :js do
       # 簡單測試：確保頁面可以正常載入
       visit restaurant_public_path(restaurant.slug)
       expect(page).to have_content(restaurant.name)
-      
+
       # 確保沒有明顯的錯誤
       expect(page).not_to have_content('500')
       expect(page).not_to have_content('Internal Server Error')

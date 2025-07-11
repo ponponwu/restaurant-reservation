@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe '桌位分配系統', type: :system, js: true do
+RSpec.describe '桌位分配系統', :js, type: :system do
   let!(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let!(:admin_user) { create(:user, :super_admin, restaurant: restaurant) }
   let!(:business_period) { create(:business_period, restaurant: restaurant) }
@@ -22,9 +22,9 @@ RSpec.describe '桌位分配系統', type: :system, js: true do
     # 選擇日期和時間
     date = 1.day.from_now
     time = '12:00'
-    
+
     find('.flatpickr-next-month').click
-    find('.flatpickr-day', text: date.day.to_s, match: :first).click
+    first('.flatpickr-day', text: date.day.to_s).click
     select business_period.name, from: 'reservation[business_period_id]'
     fill_in 'reservation[reservation_time]', with: time
     select first('#reservation_table_id option:not([value=""])').text, from: 'reservation_table_id'

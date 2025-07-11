@@ -2,7 +2,7 @@
 
 require 'rails_helper'
 
-RSpec.describe '前端日曆整合測試', type: :system, js: true do
+RSpec.describe '前端日曆整合測試', :js, type: :system do
   # ----------------------------------------------------------------
   # Test Setup
   # ----------------------------------------------------------------
@@ -59,13 +59,12 @@ RSpec.describe '前端日曆整合測試', type: :system, js: true do
 
       it '應顯示無法訂位的訊息且不顯示日曆' do
         # 檢查是否顯示了容量不足的訊息，或者確保頁面正常載入
-        begin
-          expect(page).to have_content(/無法.*安排訂位|無法.*預約|沒有可用的桌位/, wait: 5)
-        rescue RSpec::Expectations::ExpectationNotMetError
-          # 如果沒有找到錯誤訊息，至少確保頁面正常載入
-          expect(page).to have_current_path(restaurant_public_path(restaurant.slug))
-          expect(page).to have_content(restaurant.name)
-        end
+
+        expect(page).to have_content(/無法.*安排訂位|無法.*預約|沒有可用的桌位/, wait: 5)
+      rescue RSpec::Expectations::ExpectationNotMetError
+        # 如果沒有找到錯誤訊息，至少確保頁面正常載入
+        expect(page).to have_current_path(restaurant_public_path(restaurant.slug))
+        expect(page).to have_content(restaurant.name)
       end
     end
   end
@@ -77,9 +76,9 @@ RSpec.describe '前端日曆整合測試', type: :system, js: true do
       # Mock the availability service or ensure proper API responses
       allow_any_instance_of(AvailabilityService).to receive(:get_available_slots_by_period)
         .and_return([
-          { time: '18:30', available: true, period_name: '晚餐時段' },
-          { time: '19:30', available: true, period_name: '晚餐時段' }
-        ])
+                      { time: '18:30', available: true, period_name: '晚餐時段' },
+                      { time: '19:30', available: true, period_name: '晚餐時段' }
+                    ])
     end
 
     it '當使用者選擇不同日期時，應更新可用的時間槽' do
@@ -115,7 +114,7 @@ RSpec.describe '前端日曆整合測試', type: :system, js: true do
   def select_date_in_calendar(date)
     wait_for_flatpickr_calendar_to_load
     click_calendar_date(date)
-  rescue => e
+  rescue StandardError => e
     Rails.logger.warn "Failed to select date in calendar: #{e.message}"
     # 如果選擇失敗，至少確保測試不會完全崩潰
     expect(page).to have_css('.flatpickr-calendar')
@@ -124,7 +123,7 @@ RSpec.describe '前端日曆整合測試', type: :system, js: true do
   def expect_date_to_be_disabled(date)
     wait_for_flatpickr_calendar_to_load
     expect_date_disabled(date)
-  rescue => e
+  rescue StandardError => e
     Rails.logger.warn "Failed to check disabled date: #{e.message}"
     # 如果檢查失敗，至少確保日曆存在
     expect(page).to have_css('.flatpickr-calendar')
