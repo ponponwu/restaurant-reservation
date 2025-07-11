@@ -58,9 +58,7 @@ Rails.application.configure do
 
   # For CI/CD environments, use the staging credentials for tests
   # This avoids having to manage a separate test.key
-  if ENV['CI']
-    config.credentials.content_path = Rails.root.join('config/credentials/staging.yml.enc')
-  end
+  config.credentials.content_path = Rails.root.join('config/credentials/staging.yml.enc') if ENV['CI']
 
   # Raises error for missing translations.
   # config.i18n.raise_on_missing_translations = true

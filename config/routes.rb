@@ -63,6 +63,8 @@ Rails.application.routes.draw do
       resources :table_groups do
         collection do
           patch :reorder
+          get :refresh_priorities
+          post :check_name_uniqueness
         end
         member do
           patch :toggle_active
@@ -119,6 +121,14 @@ Rails.application.routes.draw do
         post '/closure_dates', to: 'restaurant_settings#create_closure_date'
         post '/weekly_closure', to: 'restaurant_settings#create_weekly_closure', as: :create_weekly_closure
         delete '/closure_dates/:closure_date_id', to: 'restaurant_settings#destroy_closure_date', as: :destroy_closure_date
+        
+        # 特殊日期設定 (新系統)
+        resources :special_dates, controller: 'special_dates', except: [:show] do
+          member do
+            patch :toggle_active
+          end
+        end
+        
         get '/reservation_policies', to: 'restaurant_settings#reservation_policies', as: :reservation_policies
         patch '/reservation_policies', to: 'restaurant_settings#update_reservation_policy'
         put '/reservation_policies', to: 'restaurant_settings#update_reservation_policy'
