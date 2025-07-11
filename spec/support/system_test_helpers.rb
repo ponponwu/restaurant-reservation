@@ -5,9 +5,7 @@ module SystemTestHelpers
     if chrome_bin.nil?
       # 優先使用正常的 Google Chrome（版本較新）
       regular_chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-      if File.exist?(regular_chrome)
-        options.binary = regular_chrome
-      end
+      options.binary = regular_chrome if File.exist?(regular_chrome)
       # 如果找不到正常版本，讓 Selenium 使用預設路徑
     elsif File.exist?(chrome_bin)
       options.binary = chrome_bin
@@ -53,7 +51,7 @@ module SystemTestHelpers
       options.add_argument('--headless')
       options.add_argument('--no-sandbox')
       options.add_argument('--disable-dev-shm-usage')
-      
+
       # 使用與主要配置相同的Chrome路徑邏輯
       configure_chrome_binary(options)
 
@@ -76,7 +74,7 @@ module SystemTestHelpers
         options = Selenium::WebDriver::Chrome::Options.new
         options.add_argument('--headless')
         options.add_argument('--no-sandbox')
-        
+
         # 使用與主要配置相同的Chrome路徑邏輯
         configure_chrome_binary(options)
 

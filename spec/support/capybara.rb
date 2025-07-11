@@ -149,9 +149,7 @@ def configure_chrome_binary(options)
   if chrome_bin.nil?
     # 優先使用正常的 Google Chrome（版本較新）
     regular_chrome = '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'
-    if File.exist?(regular_chrome)
-      options.binary = regular_chrome
-    end
+    options.binary = regular_chrome if File.exist?(regular_chrome)
     # 如果找不到正常版本，讓 Selenium 使用預設路徑
   elsif File.exist?(chrome_bin)
     options.binary = chrome_bin
@@ -165,7 +163,7 @@ def browser_available?
   options.add_argument('--headless')
   options.add_argument('--no-sandbox')
   options.add_argument('--disable-dev-shm-usage')
-  
+
   configure_chrome_binary(options)
 
   begin
@@ -185,11 +183,11 @@ if defined?(RSpec)
     # 在測試套件開始前檢查瀏覽器可用性
     config.before(:suite) do
       if RSpec.configuration.files_to_run.any? { |f| f.include?('spec/system') }
-        unless browser_available?
-          puts "\n⚠️  Warning: Browser not available for system tests. Individual tests will be skipped."
-          puts "   Please ensure Chrome and ChromeDriver versions are compatible."
-        else
+        if browser_available?
           puts "\n✅ Browser compatibility verified. System tests will run normally."
+        else
+          puts "\n⚠️  Warning: Browser not available for system tests. Individual tests will be skipped."
+          puts '   Please ensure Chrome and ChromeDriver versions are compatible.'
         end
       end
     end
