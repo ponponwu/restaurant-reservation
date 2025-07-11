@@ -373,8 +373,8 @@ class ReservationsController < ApplicationController
   # 使用改善的併發控制建立訂位
   def create_reservation_with_concurrency_control
     result = nil
-    EnhancedReservationLockService.with_lock(@restaurant.id, @reservation.reservation_datetime,
-                                             @reservation.party_size) do
+    ReservationLockManager.with_lock(@restaurant.id, @reservation.reservation_datetime,
+                                     @reservation.party_size) do
       ActiveRecord::Base.transaction do
         result = allocate_table_and_save_reservation
         # 如果分配失敗，觸發 rollback
