@@ -10,88 +10,291 @@
     <%= javascript_include_tag "application", "data-turbo-track": "reload", defer: true, type: "module" %>
   </head>
 
-  <body class="bg-gray-50">
-    <!-- 導覽列 -->
-    <nav class="bg-white shadow-sm border-b">
-      <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div class="flex justify-between h-16">
-          <div class="flex">
-            <!-- Logo -->
-            <div class="flex-shrink-0 flex items-center">
-              <%= link_to admin_root_path, class: "text-xl font-bold text-gray-900" do %>
-                餐廳訂位系統
-              <% end %>
-            </div>
-            
-            <!-- 主要導航 -->
-            <div class="hidden sm:ml-6 sm:flex sm:space-x-8">
-              <%= link_to admin_root_path, 
-                  class: "#{request.path == admin_root_path ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" do %>
-                首頁
-              <% end %>
-              
-              <% if current_user&.super_admin? %>
-                <%= link_to admin_users_path,
-                    class: "#{request.path.start_with?('/admin/users') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" do %>
-                  管理員
-                <% end %>
-                
-                <%= link_to admin_restaurants_path,
-                    class: "#{request.path.start_with?('/admin/restaurants') ? 'border-blue-500 text-gray-900' : 'border-transparent text-gray-500 hover:border-gray-300 hover:text-gray-700'} inline-flex items-center px-1 pt-1 border-b-2 text-sm font-medium" do %>
-                  餐廳
-                <% end %>
-              <% end %>
+  <body class="bg-gray-50" data-controller="sidebar">
+    <!-- 側邊導航 -->
+    <div class="fixed inset-y-0 left-0 z-50 w-72 sidebar-mobile lg:w-72 bg-white shadow-lg transform -translate-x-full lg:translate-x-0 sidebar-transition admin-sidebar"
+         data-sidebar-target="sidebar">
+      <!-- 側邊欄頭部 -->
+      <div class="flex items-center h-16 px-6 border-b border-gray-200 sidebar-header">
+        <%= link_to admin_root_path, class: "text-xl font-bold text-gray-900" do %>
+          餐廳訂位系統
+        <% end %>
+      </div>
+
+      <!-- 用戶資訊區塊 -->
+      <div class="p-6 border-b border-gray-200 user-info">
+        <div class="flex items-center">
+          <div class="flex-shrink-0">
+            <div class="h-10 w-10 rounded-full bg-blue-500 flex items-center justify-center user-avatar">
+              <span class="text-white font-medium text-sm">
+                <%= current_user&.full_name&.first || '管' %>
+              </span>
             </div>
           </div>
-          
-          <!-- 右側選單 -->
-          <div class="hidden sm:ml-6 sm:flex sm:items-center">
-            <!-- 用戶選單 -->
-            <div class="ml-3 relative">
-              <div class="flex items-center text-sm text-gray-700">
-                <span class="mr-2">歡迎，<%= current_user&.full_name || '管理員' %></span>
-                <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full
-                           <%= current_user&.super_admin? ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' %>">
-                  <%= current_user&.role_display_name || '管理員' %>
-                </span>
-              </div>
-            </div>
-            
-            <!-- 登出按鈕 -->
-            <div class="ml-4">
-              <%= link_to destroy_user_session_path, method: :delete,
-                  class: "inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-gray-500 hover:text-gray-700 focus:outline-none transition ease-in-out duration-150" do %>
-                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
-                </svg>
-                登出
-              <% end %>
-            </div>
-          </div>
-          
-          <!-- 手機版選單按鈕 -->
-          <div class="-mr-2 flex items-center sm:hidden">
-            <button type="button" class="bg-white inline-flex items-center justify-center p-2 rounded-md text-gray-400 hover:text-gray-500 hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-inset focus:ring-blue-500">
-              <svg class="block h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
-            </button>
+          <div class="ml-3">
+            <p class="text-sm font-medium text-gray-900 user-name">
+              <%= current_user&.full_name || '管理員' %>
+            </p>
+            <p class="text-xs text-gray-500">
+              <span class="inline-flex px-2 py-1 text-xs font-semibold rounded-full user-role
+                         <%= current_user&.super_admin? ? 'bg-purple-100 text-purple-800' : 'bg-blue-100 text-blue-800' %>">
+                <%= current_user&.role_display_name || '管理員' %>
+              </span>
+            </p>
           </div>
         </div>
       </div>
-    </nav>
 
-    <!-- Flash 訊息區域 -->
-    <div id="flash_messages" class="fixed top-4 right-4 z-50">
-      <%= render 'shared/flash' if notice || alert %>
+      <!-- 餐廳選擇器 (顯示給有餐廳權限的使用者) -->
+      <% if current_user&.restaurant.present? || (current_user&.super_admin? && defined?(@restaurant) && @restaurant.present?) %>
+        <% restaurant_for_display = current_user&.restaurant || @restaurant %>
+        <% if restaurant_for_display.present? %>
+          <div class="p-6 border-b border-gray-200 restaurant-selector">
+            <div class="flex items-center justify-between mb-3">
+              <span class="text-sm font-medium text-gray-900">目前餐廳</span>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-3 restaurant-card">
+              <div class="flex items-center">
+                <div class="flex-shrink-0">
+                  <div class="h-8 w-8 rounded-full bg-green-500 flex items-center justify-center restaurant-icon">
+                    <svg class="h-4 w-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                    </svg>
+                  </div>
+                </div>
+                <div class="ml-3 min-w-0 flex-1">
+                  <p class="text-sm font-medium text-gray-900 truncate">
+                    <%= restaurant_for_display.name %>
+                  </p>
+                  <p class="text-xs text-gray-500 truncate">
+                    <%= restaurant_for_display.address %>
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+
+      <!-- 導航選單 -->
+      <nav class="flex-1 px-4 py-6 space-y-1 overflow-y-auto sidebar-nav">
+        <!-- 系統管理 (超級管理員專用) -->
+        <% if current_user&.super_admin? %>
+          <div class="mb-6 system-section">
+            <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider nav-section-title">
+              系統管理
+            </h3>
+            <div class="mt-2 space-y-1">
+              <%= link_to admin_root_path,
+                  class: "#{is_current_page?(admin_root_path) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                         group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                <svg class="#{is_current_page?(admin_root_path) ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                           mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2H3a2 2 0 00-2 2v2z"></path>
+                </svg>
+                系統總覽
+              <% end %>
+
+              <%= link_to admin_users_path,
+                  class: "#{is_current_page?(admin_users_path) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                         group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                <svg class="#{is_current_page?(admin_users_path) ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                           mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197m13.5-9a2.5 2.5 0 11-5 0 2.5 2.5 0 015 0z"></path>
+                </svg>
+                管理員管理
+              <% end %>
+
+              <%= link_to admin_restaurants_path,
+                  class: "#{is_current_page?(admin_restaurants_path) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                         group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                <svg class="#{is_current_page?(admin_restaurants_path) ? 'text-blue-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                           mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"></path>
+                </svg>
+                餐廳管理
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+
+        <!-- 餐廳營運管理 (餐廳管理員 或 有餐廳權限的超級管理員) -->
+        <% if current_user&.restaurant.present? || (current_user&.super_admin? && defined?(@restaurant) && @restaurant.present?) %>
+          <% restaurant_for_nav = current_user&.restaurant || @restaurant %>
+          <% if restaurant_for_nav.present? %>
+            <div class="mb-6 restaurant-section">
+              <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider nav-section-title">
+                餐廳營運
+              </h3>
+              <div class="mt-2 space-y-1">
+                <%= link_to admin_restaurant_path(restaurant_for_nav),
+                    class: "#{is_restaurant_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                  <svg class="#{is_restaurant_page?(restaurant_for_nav) ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2H5a2 2 0 00-2-2H3a2 2 0 00-2 2v2z"></path>
+                  </svg>
+                  餐廳總覽
+                <% end %>
+
+                <%= link_to admin_restaurant_reservations_path(restaurant_for_nav),
+                    class: "#{is_reservations_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                  <svg class="#{is_reservations_page?(restaurant_for_nav) ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                  </svg>
+                  訂位管理
+                <% end %>
+
+                <%= link_to admin_restaurant_table_groups_path(restaurant_for_nav),
+                    class: "#{is_tables_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                  <svg class="#{is_tables_page?(restaurant_for_nav) ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2zm-8 8H7a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2zm8 0h-2a2 2 0 00-2 2v2a2 2 0 002 2h2a2 2 0 002-2v-2a2 2 0 00-2-2z"></path>
+                  </svg>
+                  桌位管理
+                <% end %>
+
+                <%= link_to admin_restaurant_business_periods_path(restaurant_for_nav),
+                    class: "#{is_business_periods_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                  <svg class="#{is_business_periods_page?(restaurant_for_nav) ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                  </svg>
+                  營業時段
+                <% end %>
+              </div>
+            </div>
+
+            <!-- 進階設定 -->
+            <div class="mb-6 settings-section">
+              <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider nav-section-title">
+                進階設定
+              </h3>
+              <div class="mt-2 space-y-1">
+                <%= link_to admin_restaurant_settings_restaurant_index_path(restaurant_for_nav.slug),
+                    class: "#{is_restaurant_settings_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                  <svg class="#{is_restaurant_settings_page?(restaurant_for_nav) ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                  </svg>
+                  餐廳設定
+                <% end %>
+
+                <%= link_to admin_restaurant_blacklists_path(restaurant_for_nav),
+                    class: "#{is_blacklists_page?(restaurant_for_nav) ? 'blacklist-highlight' : 'text-gray-700 hover:bg-gray-100'} 
+                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
+                  <svg class="#{is_blacklists_page?(restaurant_for_nav) ? 'text-red-500' : 'text-gray-400 group-hover:text-gray-500'} 
+                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
+                  </svg>
+                  黑名單管理
+                <% end %>
+              </div>
+            </div>
+
+            <!-- 快速動作 -->
+            <div class="border-t border-gray-200 pt-6 quick-actions">
+              <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3 nav-section-title">
+                快速動作
+              </h3>
+              <div class="space-y-2">
+                <%= link_to new_admin_restaurant_reservation_path(restaurant_for_nav),
+                    class: "group flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors quick-action-btn" do %>
+                  <svg class="mr-3 h-4 w-4 quick-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  新增訂位
+                <% end %>
+
+                <%= link_to restaurant_public_path(restaurant_for_nav.slug),
+                    target: "_blank",
+                    class: "group flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors quick-action-btn" do %>
+                  <svg class="mr-3 h-4 w-4 text-gray-400 group-hover:text-gray-500 quick-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-2M14 4h6m0 0v6m0-6L10 14"></path>
+                  </svg>
+                  前往前台
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        <% end %>
+      </nav>
+
+      <!-- 側邊欄底部 -->
+      <div class="border-t border-gray-200 p-4 sidebar-footer">
+        <div class="flex items-center justify-between">
+          <%= link_to admin_password_change_path,
+              class: "flex items-center text-sm text-gray-500 hover:text-gray-700 footer-link" do %>
+            <svg class="mr-2 h-4 w-4 footer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m0 0a2 2 0 01-2 2m2-2h-3m-7 6h18m-6 6a6 6 0 11-12 0 6 6 0 0112 0z"></path>
+            </svg>
+            修改密碼
+          <% end %>
+          
+          <%= link_to destroy_user_session_path, method: :delete,
+              class: "flex items-center text-sm text-gray-500 hover:text-red-600 footer-link" do %>
+            <svg class="mr-2 h-4 w-4 footer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>
+            </svg>
+            登出
+          <% end %>
+        </div>
+      </div>
     </div>
 
-    <!-- 主要內容 -->
-    <main>
-      <%= yield %>
-    </main>
+    <!-- 主要內容區域 -->
+    <div class="lg:pl-72" data-sidebar-target="mainContainer">
+      <!-- 頂部導覽列 (手機版) -->
+      <div class="lg:hidden bg-white shadow-sm border-b">
+        <div class="flex items-center justify-between h-16 px-4">
+          <button type="button" 
+                  class="p-2 text-gray-400 hover:text-gray-500"
+                  data-action="click->sidebar#toggle">
+            <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          
+          <h1 class="text-lg font-semibold text-gray-900">
+            <% if current_user&.restaurant.present? %>
+              <%= current_user.restaurant.name %>
+            <% elsif defined?(@restaurant) && @restaurant.present? %>
+              <%= @restaurant.name %>
+            <% else %>
+              管理後台
+            <% end %>
+          </h1>
+          
+          <div class="w-8"></div> <!-- 平衡用的空白 -->
+        </div>
+      </div>
+
+      <!-- Flash 訊息區域 -->
+      <div id="flash_messages" class="fixed top-4 right-4 z-40">
+        <%= render 'shared/flash' if notice || alert %>
+      </div>
+
+      <!-- 主要內容 -->
+      <main class="min-h-screen">
+        <%= yield %>
+      </main>
+    </div>
+
+    <!-- 側邊欄覆蓋層 (手機版) -->
+    <div class="fixed inset-0 z-40 lg:hidden sidebar-overlay"
+         data-sidebar-target="overlay"
+         data-action="click->sidebar#close"
+         style="display: none;">
+      <div class="absolute inset-0 bg-gray-600 opacity-75"></div>
+    </div>
     
     <!-- 全域確認對話框 -->
     <%= render 'shared/confirmation_modal' %>
   </body>
-</html> 
+</html>
