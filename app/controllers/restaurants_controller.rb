@@ -8,7 +8,7 @@ class RestaurantsController < ApplicationController
   end
 
   def show
-    @business_periods = @restaurant.business_periods.active.includes(:reservation_slots)
+    @reservation_periods = @restaurant.reservation_periods.active.includes(:reservation_slots)
     @today = Date.current
 
     # 計算人數選擇範圍
@@ -31,12 +31,12 @@ class RestaurantsController < ApplicationController
     # 檢查餐廳是否有足夠容量的桌位
     has_capacity = @restaurant.has_capacity_for_party_size?(party_size)
 
-    # 獲取週營業日設定 (0=日, 1=一, ..., 6=六)
+    # 獲取週營業日設定 (0=日, 1=一, ..., 6=六) - 使用OperatingHour
     weekly_closures = []
-    7.times do |weekday|
-      has_business_on_weekday = @restaurant.business_periods.active.any? do |period|
-        period.operates_on_weekday?(weekday)
-      end
+    OperatingHour::CHINESE_WEEKDAYS.each do |weekday, _|
+      # 檢查該星期幾是否有營業時間設定
+      operating_hour = @restaurant.operating_hours.for_weekday(weekday).first
+      has_business_on_weekday = operating_hour.present?
       weekly_closures << weekday unless has_business_on_weekday
     end
 
@@ -75,8 +75,13 @@ class RestaurantsController < ApplicationController
 
     Rails.logger.info "Available dates request: party_size=#{party_size}, adults=#{adults}, children=#{children}"
 
-    if party_size <= 0 || party_size > 12
-      render json: { error: '人數必須在 1-12 人之間' }, status: :bad_request
+    # 檢查餐廳設定的人數限制
+    reservation_policy = @restaurant.reservation_policy
+    min_party_size = reservation_policy&.min_party_size || 1
+    max_party_size = reservation_policy&.max_party_size || 12
+
+    if party_size <= 0 || party_size < min_party_size || party_size > max_party_size
+      render json: { error: "人數必須在 #{min_party_size}-#{max_party_size} 人之間" }, status: :bad_request
       return
     end
 
@@ -94,13 +99,13 @@ class RestaurantsController < ApplicationController
                           availability_service.calculate_full_booked_until(party_size, adults, children)
                         end
 
-    business_periods = @restaurant.business_periods.active
+    reservation_periods = @restaurant.reservation_periods.active
 
     render json: {
       available_dates: available_dates,
       full_booked_until: full_booked_until,
       has_capacity: has_capacity,
-      business_periods: business_periods.map do |bp|
+      reservation_periods: reservation_periods.map do |bp|
         {
           id: bp.id,
           name: bp.name,
@@ -185,9 +190,10 @@ class RestaurantsController < ApplicationController
       return
     end
 
-    # 使用新的service處理業務邏輯
+    # 使用新的service處理業務邏輯，並傳遞該日的間隔設定
     availability_service = RestaurantAvailabilityService.new(@restaurant)
-    time_slots = availability_service.get_available_times(date, party_size, adults, children)
+    daily_interval = @restaurant.reservation_interval_for_date(date)
+    time_slots = availability_service.get_available_times(date, party_size, adults, children, daily_interval)
 
     Rails.logger.info "Got #{time_slots.size} time slots, rendering response"
 
@@ -206,7 +212,7 @@ class RestaurantsController < ApplicationController
 
   def set_restaurant
     @restaurant = Restaurant.includes(
-      :business_periods,
+      :reservation_periods,
       :restaurant_tables,
       :table_groups,
       :closure_dates,

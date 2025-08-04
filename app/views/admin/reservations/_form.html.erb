@@ -112,16 +112,16 @@
 
     <!-- 餐期選擇 -->
     <div class="mb-4">
-      <%= f.label :business_period_id, "餐期選擇 *", class: "block text-sm font-medium text-gray-700" %>
-      <%= f.select :business_period_id, 
-          options_from_collection_for_select(@business_periods, :id, :display_with_time, reservation.business_period_id),
+      <%= f.label :reservation_period_id, "餐期選擇 *", class: "block text-sm font-medium text-gray-700" %>
+      <%= f.select :reservation_period_id, 
+          options_from_collection_for_select(@reservation_periods, :id, :display_with_time, reservation.reservation_period_id),
           { prompt: "請選擇餐期" },
           { 
             required: true,
             class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm",
             data: { 
-              admin_reservation_target: "businessPeriodField",
-              action: "change->admin-reservation#handleBusinessPeriodChange"
+              admin_reservation_target: "reservationPeriodField",
+              action: "change->admin-reservation#handleReservationPeriodChange"
             }
           } %>
       <p class="mt-1 text-xs text-gray-500">選擇餐期後，時間會自動設定在該餐期範圍內</p>
@@ -156,9 +156,9 @@
       
       <!-- 餐期時間範圍提示 -->
       <div class="mt-2 p-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 hidden" 
-           data-admin-reservation-target="businessPeriodHint">
+           data-admin-reservation-target="reservationPeriodHint">
         <span class="font-medium">選中餐期時間：</span>
-        <span data-admin-reservation-target="businessPeriodTime"></span>
+        <span data-admin-reservation-target="reservationPeriodTime"></span>
       </div>
     </div>
 

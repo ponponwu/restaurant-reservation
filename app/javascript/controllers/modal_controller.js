@@ -7,6 +7,14 @@ export default class extends Controller {
         this.pendingForm = null
         this.pendingAction = null
 
+        // 初始化全域變數
+        if (!window.modalState) {
+            window.modalState = {
+                pendingForm: null,
+                pendingAction: null
+            }
+        }
+
         // 註冊全域 flash 顯示函數
         window.showModalFlash = (message, type) => {
             this.showFlash(message, type)
@@ -44,9 +52,13 @@ export default class extends Controller {
     // 顯示確認對話框
     show(event) {
         event.preventDefault()
+        
+        console.log('🔥 Modal show triggered')
 
         const button = event.currentTarget
         const form = button.closest('form')
+        console.log('📝 Form found:', form)
+        
         const title = button.dataset.confirmTitle || '確認操作'
         const message = button.dataset.confirmMessage || '您確定要執行此操作嗎？'
         const confirmText = button.dataset.confirmText || '確認'
@@ -73,28 +85,37 @@ export default class extends Controller {
         // 設定圖示和顏色
         this.setModalStyleForElement(modal, type)
 
-        // 儲存待執行的表單或動作
-        this.pendingForm = form
-        this.pendingAction = () => {
+        // 儲存待執行的表單或動作到全域狀態
+        window.modalState.pendingForm = form
+        window.modalState.pendingAction = () => {
+            console.log('🚀 Executing pending action, form:', form)
             if (form) {
+                console.log('📨 Submitting form:', form.action)
                 form.submit()
             } else {
                 // 如果沒有表單，執行其他動作（例如連結點擊）
                 const href = button.href
                 if (href) {
+                    console.log('🔗 Navigating to:', href)
                     window.location.href = href
                 }
             }
         }
+        
+        console.log('💾 Saved to global state:', window.modalState)
+        
+        // 也保存到本地實例（向後相容）
+        this.pendingForm = form
+        this.pendingAction = window.modalState.pendingAction
 
         // 顯示 modal
         modal.classList.remove('hidden')
-        modal.classList.add('flex')
+        modal.classList.add('block')
 
         // 加入動畫效果
         requestAnimationFrame(() => {
             overlayElement?.classList.add('opacity-100')
-            contentElement?.classList.add('opacity-100', 'translate-y-0', 'sm:scale-100')
+            contentElement?.classList.add('opacity-100')
         })
     }
 
@@ -108,16 +129,22 @@ export default class extends Controller {
 
             if (overlayElement && contentElement) {
                 overlayElement.classList.remove('opacity-100')
-                contentElement.classList.remove('opacity-100', 'translate-y-0', 'sm:scale-100')
+                contentElement.classList.remove('opacity-100')
             }
 
             setTimeout(() => {
                 if (confirmationModal) {
                     confirmationModal.classList.add('hidden')
-                    confirmationModal.classList.remove('flex')
+                    confirmationModal.classList.remove('block')
                 }
+                
+                // 清除本地和全域狀態
                 this.pendingForm = null
                 this.pendingAction = null
+                if (window.modalState) {
+                    window.modalState.pendingForm = null
+                    window.modalState.pendingAction = null
+                }
             }, 200)
             return
         }
@@ -137,13 +164,27 @@ export default class extends Controller {
 
     // 確認操作
     confirm() {
-        if (this.pendingAction) {
+        console.log('✅ Modal confirm triggered')
+        console.log('🔍 Current global state:', window.modalState)
+        
+        // 優先使用全域狀態，回退到本地實例
+        const pendingAction = window.modalState?.pendingAction || this.pendingAction
+        console.log('⚡ Pending action found:', !!pendingAction)
+        
+        if (pendingAction) {
             // 先執行動作
-            this.pendingAction()
+            pendingAction()
+
+            // 清除全域狀態
+            if (window.modalState) {
+                window.modalState.pendingForm = null
+                window.modalState.pendingAction = null
+            }
 
             // 然後關閉 modal
             this.close()
         } else {
+            console.log('❌ No pending action found')
             this.close()
         }
     }
@@ -276,6 +317,64 @@ export default class extends Controller {
         if (flashContainer) {
             flashContainer.classList.add('hidden')
         }
+    }
+
+    // 攔截表單提交，顯示確認對話框
+    interceptSubmit(event) {
+        event.preventDefault()
+        
+        console.log('🔥 Form submit intercepted')
+        
+        const form = event.currentTarget
+        console.log('📝 Form found:', form)
+        
+        const title = form.dataset.confirmTitle || '確認操作'
+        const message = form.dataset.confirmMessage || '您確定要執行此操作嗎？'
+        const confirmText = form.dataset.confirmText || '確認'
+        const type = form.dataset.confirmType || 'danger'
+
+        // 尋找 modal 元素
+        const modal = document.getElementById('confirmation-modal')
+        const titleElement = modal?.querySelector('[data-modal-target="title"]')
+        const messageElement = modal?.querySelector('[data-modal-target="message"]')
+        const confirmBtnElement = modal?.querySelector('[data-modal-target="confirmBtn"]')
+        const overlayElement = modal?.querySelector('[data-modal-target="overlay"]')
+        const contentElement = modal?.querySelector('[data-modal-target="content"]')
+
+        if (!modal || !titleElement || !messageElement || !confirmBtnElement) {
+            console.error('❌ Modal elements not found')
+            // 如果找不到 modal，直接提交表單
+            form.submit()
+            return
+        }
+
+        // 設定 modal 內容
+        titleElement.textContent = title
+        messageElement.textContent = message
+        confirmBtnElement.textContent = confirmText
+
+        // 設定圖示和顏色
+        this.setModalStyleForElement(modal, type)
+
+        // 儲存待執行的表單到全域狀態
+        window.modalState.pendingForm = form
+        window.modalState.pendingAction = () => {
+            console.log('🚀 Executing pending form submission')
+            console.log('📨 Submitting form:', form.action)
+            form.submit()
+        }
+        
+        console.log('💾 Saved form to global state:', window.modalState)
+
+        // 顯示 modal
+        modal.classList.remove('hidden')
+        modal.classList.add('block')
+
+        // 加入動畫效果
+        requestAnimationFrame(() => {
+            overlayElement?.classList.add('opacity-100')
+            contentElement?.classList.add('opacity-100')
+        })
     }
 
     testClick() {

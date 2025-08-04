@@ -106,7 +106,7 @@
     <!-- 選項卡導覽 -->
     <div class="border-b border-gray-200">
       <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-        <%= link_to admin_restaurant_settings_restaurant_business_periods_path(@restaurant),
+        <%= link_to admin_restaurant_settings_restaurant_reservation_periods_path(@restaurant),
             class: "border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 whitespace-nowrap py-2 px-1 border-b-2 font-medium text-sm",
             data: { turbo_prefetch: false } do %>
           <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -149,7 +149,7 @@
           選擇上方的選項卡來管理不同的設定項目
         </p>
         <div class="mt-6 flex justify-center space-x-3">
-          <%= link_to admin_restaurant_settings_restaurant_business_periods_path(@restaurant),
+          <%= link_to admin_restaurant_settings_restaurant_reservation_periods_path(@restaurant),
               class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
               data: { turbo_prefetch: false } do %>
             開始設定營業時段

@@ -1,0 +1,124 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8" 
+     data-controller="modal turbo-modal daily-business-periods"
+     data-action="keydown->turbo-modal#keydown">
+  
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">可預約用餐時段</h1>
+        <p class="mt-2 text-sm text-gray-600">設定每日的營業時間和預約時段</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選項卡導覽 -->
+  <%= render 'shared/settings_tabs', current_tab: 'reservation_periods', restaurant: @restaurant %>
+
+  <!-- Flash 訊息容器 -->
+  <div id="flash_messages"></div>
+
+  <!-- 每日營業時段設定 -->
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">可預約用餐時段 <span class="text-red-500">*</span></h3>
+      </div>
+
+      <!-- 每日設定區塊 -->
+      <div id="daily-periods-list" class="space-y-4">
+        <% BusinessPeriod::CHINESE_WEEKDAYS.each do |weekday, chinese_name| %>
+          <% periods = @restaurant.reservation_periods.for_weekday(weekday).default_weekly.active %>
+          <% is_closed = periods.empty? || periods.all?(&:closed?) %>
+          
+          <div class="daily-period-row flex items-center justify-between p-4 border border-gray-200 rounded-lg"
+               data-weekday="<%= weekday %>">
+            
+            <!-- 星期和狀態 -->
+            <div class="flex items-center space-x-4 flex-1">
+              <!-- 勾選框 -->
+              <label class="flex items-center">
+                <input type="checkbox" 
+                       class="form-checkbox h-5 w-5 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                       data-action="change->daily-business-periods#toggleDay"
+                       data-weekday="<%= weekday %>"
+                       <%= 'checked' unless is_closed %> />
+                <span class="ml-3 text-lg font-medium text-gray-900"><%= chinese_name %></span>
+              </label>
+
+              <!-- 狀態顯示 -->
+              <div class="status-display flex-1">
+                <% if is_closed %>
+                  <span class="text-gray-500">不開放訂位</span>
+                <% else %>
+                  <div class="periods-summary flex flex-wrap gap-2">
+                    <% periods.each do |period| %>
+                      <span class="inline-flex items-center px-2 py-1 rounded text-sm bg-blue-100 text-blue-800">
+                        <%= period.start_time.strftime('%H:%M') %> - <%= period.end_time.strftime('%H:%M') %>
+                        (間隔 <%= period.reservation_interval_minutes %> 分鐘)
+                      </span>
+                    <% end %>
+                  </div>
+                <% end %>
+              </div>
+            </div>
+
+            <!-- 操作按鈕 -->
+            <div class="flex items-center space-x-2">
+              <button type="button" 
+                      class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                      data-action="click->daily-business-periods#editDay"
+                      data-weekday="<%= weekday %>">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"></path>
+                </svg>
+                編輯
+              </button>
+              
+              <button type="button" 
+                      class="inline-flex items-center px-3 py-1 border border-gray-300 text-sm font-medium rounded text-gray-700 bg-white hover:bg-gray-50"
+                      data-action="click->daily-business-periods#copyDay"
+                      data-weekday="<%= weekday %>">
+                <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"></path>
+                </svg>
+                複製
+              </button>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 編輯時段 Modal -->
+  <div id="edit-modal-container" 
+       class="fixed inset-0 z-50 overflow-y-auto hidden" 
+       aria-labelledby="modal-title" 
+       role="dialog" 
+       aria-modal="true"
+       data-turbo-modal-target="container">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <!-- 背景遮罩 -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+           data-action="click->turbo-modal#backgroundClick"></div>
+
+      <!-- Modal 面板 -->
+      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-4xl w-full sm:w-auto mx-4">
+        <div id="edit-modal-content">
+          <!-- Modal 內容會被動態載入到這裡 -->
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 載入 Stimulus 控制器 -->
+<script>
+  // 動態載入每日營業時段管理控制器
+  if (!window.DailyBusinessPeriodsController) {
+    const script = document.createElement('script');
+    script.src = '/assets/controllers/daily_reservation_periods_controller.js';
+    document.head.appendChild(script);
+  }
+</script>

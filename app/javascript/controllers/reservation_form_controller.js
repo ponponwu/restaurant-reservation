@@ -1,7 +1,15 @@
 import { Controller } from '@hotwired/stimulus'
 
 export default class extends Controller {
-    static targets = ['partySizeField', 'adultsField', 'childrenField', 'datetimeField', 'submitButton']
+    static targets = [
+        'partySizeField',
+        'adultsField',
+        'childrenField',
+        'datetimeField',
+        'submitButton',
+        'phoneInput',
+        'phoneError',
+    ]
     static values = {
         restaurantId: String,
         checkAvailabilityUrl: String,
@@ -114,26 +122,54 @@ export default class extends Controller {
     }
 
     // 獲取 CSRF Token
-    getCSRFToken() {
-        const token = document.querySelector('[name="csrf-token"]')
-        return token ? token.content : ''
+    // getCSRFToken() {
+    //     const token = document.querySelector('[name="csrf-token"]')
+    //     return token ? token.content : ''
+    // }
+
+    // 電話號碼驗證
+    validatePhone() {
+        if (!this.hasPhoneInputTarget) return true
+
+        const phone = this.phoneInputTarget.value
+        const phoneRegex = /^09\d{8}$/
+        const isValid = phoneRegex.test(phone)
+
+        if (!isValid) {
+            this.phoneErrorTarget.textContent = '請輸入有效的台灣手機號碼 (例如: 0912345678)'
+            this.phoneErrorTarget.classList.remove('hidden')
+            this.phoneInputTarget.classList.add('border-red-500')
+        } else {
+            this.phoneErrorTarget.textContent = ''
+            this.phoneErrorTarget.classList.add('hidden')
+            this.phoneInputTarget.classList.remove('border-red-500')
+        }
+        return isValid
     }
 
     // 表單提交前的驗證
     validateForm(event) {
-        const partySize = parseInt(this.partySizeFieldTarget.value) || 0
-        const adults = parseInt(this.adultsFieldTarget.value) || 0
-        const children = parseInt(this.childrenFieldTarget.value) || 0
+        console.log('validateForm triggered')
+        // if (this.hasPartySizeFieldTarget && this.hasAdultsFieldTarget && this.hasChildrenFieldTarget) {
+        //     const partySize = parseInt(this.partySizeFieldTarget.value) || 0
+        //     const adults = parseInt(this.adultsFieldTarget.value) || 0
+        //     const children = parseInt(this.childrenFieldTarget.value) || 0
 
-        if (adults + children !== partySize) {
-            event.preventDefault()
-            alert('大人數和小孩數的總和必須等於總人數')
-            return false
-        }
+        //     if (adults + children !== partySize) {
+        //         event.preventDefault()
+        //         alert('大人數和小孩數的總和必須等於總人數')
+        //         return false
+        //     }
 
-        if (adults < 1) {
+        //     if (adults < 1) {
+        //         event.preventDefault()
+        //         alert('至少需要1位大人')
+        //         return false
+        //     }
+        // }
+        const isPhoneValid = this.validatePhone()
+        if (!isPhoneValid) {
             event.preventDefault()
-            alert('至少需要1位大人')
             return false
         }
 

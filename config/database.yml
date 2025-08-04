@@ -80,3 +80,21 @@ test:
 production:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
+
+# Solid Cache database configuration
+cache: &cache_default
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+cache_development:
+    <<: *cache_default
+    database: restaurant_reservation_cache_development
+
+cache_test:
+    <<: *cache_default
+    database: restaurant_reservation_cache_test
+
+cache_production:
+    <<: *cache_default
+    url: <%= ENV["CACHE_DATABASE_URL"] || ENV["DATABASE_URL"]&.sub(/\/[^\/]+$/, '/restaurant_reservation_cache_production') %>

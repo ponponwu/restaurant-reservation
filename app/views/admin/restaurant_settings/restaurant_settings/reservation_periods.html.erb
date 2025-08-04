@@ -1,0 +1,95 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
+    data-controller="modal turbo-modal"
+    data-action="keydown->turbo-modal#keydown">
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">營業時段管理</h1>
+        <p class="mt-2 text-sm text-gray-600">設定餐廳的營業時間和預約時段</p>
+      </div>
+      
+      <!-- 新增按鈕 -->
+      <% if @reservation_periods.any? %>
+        <div>
+          <%= link_to new_admin_restaurant_reservation_period_path(@restaurant),
+              class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+              data: { action: "click->modal#openRemote", turbo_prefetch: false } do %>
+            <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+            </svg>
+            新增營業時段
+          <% end %>
+        </div>
+      <% end %>
+    </div>
+  </div>
+
+  <!-- 選項卡導覽 -->
+  <%= render 'shared/settings_tabs', current_tab: 'reservation_periods', restaurant: @restaurant %>
+
+  <!-- Flash 訊息容器 -->
+  <div id="flash_messages"></div>
+
+  <!-- 營業時段列表 -->
+  <div class="bg-white shadow rounded-lg">
+    <div class="px-4 py-5 sm:p-6">
+      <div class="flex items-center justify-between mb-6">
+        <h3 class="text-lg leading-6 font-medium text-gray-900">營業時段概覽</h3>
+      </div>
+
+      <!-- 營業時段列表容器 -->
+      <div id="reservation_periods_list">
+        <% if @reservation_periods.any? %>
+          <div class="space-y-4">
+            <% @reservation_periods.each do |period| %>
+              <%= render 'admin/restaurant_settings/restaurant_settings/reservation_period_item', period: period, restaurant: @restaurant %>
+            <% end %>
+          </div>
+        <% else %>
+          <div class="text-center py-12">
+            <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            <h3 class="mt-2 text-sm font-medium text-gray-900">尚未設定營業時段</h3>
+            <p class="mt-1 text-sm text-gray-500">開始建立您的第一個營業時段</p>
+            <div class="mt-6">
+              <%= link_to new_admin_restaurant_reservation_period_path(@restaurant),
+                  class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+                  data: { action: "click->modal#openRemote", turbo_prefetch: false } do %>
+                <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                </svg>
+                新增營業時段
+              <% end %>
+            </div>
+          </div>
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal 容器 -->
+  <div id="modal-container" 
+       class="fixed inset-0 z-50 overflow-y-auto hidden" 
+       aria-labelledby="modal-title" 
+       role="dialog" 
+       aria-modal="true"
+       data-turbo-modal-target="container">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <!-- 背景遮罩 -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+           data-action="click->turbo-modal#backgroundClick"></div>
+
+      <!-- Modal 面板 -->
+      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full sm:w-auto mx-4">
+        <div id="modal-content">
+          <!-- Modal 內容會被動態載入到這裡 -->
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 通用確認模態框 -->
+  <%= render 'shared/confirmation_modal' %>
+</div>

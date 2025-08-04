@@ -21,7 +21,7 @@ new_method = <<~RUBY
       return [] unless @business_period_id # 如果沒有餐期ID，不檢查衝突
 
       target_date = datetime.to_date
-      business_period = BusinessPeriod.find(@business_period_id)
+      business_period = ReservationPeriod.find(@business_period_id)
 
       conflicting_reservations = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])

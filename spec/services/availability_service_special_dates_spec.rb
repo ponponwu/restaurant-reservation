@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe AvailabilityService, type: :service do
-  let(:restaurant) { create(:restaurant, :with_business_periods, :with_tables) }
+  let(:restaurant) { create(:restaurant, :with_reservation_periods, :with_tables) }
   let(:service) { described_class.new(restaurant) }
   let(:special_date) { Date.current + 7.days } # 7 days from now
 
@@ -37,13 +37,13 @@ RSpec.describe AvailabilityService, type: :service do
         # Test the specific method that was broken
         day_reservations = []
         restaurant_tables = restaurant.restaurant_tables.active.available_for_booking.includes(:table_group).to_a
-        business_periods_cache = restaurant.business_periods.active.index_by(&:id)
+        reservation_periods_cache = restaurant.reservation_periods.active.index_by(&:id)
 
         result = service.has_availability_on_date_cached?(
           special_date,
           day_reservations,
           restaurant_tables,
-          business_periods_cache,
+          reservation_periods_cache,
           2
         )
 
@@ -52,12 +52,12 @@ RSpec.describe AvailabilityService, type: :service do
 
       it 'restaurant.available_time_options_for_date returns time slots for special date' do
         time_options = restaurant.available_time_options_for_date(special_date)
-        
+
         expect(time_options).not_to be_empty
         expect(time_options.map { |opt| opt[:time] }).to include('18:00', '18:30', '19:00', '21:30', '22:00')
-        
-        # Special dates should have nil business_period_id
-        expect(time_options.all? { |opt| opt[:business_period_id].nil? }).to be true
+
+        # Special dates should have nil reservation_period_id
+        expect(time_options.all? { |opt| opt[:reservation_period_id].nil? }).to be true
       end
     end
 
@@ -79,7 +79,7 @@ RSpec.describe AvailabilityService, type: :service do
 
       it 'restaurant.available_time_options_for_date returns empty for closed special date' do
         time_options = restaurant.available_time_options_for_date(special_date)
-        
+
         expect(time_options).to be_empty
       end
     end
@@ -102,12 +102,12 @@ RSpec.describe AvailabilityService, type: :service do
         party_size = 2
         availability_service = RestaurantAvailabilityService.new(restaurant)
         has_capacity = restaurant.has_capacity_for_party_size?(party_size)
-        
+
         available_dates = if has_capacity
-                           availability_service.get_available_dates(party_size, party_size, 0)
-                         else
-                           []
-                         end
+                            availability_service.get_available_dates(party_size, party_size, 0)
+                          else
+                            []
+                          end
 
         expect(has_capacity).to be true
         expect(available_dates).to include(special_date.to_s)

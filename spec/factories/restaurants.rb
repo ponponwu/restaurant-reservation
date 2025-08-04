@@ -29,26 +29,32 @@ FactoryBot.define do
       reservation_interval_minutes { 60 }
     end
 
-    trait :with_business_periods do
+    trait :with_reservation_periods do
       after(:create) do |restaurant|
         # 創建基本的午餐和晚餐時段
-        restaurant.business_periods.create!(
-          name: '午餐',
-          start_time: '11:30',
-          end_time: '14:30',
-          days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday],
-          active: true,
-          status: 'active'
-        )
+        # 為每個星期創建午餐時段
+        (0..6).each do |weekday|
+          restaurant.reservation_periods.create!(
+            name: '午餐',
+            start_time: '11:30',
+            end_time: '14:30',
+            weekday: weekday,
+            active: true,
+            status: 'active'
+          )
+        end
 
-        restaurant.business_periods.create!(
-          name: '晚餐',
-          start_time: '17:30',
-          end_time: '21:30',
-          days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday],
-          active: true,
-          status: 'active'
-        )
+        # 為每個星期創建晚餐時段
+        (0..6).each do |weekday|
+          restaurant.reservation_periods.create!(
+            name: '晚餐',
+            start_time: '17:30',
+            end_time: '21:30',
+            weekday: weekday,
+            active: true,
+            status: 'active'
+          )
+        end
       end
     end
 

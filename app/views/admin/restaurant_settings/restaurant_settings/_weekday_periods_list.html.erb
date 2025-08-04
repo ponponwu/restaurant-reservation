@@ -1,0 +1,26 @@
+<div id="weekday_<%= weekday %>_periods" class="mt-3 space-y-2">
+  <% if periods.any? %>
+    <% periods.each do |period| %>
+      <%= render 'admin/restaurant_settings/restaurant_settings/weekday_period_item', period: period, restaurant: restaurant %>
+    <% end %>
+  
+  <% end %>
+  
+  <!-- 新增/編輯餐期按鈕 -->
+  <div class="pt-2">
+    <% if !periods.any? %>
+      <!-- 無餐期時顯示新增按鈕 -->
+      <%= link_to new_admin_restaurant_reservation_period_path(restaurant, weekday: weekday),
+          class: "inline-flex items-center px-3 py-1 border border-dashed border-gray-300 text-xs font-medium rounded text-gray-600 bg-white hover:bg-gray-50",
+          data: { 
+            action: "click->modal#openRemote",
+            turbo_prefetch: false 
+          } do %>
+        <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        新增
+      <% end %>
+    <% end %>
+  </div>
+</div>

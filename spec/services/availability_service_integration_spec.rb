@@ -2,35 +2,35 @@ require 'rails_helper'
 
 RSpec.describe AvailabilityService, type: :service do
   let(:restaurant) { create(:restaurant) }
-  let(:business_period) { create(:business_period, restaurant: restaurant) }
+  let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let(:service) { described_class.new(restaurant) }
   let(:tomorrow) { Date.current + 1.day }
-  
+
   before do
     # 建立基本的桌位設定
     table_group = create(:table_group, restaurant: restaurant)
     create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4)
-    
-    # 確保 business_period 在測試日期有營業 (設定為每天營業)
-    business_period.update!(days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+
+    # 確保 reservation_period 在測試日期有營業 (設定為每天營業)
+    reservation_period.update!(days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
   end
 
   describe 'Integration with both closure systems' do
     context 'when both old and new closure systems exist' do
       let!(:old_closure) do
-        create(:closure_date, 
-               restaurant: restaurant, 
-               date: tomorrow + 1.day, 
+        create(:closure_date,
+               restaurant: restaurant,
+               date: tomorrow + 1.day,
                recurring: false)
       end
-      
+
       let!(:new_closure) do
         create(:special_reservation_date, :closed,
                restaurant: restaurant,
                start_date: tomorrow + 2.days,
                end_date: tomorrow + 2.days)
       end
-      
+
       let!(:custom_hours_date) do
         create(:special_reservation_date, :custom_hours,
                restaurant: restaurant,
@@ -63,12 +63,12 @@ RSpec.describe AvailabilityService, type: :service do
 
     context 'when checking date ranges with mixed closures' do
       let!(:old_closure) do
-        create(:closure_date, 
-               restaurant: restaurant, 
-               date: tomorrow, 
+        create(:closure_date,
+               restaurant: restaurant,
+               date: tomorrow,
                recurring: false)
       end
-      
+
       let!(:new_closure) do
         create(:special_reservation_date, :closed,
                restaurant: restaurant,
@@ -79,12 +79,12 @@ RSpec.describe AvailabilityService, type: :service do
       it 'correctly identifies unavailable dates from both systems' do
         start_date = tomorrow
         end_date = tomorrow + 5.days
-        
+
         unavailable_dates = []
         (start_date..end_date).each do |date|
           unavailable_dates << date unless service.has_any_availability_on_date?(date, 2)
         end
-        
+
         # 應該包含兩個關閉日期
         expect(unavailable_dates).to include(tomorrow) # 舊系統
         expect(unavailable_dates).to include(tomorrow + 1.day) # 新系統
@@ -94,12 +94,12 @@ RSpec.describe AvailabilityService, type: :service do
 
     context 'priority handling between systems' do
       let!(:old_closure) do
-        create(:closure_date, 
-               restaurant: restaurant, 
-               date: tomorrow, 
+        create(:closure_date,
+               restaurant: restaurant,
+               date: tomorrow,
                recurring: false)
       end
-      
+
       let!(:new_custom_hours) do
         # 建立時間較晚的特殊訂位日將優先生效
         create(:special_reservation_date, :custom_hours,

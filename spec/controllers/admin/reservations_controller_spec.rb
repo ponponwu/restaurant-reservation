@@ -9,7 +9,7 @@ RSpec.describe Admin::ReservationsController do
     sign_in user
 
     # 創建正確的營業時段
-    @lunch_period = restaurant.business_periods.create!(
+    @lunch_period = restaurant.reservation_periods.create!(
       name: 'lunch',
       display_name: '午餐',
       start_time: '11:00',
@@ -18,7 +18,7 @@ RSpec.describe Admin::ReservationsController do
       active: true
     )
 
-    @dinner_period = restaurant.business_periods.create!(
+    @dinner_period = restaurant.reservation_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
       start_time: '17:30',
@@ -28,7 +28,7 @@ RSpec.describe Admin::ReservationsController do
     )
   end
 
-  describe '#determine_business_period' do
+  describe '#determine_reservation_period' do
     let(:controller_instance) { described_class.new }
 
     before do
@@ -38,19 +38,19 @@ RSpec.describe Admin::ReservationsController do
     context 'when time is within lunch period' do
       it 'returns lunch period for 11:00' do
         datetime = 3.days.from_now.change(hour: 11, min: 0)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
 
       it 'returns lunch period for 13:00' do
         datetime = 3.days.from_now.change(hour: 13, min: 0)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
 
       it 'returns lunch period for exact start time 11:30' do
         datetime = 3.days.from_now.change(hour: 11, min: 30)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
     end
@@ -58,19 +58,19 @@ RSpec.describe Admin::ReservationsController do
     context 'when time is within dinner period' do
       it 'returns dinner period for 19:00' do
         datetime = 3.days.from_now.change(hour: 19, min: 0)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
 
       it 'returns dinner period for 20:00' do
         datetime = 3.days.from_now.change(hour: 20, min: 0)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
 
       it 'returns dinner period for exact start time 17:30' do
         datetime = 3.days.from_now.change(hour: 17, min: 30)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
     end
@@ -78,19 +78,19 @@ RSpec.describe Admin::ReservationsController do
     context 'when time is outside business periods' do
       it 'returns closest period for early morning time 09:00 (closer to lunch)' do
         datetime = 3.days.from_now.change(hour: 9, min: 0)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@lunch_period.id)
       end
 
       it 'returns closest period for late night time 23:00 (closer to dinner)' do
         datetime = 3.days.from_now.change(hour: 23, min: 0)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         expect(result).to eq(@dinner_period.id)
       end
 
       it 'returns closest period for afternoon time 15:30 (between periods)' do
         datetime = 3.days.from_now.change(hour: 15, min: 30)
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
         # 15:30 should be closer to dinner (17:30-21:30) than lunch (11:30-14:30)
         expect(result).to eq(@dinner_period.id)
       end
@@ -103,7 +103,7 @@ RSpec.describe Admin::ReservationsController do
         datetime = 3.days.from_now.change(hour: 11, min: 0).utc
         local_time = datetime.in_time_zone('Asia/Taipei')
 
-        result = controller_instance.send(:determine_business_period, datetime)
+        result = controller_instance.send(:determine_reservation_period, datetime)
 
         # 根據實際時間判斷應該屬於哪個時段
         if local_time.hour >= 17 && local_time.hour <= 21
@@ -118,7 +118,7 @@ RSpec.describe Admin::ReservationsController do
     end
   end
 
-  describe 'POST #create with business period determination' do
+  describe 'POST #create with reservation period determination' do
     let!(:table_group) do
       restaurant.table_groups.create!(
         name: '主要區域',
@@ -163,8 +163,8 @@ RSpec.describe Admin::ReservationsController do
       expect(Reservation.count).to eq(1)
 
       reservation = Reservation.last
-      expect(reservation.business_period_id).to eq(@dinner_period.id)
-      expect(reservation.business_period.name).to eq('dinner')
+      expect(reservation.reservation_period_id).to eq(@dinner_period.id)
+      expect(reservation.reservation_period.name).to eq('dinner')
     end
 
     it 'correctly assigns lunch period for 12:00 reservation' do
@@ -177,8 +177,8 @@ RSpec.describe Admin::ReservationsController do
       end.to change(Reservation, :count).by(1)
 
       reservation = Reservation.last
-      expect(reservation.business_period_id).to eq(@lunch_period.id)
-      expect(reservation.business_period.name).to eq('lunch')
+      expect(reservation.reservation_period_id).to eq(@lunch_period.id)
+      expect(reservation.reservation_period.name).to eq('lunch')
     end
   end
 
@@ -226,7 +226,7 @@ RSpec.describe Admin::ReservationsController do
           adults_count: 2,
           children_count: 0,
           reservation_datetime: 3.days.from_now.change(hour: 19, min: 0),
-          business_period: @dinner_period,
+          reservation_period: @dinner_period,
           table: table,
           status: :confirmed
         )
@@ -287,7 +287,7 @@ RSpec.describe Admin::ReservationsController do
           adults_count: 4,
           children_count: 0,
           reservation_datetime: 3.days.from_now.change(hour: 18, min: 0), # 使用不同時間避免衝突
-          business_period: @dinner_period,
+          reservation_period: @dinner_period,
           table: big_table,
           status: :confirmed,
           admin_override: true

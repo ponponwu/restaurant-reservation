@@ -219,7 +219,7 @@
                     桌位群組
                   <% end %>
                   
-                  <%= link_to admin_restaurant_business_periods_path(restaurant), 
+                  <%= link_to admin_restaurant_reservation_periods_path(restaurant), 
                       class: "inline-flex items-center px-4 py-2 mr-2 mb-3 border border-gray-300 text-xs font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors" do %>
                     <svg class="w-3 h-3 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -256,22 +256,6 @@
         </div>
       </div>
 
-      <!-- 餐廳狀態 -->
-      <div class="bg-white overflow-hidden shadow rounded-lg">
-        <div class="px-4 py-5 sm:p-6">
-          <h3 class="text-lg leading-6 font-medium text-gray-900 mb-4">餐廳狀態</h3>
-          <div class="space-y-3">
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-500">營業中餐廳</span>
-              <span class="text-sm text-green-600"><%= @stats[:active_restaurants] %> 間</span>
-            </div>
-            <div class="flex items-center justify-between">
-              <span class="text-sm font-medium text-gray-500">暫停營業</span>
-              <span class="text-sm text-red-600"><%= @stats[:inactive_restaurants] %> 間</span>
-            </div>
-          </div>
-        </div>
-      </div>
 
       <!-- 最近活動 -->
       <div class="bg-white overflow-hidden shadow rounded-lg">

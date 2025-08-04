@@ -5,8 +5,9 @@ class RestaurantTable < ApplicationRecord
 
   validates :table_number, presence: true, length: { maximum: 10 }, uniqueness: { scope: :restaurant_id }
   validates :capacity, presence: true, numericality: { greater_than: 0, less_than_or_equal_to: 20 }
-  validates :min_capacity, numericality: { greater_than: 0 }
-  validates :max_capacity, numericality: { greater_than_or_equal_to: :capacity }, allow_blank: true
+  validates :min_capacity, presence: true, numericality: { greater_than: 0, less_than_or_equal_to: 20 }
+  validates :max_capacity, presence: true,
+                           numericality: { greater_than_or_equal_to: :min_capacity, less_than_or_equal_to: 20 }
   validates :sort_order, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :table_type, presence: true
   validates :status, presence: true
@@ -287,7 +288,10 @@ class RestaurantTable < ApplicationRecord
     self.operational_status ||= 'normal'
     self.table_type ||= 'regular'
     self.min_capacity ||= 1
-    self.max_capacity ||= capacity if capacity.present?
+
+    # 自動設定 capacity = max_capacity (標準容量等於最大容量)
+    self.capacity = max_capacity if max_capacity.present?
+
     self.active = true if active.nil?
   end
 

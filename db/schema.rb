@@ -10,9 +10,9 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
+ActiveRecord::Schema[8.0].define(version: 2025_07_25_070220) do
   # These are extensions that must be enabled in order to support this database
-  enable_extension "plpgsql"
+  enable_extension "pg_catalog.plpgsql"
 
   create_table "active_storage_attachments", force: :cascade do |t|
     t.string "name", null: false
@@ -58,23 +58,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.index ["restaurant_id"], name: "index_blacklists_on_restaurant_id"
   end
 
-  create_table "business_periods", force: :cascade do |t|
-    t.bigint "restaurant_id", null: false
-    t.string "name"
-    t.time "start_time"
-    t.time "end_time"
-    t.json "days_of_week"
-    t.boolean "active"
-    t.datetime "created_at", null: false
-    t.datetime "updated_at", null: false
-    t.string "display_name"
-    t.json "reservation_settings"
-    t.integer "status"
-    t.integer "days_of_week_mask", default: 0, null: false
-    t.index ["days_of_week_mask"], name: "index_business_periods_on_days_of_week_mask"
-    t.index ["restaurant_id"], name: "index_business_periods_on_restaurant_id"
-  end
-
   create_table "closure_dates", force: :cascade do |t|
     t.bigint "restaurant_id", null: false
     t.date "date", null: false
@@ -92,6 +75,45 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.index ["restaurant_id", "date"], name: "index_closure_dates_on_restaurant_id_and_date"
     t.index ["restaurant_id"], name: "index_closure_dates_on_restaurant_id"
     t.index ["weekday"], name: "index_closure_dates_on_weekday"
+  end
+
+  create_table "operating_hours", force: :cascade do |t|
+    t.bigint "restaurant_id", null: false
+    t.integer "weekday", null: false, comment: "星期幾 (0=日, 1=一, ..., 6=六)"
+    t.time "open_time", null: false
+    t.time "close_time", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "period_name", default: "預設時段"
+    t.integer "sort_order", default: 1
+    t.index ["restaurant_id", "weekday", "sort_order"], name: "index_operating_hours_on_restaurant_weekday_sort"
+    t.index ["restaurant_id"], name: "index_operating_hours_on_restaurant_id"
+    t.index ["weekday"], name: "index_operating_hours_on_weekday"
+  end
+
+  create_table "reservation_periods", force: :cascade do |t|
+    t.bigint "restaurant_id", null: false
+    t.string "name"
+    t.time "start_time"
+    t.time "end_time"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.string "display_name"
+    t.json "reservation_settings"
+    t.integer "status"
+    t.boolean "active"
+    t.integer "weekday", null: false, comment: "星期幾 (0=日, 1=一, ..., 6=六)"
+    t.date "date", comment: "特定日期設定 (覆蓋週別設定)"
+    t.integer "reservation_interval_minutes", default: 30, null: false, comment: "該時段的預約間隔分鐘數"
+    t.bigint "special_reservation_date_id"
+    t.integer "custom_period_index"
+    t.boolean "is_special_date_period", default: false, null: false
+    t.index ["is_special_date_period"], name: "index_reservation_periods_on_is_special_date_period"
+    t.index ["restaurant_id", "date"], name: "index_reservation_periods_on_restaurant_date"
+    t.index ["restaurant_id", "weekday"], name: "index_reservation_periods_on_restaurant_weekday"
+    t.index ["restaurant_id"], name: "index_reservation_periods_on_restaurant_id"
+    t.index ["special_reservation_date_id", "custom_period_index"], name: "index_reservation_periods_on_special_date_and_period_index"
+    t.index ["special_reservation_date_id"], name: "index_reservation_periods_on_special_reservation_date_id"
   end
 
   create_table "reservation_policies", force: :cascade do |t|
@@ -114,7 +136,6 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.boolean "reservation_enabled", default: true, null: false, comment: "是否啟用線上訂位功能"
     t.boolean "unlimited_dining_time", default: false, null: false, comment: "是否為無限用餐時間"
     t.integer "default_dining_duration_minutes", default: 120, comment: "預設用餐時間（分鐘）"
-    t.integer "buffer_time_minutes", default: 15, null: false, comment: "緩衝時間（分鐘）"
     t.boolean "allow_table_combinations", default: true, null: false, comment: "是否允許併桌"
     t.integer "max_combination_tables", default: 3, null: false, comment: "最大併桌數量"
     t.index ["allow_table_combinations"], name: "index_reservation_policies_on_allow_table_combinations"
@@ -123,7 +144,7 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
   end
 
   create_table "reservation_slots", force: :cascade do |t|
-    t.bigint "business_period_id", null: false
+    t.bigint "reservation_period_id", null: false
     t.time "slot_time", null: false
     t.integer "max_capacity", default: 0
     t.integer "interval_minutes", default: 30
@@ -131,15 +152,15 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["business_period_id", "slot_time"], name: "index_reservation_slots_on_business_period_id_and_slot_time", unique: true
-    t.index ["business_period_id"], name: "index_reservation_slots_on_business_period_id"
+    t.index ["reservation_period_id", "slot_time"], name: "index_reservation_slots_on_reservation_period_id_and_slot_time", unique: true
+    t.index ["reservation_period_id"], name: "index_reservation_slots_on_reservation_period_id"
     t.index ["slot_time"], name: "index_reservation_slots_on_slot_time"
   end
 
   create_table "reservations", force: :cascade do |t|
     t.bigint "restaurant_id", null: false
     t.bigint "table_id"
-    t.bigint "business_period_id", null: false
+    t.bigint "reservation_period_id", null: false
     t.string "customer_name"
     t.string "customer_phone"
     t.string "customer_email"
@@ -160,12 +181,14 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.boolean "admin_override", default: false, null: false, comment: "是否為管理員強制建立（無視容量限制）"
     t.integer "lock_version", default: 0, null: false
     t.string "allocation_token", limit: 36
+    t.index "restaurant_id, table_id, date(reservation_datetime), EXTRACT(hour FROM reservation_datetime), EXTRACT(minute FROM reservation_datetime)", name: "idx_reservations_table_time_conflict", unique: true, where: "(((status)::text = ANY ((ARRAY['confirmed'::character varying, 'pending'::character varying])::text[])) AND (table_id IS NOT NULL))"
     t.index ["admin_override"], name: "index_reservations_on_admin_override"
     t.index ["allocation_token"], name: "index_reservations_on_allocation_token", unique: true, where: "(allocation_token IS NOT NULL)"
-    t.index ["business_period_id"], name: "index_reservations_on_business_period_id"
     t.index ["cancellation_token"], name: "index_reservations_on_cancellation_token", unique: true
     t.index ["cancelled_at"], name: "index_reservations_on_cancelled_at"
     t.index ["cancelled_by"], name: "index_reservations_on_cancelled_by"
+    t.index ["reservation_period_id"], name: "index_reservations_on_reservation_period_id"
+    t.index ["restaurant_id", "customer_phone", "reservation_datetime"], name: "idx_reservations_phone_time_conflict", unique: true, where: "(((status)::text = ANY ((ARRAY['confirmed'::character varying, 'pending'::character varying])::text[])) AND (customer_phone IS NOT NULL))"
     t.index ["restaurant_id", "customer_phone", "status", "reservation_datetime"], name: "index_reservations_on_restaurant_phone_status_datetime"
     t.index ["restaurant_id", "reservation_datetime", "status"], name: "index_reservations_on_restaurant_datetime_status"
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"
@@ -221,6 +244,152 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.index ["total_capacity"], name: "index_restaurants_on_total_capacity"
   end
 
+  create_table "short_urls", force: :cascade do |t|
+    t.string "token", limit: 8, null: false
+    t.text "original_url", null: false
+    t.datetime "expires_at", null: false
+    t.integer "click_count", default: 0, null: false
+    t.datetime "last_accessed_at"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_short_urls_on_expires_at"
+    t.index ["original_url"], name: "index_short_urls_on_original_url"
+    t.index ["token"], name: "index_short_urls_on_token", unique: true
+  end
+
+  create_table "sms_logs", force: :cascade do |t|
+    t.bigint "reservation_id", null: false
+    t.string "phone_number"
+    t.string "message_type"
+    t.text "content"
+    t.string "status"
+    t.text "response_data"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["reservation_id"], name: "index_sms_logs_on_reservation_id"
+  end
+
+  create_table "solid_queue_blocked_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.string "concurrency_key", null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["concurrency_key", "priority", "job_id"], name: "index_solid_queue_blocked_executions_for_release"
+    t.index ["expires_at", "concurrency_key"], name: "index_solid_queue_blocked_executions_for_maintenance"
+    t.index ["job_id"], name: "index_solid_queue_blocked_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_claimed_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.bigint "process_id"
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_claimed_executions_on_job_id", unique: true
+    t.index ["process_id", "job_id"], name: "index_solid_queue_claimed_executions_on_process_id_and_job_id"
+  end
+
+  create_table "solid_queue_failed_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.text "error"
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_failed_executions_on_job_id", unique: true
+  end
+
+  create_table "solid_queue_jobs", force: :cascade do |t|
+    t.string "queue_name", null: false
+    t.string "class_name", null: false
+    t.text "arguments"
+    t.integer "priority", default: 0, null: false
+    t.string "active_job_id"
+    t.datetime "scheduled_at"
+    t.datetime "finished_at"
+    t.string "concurrency_key"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["active_job_id"], name: "index_solid_queue_jobs_on_active_job_id"
+    t.index ["class_name"], name: "index_solid_queue_jobs_on_class_name"
+    t.index ["finished_at"], name: "index_solid_queue_jobs_on_finished_at"
+    t.index ["queue_name", "finished_at"], name: "index_solid_queue_jobs_for_filtering"
+    t.index ["scheduled_at", "finished_at"], name: "index_solid_queue_jobs_for_alerting"
+  end
+
+  create_table "solid_queue_pauses", force: :cascade do |t|
+    t.string "queue_name", null: false
+    t.datetime "created_at", null: false
+    t.index ["queue_name"], name: "index_solid_queue_pauses_on_queue_name", unique: true
+  end
+
+  create_table "solid_queue_processes", force: :cascade do |t|
+    t.string "kind", null: false
+    t.datetime "last_heartbeat_at", null: false
+    t.bigint "supervisor_id"
+    t.integer "pid", null: false
+    t.string "hostname"
+    t.text "metadata"
+    t.datetime "created_at", null: false
+    t.string "name", null: false
+    t.index ["last_heartbeat_at"], name: "index_solid_queue_processes_on_last_heartbeat_at"
+    t.index ["name", "supervisor_id"], name: "index_solid_queue_processes_on_name_and_supervisor_id", unique: true
+    t.index ["supervisor_id"], name: "index_solid_queue_processes_on_supervisor_id"
+  end
+
+  create_table "solid_queue_ready_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_ready_executions_on_job_id", unique: true
+    t.index ["priority", "job_id"], name: "index_solid_queue_poll_all"
+    t.index ["queue_name", "priority", "job_id"], name: "index_solid_queue_poll_by_queue"
+  end
+
+  create_table "solid_queue_recurring_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "task_key", null: false
+    t.datetime "run_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_recurring_executions_on_job_id", unique: true
+    t.index ["task_key", "run_at"], name: "index_solid_queue_recurring_executions_on_task_key_and_run_at", unique: true
+  end
+
+  create_table "solid_queue_recurring_tasks", force: :cascade do |t|
+    t.string "key", null: false
+    t.string "schedule", null: false
+    t.string "command", limit: 2048
+    t.string "class_name"
+    t.text "arguments"
+    t.string "queue_name"
+    t.integer "priority", default: 0
+    t.boolean "static", default: true, null: false
+    t.text "description"
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["key"], name: "index_solid_queue_recurring_tasks_on_key", unique: true
+    t.index ["static"], name: "index_solid_queue_recurring_tasks_on_static"
+  end
+
+  create_table "solid_queue_scheduled_executions", force: :cascade do |t|
+    t.bigint "job_id", null: false
+    t.string "queue_name", null: false
+    t.integer "priority", default: 0, null: false
+    t.datetime "scheduled_at", null: false
+    t.datetime "created_at", null: false
+    t.index ["job_id"], name: "index_solid_queue_scheduled_executions_on_job_id", unique: true
+    t.index ["scheduled_at", "priority", "job_id"], name: "index_solid_queue_dispatch_all"
+  end
+
+  create_table "solid_queue_semaphores", force: :cascade do |t|
+    t.string "key", null: false
+    t.integer "value", default: 1, null: false
+    t.datetime "expires_at", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+    t.index ["expires_at"], name: "index_solid_queue_semaphores_on_expires_at"
+    t.index ["key", "value"], name: "index_solid_queue_semaphores_on_key_and_value"
+    t.index ["key"], name: "index_solid_queue_semaphores_on_key", unique: true
+  end
+
   create_table "special_reservation_dates", force: :cascade do |t|
     t.bigint "restaurant_id", null: false
     t.string "name", limit: 100, null: false
@@ -230,10 +399,8 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
     t.string "operation_mode", default: "closed", null: false
     t.integer "table_usage_minutes"
     t.json "custom_periods", default: []
-    t.boolean "active", default: true, null: false
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
-    t.index ["active"], name: "index_special_reservation_dates_on_active"
     t.index ["restaurant_id"], name: "index_special_reservation_dates_on_restaurant_id"
     t.index ["start_date", "end_date"], name: "index_special_reservation_dates_on_start_date_and_end_date"
   end
@@ -294,15 +461,24 @@ ActiveRecord::Schema[7.1].define(version: 2025_07_11_031550) do
   add_foreign_key "active_storage_variant_records", "active_storage_blobs", column: "blob_id"
   add_foreign_key "blacklists", "restaurants"
   add_foreign_key "blacklists", "users", column: "added_by_id"
-  add_foreign_key "business_periods", "restaurants"
   add_foreign_key "closure_dates", "restaurants"
+  add_foreign_key "operating_hours", "restaurants"
+  add_foreign_key "reservation_periods", "restaurants"
+  add_foreign_key "reservation_periods", "special_reservation_dates"
   add_foreign_key "reservation_policies", "restaurants"
-  add_foreign_key "reservation_slots", "business_periods"
-  add_foreign_key "reservations", "business_periods"
+  add_foreign_key "reservation_slots", "reservation_periods"
+  add_foreign_key "reservations", "reservation_periods"
   add_foreign_key "reservations", "restaurant_tables", column: "table_id"
   add_foreign_key "reservations", "restaurants"
   add_foreign_key "restaurant_tables", "restaurants"
   add_foreign_key "restaurant_tables", "table_groups"
+  add_foreign_key "sms_logs", "reservations"
+  add_foreign_key "solid_queue_blocked_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_claimed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_failed_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_ready_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_recurring_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
+  add_foreign_key "solid_queue_scheduled_executions", "solid_queue_jobs", column: "job_id", on_delete: :cascade
   add_foreign_key "special_reservation_dates", "restaurants"
   add_foreign_key "table_combination_tables", "restaurant_tables"
   add_foreign_key "table_combination_tables", "table_combinations"

@@ -339,17 +339,24 @@ RSpec.describe ReservationPolicy do
                             status: :confirmed)
         reservation.save!(validate: false)
 
-        # 創建已取消的訂位（不應計算）
+        # 創建已取消的訂位（應該計算）
         create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
                reservation_datetime: 10.days.from_now,
                status: :cancelled)
+
+        # 創建未到場的訂位（應該計算）
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 15.days.from_now,
+               status: :no_show)
       end
 
-      it 'counts reservations within period' do
+      it 'counts all reservations within period including cancelled and no_show' do
         count = reservation_policy.count_phone_bookings_in_period(phone_number)
-        expect(count).to eq(2)
+        expect(count).to eq(4) # 2 confirmed + 1 cancelled + 1 no_show
       end
 
       it 'returns 0 for blank phone number' do
@@ -415,7 +422,7 @@ RSpec.describe ReservationPolicy do
 
     describe '#formatted_phone_limit_policy' do
       it 'returns formatted policy description' do
-        expected = '同一手機號碼在30天內最多只能建立3個有效訂位'
+        expected = '同一手機號碼在30天內最多只能建立3個訂位'
         expect(reservation_policy.formatted_phone_limit_policy).to eq(expected)
       end
     end
@@ -656,8 +663,7 @@ RSpec.describe ReservationPolicy do
 
       it '即使設定了用餐時間也不生效' do
         reservation_policy.update!(
-          default_dining_duration_minutes: 90,
-          buffer_time_minutes: 30
+          default_dining_duration_minutes: 90
         )
 
         # 無限時模式下，這些設定都不生效
@@ -667,7 +673,6 @@ RSpec.describe ReservationPolicy do
 
       it '驗證規則不檢查用餐時間必填' do
         reservation_policy.default_dining_duration_minutes = nil
-        reservation_policy.buffer_time_minutes = nil
 
         expect(reservation_policy).to be_valid
       end
@@ -680,13 +685,12 @@ RSpec.describe ReservationPolicy do
         expect(reservation_policy.has_time_limit?).to be true
       end
 
-      it '計算總用餐時間包含緩衝時間' do
+      it '計算總用餐時間為基本用餐時間' do
         reservation_policy.update!(
-          default_dining_duration_minutes: 120,
-          buffer_time_minutes: 15
+          default_dining_duration_minutes: 120
         )
 
-        expect(reservation_policy.total_dining_duration_minutes).to eq(135)
+        expect(reservation_policy.total_dining_duration_minutes).to eq(120)
       end
 
       it '用餐時間為必填欄位' do

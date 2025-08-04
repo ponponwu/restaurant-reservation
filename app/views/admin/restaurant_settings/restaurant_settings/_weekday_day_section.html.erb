@@ -1,0 +1,59 @@
+<div class="bg-white border border-gray-200 rounded-lg" 
+     id="weekday_<%= weekday %>_section"
+     data-weekday="<%= weekday %>">
+  
+  <!-- 星期標題 -->
+  <div class="px-6 py-4 border-b border-gray-200 bg-gray-50 rounded-t-lg">
+    <div class="flex items-center justify-between">
+      <div class="flex items-center space-x-4">
+        <h3 class="text-lg font-medium text-gray-900">
+          <%= OperatingHour::CHINESE_WEEKDAYS[weekday] %>
+        </h3>
+        <% operating_hours %>
+        <% day_has_active_periods = operating_hours.any? %>
+        <%= button_to admin_restaurant_settings_restaurant_toggle_day_status_path(restaurant, weekday: weekday),
+                      method: :post,
+                      class: "text-sm #{ day_has_active_periods ? 'text-red-600 hover:text-red-800' : 'text-green-600 hover:text-green-800' }",
+                      form_class: "inline-block",
+                      data: { turbo_stream: true } do %>
+          <%= day_has_active_periods ? '設為公休' : '設為營業' %>
+        <% end %>
+      </div>
+      
+      <% if day_has_active_periods %>
+        <% next_sort_order = (operating_hours.map(&:sort_order).compact.max || 0) + 1 %>
+        <%= link_to new_admin_restaurant_operating_hour_path(restaurant, weekday: weekday),
+                    class: "inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-indigo-600 bg-indigo-100 hover:bg-indigo-200 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                    data: { 
+                      turbo_stream: true
+                    } do %>
+          <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          新增時段
+        <% end %>
+      <% end %>
+    </div>
+  </div>
+  
+  <!-- 時段列表 -->
+  <div class="p-6">
+    <div class="space-y-2" id="weekday_<%= weekday %>_operating_hours">
+      <% if operating_hours.any? %>
+        <% operating_hours.sort_by { |p| p.sort_order || 0 }.each_with_index do |operating_hour, index| %>
+          <%= render 'admin/operating_hours/operating_hour_row', 
+                     operating_hour: operating_hour, 
+                     restaurant: restaurant,
+                     edit_mode: false,
+                     show_delete_button: operating_hours.count > 1 %>
+        <% end %>
+      <% else %>
+        <div class="text-center py-8 text-gray-500">
+          全天公休
+        </div>
+      <% end %>
+      
+      
+    </div>
+  </div>
+</div>

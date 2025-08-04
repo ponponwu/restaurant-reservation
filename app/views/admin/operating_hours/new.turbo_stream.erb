@@ -1,0 +1,15 @@
+<%# Turbo Stream response for new operating hour %>
+<% if @preset_weekday.present? %>
+  <%# Hide the empty message if it exists %>
+  <%= turbo_stream.remove("empty_weekday_#{@preset_weekday}") %>
+  
+  <%# Append the new editable row to the specific weekday section %>
+  <%= turbo_stream.append("weekday_#{@preset_weekday}_operating_hours") do %>
+    <%= render 'operating_hour_row', operating_hour: @operating_hour, restaurant: @restaurant, edit_mode: true %>
+  <% end %>
+<% else %>
+  <%# Generic append to operating_hours_list if no specific weekday %>
+  <%= turbo_stream.append("operating_hours_list") do %>
+    <%= render 'operating_hour_row', operating_hour: @operating_hour, restaurant: @restaurant, edit_mode: true %>
+  <% end %>
+<% end %>

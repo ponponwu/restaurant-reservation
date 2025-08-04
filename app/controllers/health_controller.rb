@@ -16,7 +16,7 @@ class HealthController < ApplicationController
       version: app_version,
       checks: {
         database: database_check,
-        redis: redis_check
+        cache: cache_check
       }
     }
   end
@@ -24,7 +24,7 @@ class HealthController < ApplicationController
   def overall_status
     checks = [
       database_check[:status],
-      redis_check[:status]
+      cache_check[:status]
     ]
 
     checks.all?('ok') ? 200 : 503
@@ -46,17 +46,31 @@ class HealthController < ApplicationController
     }
   end
 
-  def redis_check
-    return { status: 'unavailable', error: 'Redis not configured' } unless defined?(Redis.current)
-
+  def cache_check
     start_time = Time.current
-    Redis.current.ping
+
+    # 測試 Solid Cache 基本操作
+    test_key = "health_check_#{Time.current.to_i}"
+    test_value = 'ping'
+
+    Rails.cache.write(test_key, test_value, expires_in: 1.minute)
+    retrieved_value = Rails.cache.read(test_key)
+    Rails.cache.delete(test_key)
+
     response_time = ((Time.current - start_time) * 1000).round(2)
 
-    {
-      status: 'ok',
-      response_time_ms: response_time
-    }
+    if retrieved_value == test_value
+      {
+        status: 'ok',
+        response_time_ms: response_time,
+        cache_store: Rails.cache.class.name
+      }
+    else
+      {
+        status: 'error',
+        error: 'Cache read/write test failed'
+      }
+    end
   rescue StandardError => e
     {
       status: 'error',

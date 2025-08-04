@@ -1,0 +1,50 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">餐廳設定</h1>
+        <p class="mt-2 text-sm text-gray-600">管理餐廳的基本營業時間設定</p>
+      </div>
+      <div class="flex space-x-3">
+        <%= link_to admin_restaurant_path(@restaurant),
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          回到餐廳
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 選項卡 -->
+  <%= render 'shared/settings_tabs', restaurant: @restaurant, current_tab: 'restaurant_settings' %>
+
+  <!-- 營業時間設定 -->
+  <div class="bg-white shadow rounded-lg" 
+       data-controller="operating-hours" 
+       data-restaurant-slug="<%= @restaurant.slug %>">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <h2 class="text-lg font-medium text-gray-900">營業時間設定</h2>
+      <p class="mt-1 text-sm text-gray-500">設定餐廳每週的營業時間。點擊時間可直接編輯，修改後將自動儲存。</p>
+    </div>
+
+    <div class="p-6 space-y-6">
+      <% if @operating_hours && @operating_hours.any? %>
+        <% (0..6).each do |weekday| %>
+          <%= render 'weekday_day_section', 
+                     restaurant: @restaurant, 
+                     weekday: weekday, 
+                     operating_hours: @operating_hours[weekday] || [] %>
+        <% end %>
+      <% else %>
+        <div class="text-center py-12">
+          <div class="text-gray-500">
+            沒有找到營業時間設定，請聯繫系統管理員。
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

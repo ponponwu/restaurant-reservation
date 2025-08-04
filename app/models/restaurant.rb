@@ -13,17 +13,18 @@ class Restaurant < ApplicationRecord
   has_many :users, dependent: :nullify
   has_many :restaurant_tables, dependent: :destroy
   has_many :table_groups, dependent: :destroy
-  has_many :business_periods, dependent: :destroy
+  has_many :reservation_periods, dependent: :destroy
+  has_many :operating_hours, dependent: :destroy
   has_many :reservations, dependent: :destroy
   has_many :table_combinations, through: :reservations
   has_many :blacklists, dependent: :destroy
   # has_many :waiting_lists, dependent: :destroy  # 暫時註解，等建立 WaitingList 模型後再啟用
 
   # Phase 6 新增關聯
-  has_many :reservation_slots, through: :business_periods
+  has_many :reservation_slots, through: :reservation_periods
   has_many :closure_dates, dependent: :destroy
   has_one :reservation_policy, dependent: :destroy
-  
+
   # 特殊訂位日關聯
   has_many :special_reservation_dates, dependent: :destroy
 
@@ -32,8 +33,7 @@ class Restaurant < ApplicationRecord
   validates :phone, presence: true, length: { maximum: 20 }
   validates :address, presence: true, length: { maximum: 255 }
   validates :description, length: { maximum: 1000 }
-  validates :reservation_interval_minutes, presence: true,
-                                           inclusion: { in: [15, 30, 60], message: '預約間隔必須是 15、30 或 60 分鐘' }
+  # 移除統一間隔驗證，改為每日營業時段個別設定
 
   # 新增欄位驗證
   validates :business_name, length: { maximum: 100 }
@@ -64,7 +64,7 @@ class Restaurant < ApplicationRecord
   # 3. Scope 定義
   scope :active, -> { where(active: true, deleted_at: nil) }
   scope :search_by_name, ->(term) { where('name ILIKE ?', "%#{term}%") }
-  scope :with_active_periods, -> { joins(:business_periods).where(business_periods: { status: 'active' }) }
+  scope :with_active_periods, -> { joins(:reservation_periods).where(reservation_periods: { status: 'active' }) }
 
   # 4. 回調函數
   before_validation :sanitize_inputs
@@ -98,7 +98,7 @@ class Restaurant < ApplicationRecord
   # Ransack 搜索關聯白名單
   def self.ransackable_associations(_auth_object = nil)
     %w[
-      business_periods
+      reservation_periods
       reservations
       restaurant_tables
       table_groups
@@ -107,13 +107,40 @@ class Restaurant < ApplicationRecord
 
   # 5. 實例方法
 
-  # 軟刪除
-  def soft_delete!
-    update!(active: false, deleted_at: Time.current)
+  # 格式化營業時間顯示
+  def formatted_operating_hours
+    Rails.cache.fetch("restaurant_#{id}_operating_hours", expires_in: 30.days) do
+      hours_by_weekday = {}
+
+      OperatingHour::CHINESE_WEEKDAYS.each do |weekday, chinese_name|
+        operating_hour = operating_hours.for_weekday(weekday).first
+
+        hours_by_weekday[chinese_name] = if operating_hour.present?
+                                           operating_hour.formatted_time_range
+                                         else
+                                           '公休'
+                                         end
+      end
+
+      hours_by_weekday
+    end
   end
 
-  def restore!
-    update!(active: true, deleted_at: nil)
+  # 清除營業時間快取
+  def clear_operating_hours_cache
+    Rails.cache.delete("restaurant_#{id}_operating_hours")
+    @time_options_cache = nil # 清除實例變數快取
+
+    # SolidCache 不支援 delete_matched，改用具體的 key 刪除
+    # 清除常見的可能快取 key
+    # %w[availability time_slots periods].each do |cache_type|
+    #   (0..30).each do |days_ahead|
+    #     date = Date.current + days_ahead.days
+    #     Rails.cache.delete("restaurant_#{id}_#{cache_type}_#{date}")
+    #   end
+    # end
+
+    # Rails.logger.info "🧹 Restaurant #{id}: 已清除所有營業時間相關快取"
   end
 
   # 用戶統計
@@ -163,7 +190,7 @@ class Restaurant < ApplicationRecord
     return false if closed_on_date?(date)
 
     # 檢查是否有該日期的營業時段
-    has_business_period_on_date?(date)
+    has_reservation_period_on_date?(date)
   end
 
   def closed_on_date?(date)
@@ -182,9 +209,9 @@ class Restaurant < ApplicationRecord
   def available_slots_for_date(date)
     return [] unless open_on_date?(date)
 
-    day_name = date.strftime('%A').downcase
-    business_periods.active
-      .where('days_of_week ? ?', day_name)
+    weekday = date.wday
+    reservation_periods.active
+      .for_weekday(weekday)
       .includes(:reservation_slots)
       .flat_map(&:reservation_slots)
       .select(&:active?)
@@ -215,7 +242,7 @@ class Restaurant < ApplicationRecord
     dates = []
     (start_date..(start_date + days_ahead.days)).each do |date|
       next if closed_on_date?(date)
-      next unless has_business_period_on_date?(date)
+      next unless has_reservation_period_on_date?(date)
 
       dates << date
     end
@@ -229,7 +256,7 @@ class Restaurant < ApplicationRecord
 
     (start_date..end_date).each do |date|
       next if closed_on_date?(date)
-      next unless has_business_period_on_date?(date)
+      next unless has_reservation_period_on_date?(date)
       next unless has_available_capacity_for_party_size?(party_size, date)
 
       dates << date.to_s
@@ -274,14 +301,57 @@ class Restaurant < ApplicationRecord
   # 檢查特定日期是否營業
   def open_on?(date)
     return false if closed_on_date?(date)
+    return false unless operating_on_date?(date)
 
-    has_business_period_on_date?(date)
+    has_reservation_period_on_date?(date)
   end
 
-  # 檢查特定日期是否有營業時段
-  def has_business_period_on_date?(date)
-    weekday = date.wday # 使用 0-6 格式
-    business_periods.active.any? { |bp| bp.operates_on_weekday?(weekday) }
+  # 檢查餐廳在指定日期是否營業
+  def operating_on_date?(date)
+    weekday = date.wday
+    operating_hours.for_weekday(weekday).any?
+  end
+
+  # 獲取指定日期的營業時間
+  def operating_hours_for_date(date)
+    weekday = date.wday
+    operating_hours.for_weekday(weekday)
+  end
+
+  # 重寫：根據新的每日設定查詢營業時段
+  def reservation_periods_for_date(date)
+    weekday = date.wday
+
+    # 1. 檢查是否有特殊日期的 ReservationPeriod
+    special_date = special_date_for(date)
+    if special_date&.custom_hours?
+      special_periods = special_date.reservation_periods.active
+      return special_periods if special_periods.exists?
+    end
+
+    # 2. 優先查找特定日期設定
+    specific = reservation_periods.regular_periods.for_date(date).active
+    return specific if specific.exists?
+
+    # 3. 使用該星期幾的預設設定（包含啟用和關閉的時段）
+    reservation_periods.regular_periods.for_weekday(weekday).default_weekly
+  end
+
+  def reservation_interval_for_date(date)
+    periods = reservation_periods_for_date(date)
+    periods.first&.reservation_interval_minutes || 30
+  end
+
+  # 檢查特定日期是否有預約時段
+  def has_reservation_period_on_date?(date)
+    # 首先檢查營業時間設定
+    weekday = date.wday
+    operating_hour = operating_hours.for_weekday(weekday).first
+    return false unless operating_hour.present?
+
+    # 然後檢查是否有活躍的預約時段
+    periods = reservation_periods_for_date(date)
+    periods.active.any?
   end
 
   # 用餐時間相關方法（委派給 reservation_policy）
@@ -302,17 +372,18 @@ class Restaurant < ApplicationRecord
   def dining_duration_with_buffer
     return nil if unlimited_dining_time?
 
-    dining_duration_minutes + (policy&.buffer_time_minutes || 15)
+    base_duration = dining_duration_minutes || 120
+    buffer_time = 15 # 固定 15 分鐘緩衝時間
+    base_duration + buffer_time
   end
 
   # 特殊訂位日相關方法
   def effective_business_rules_for_date(date)
     special_date = special_reservation_dates
-      .active
       .for_date(date)
       .ordered_by_date
       .first
-      
+
     special_date || :normal_operations
   end
 
@@ -327,7 +398,7 @@ class Restaurant < ApplicationRecord
 
   def dining_duration_for_date(date)
     special_rules = effective_business_rules_for_date(date)
-    
+
     if special_rules.is_a?(SpecialReservationDate) && special_rules.custom_hours?
       special_rules.table_usage_minutes
     else
@@ -337,9 +408,9 @@ class Restaurant < ApplicationRecord
 
   def dining_duration_with_buffer_for_date(date)
     special_rules = effective_business_rules_for_date(date)
-    
+
     if special_rules.is_a?(SpecialReservationDate) && special_rules.custom_hours?
-      special_rules.table_usage_minutes + (policy&.buffer_time_minutes || 15)
+      special_rules.table_usage_minutes
     else
       dining_duration_with_buffer
     end
@@ -364,45 +435,58 @@ class Restaurant < ApplicationRecord
     policy&.allow_table_combinations? || false
   end
 
-  # 根據餐期和預約間隔產生可選時間
-  def generate_time_slots_for_period(business_period, date = Date.current)
+  # 根據餐期和預約間隔產生可選時間（支援每日不同間隔）
+  def generate_time_slots_for_period(reservation_period, date = Date.current)
     slots = []
 
     # 餐期開始和結束時間 - 使用本地時間避免時區問題
-    start_time = business_period.local_start_time
-    end_time = business_period.local_end_time
+    start_time = reservation_period.local_start_time
+    end_time = reservation_period.local_end_time
 
-    # 結束時間提前2小時（預留用餐時間）
-    actual_end_time = end_time - 2.hours
+    # 獲取最小提前預訂時間（至少1小時）
+    minimum_advance_hours = [policy&.minimum_advance_hours || 1, 1].max
+    # 使用本地時區計算最早預訂時間
+    earliest_booking_time = Time.zone.now + minimum_advance_hours.hours
 
-    # 獲取最小提前預訂時間
-    minimum_advance_hours = policy&.minimum_advance_hours || 0
-    earliest_booking_time = Time.current + minimum_advance_hours.hours
+    # 使用該營業時段的間隔時間
+    interval_minutes = reservation_period.reservation_interval_minutes
 
-    # 從開始時間每隔 reservation_interval_minutes 產生一個時段
+    # 從開始時間每隔指定間隔產生一個時段
     current_time = start_time
 
-    while current_time <= actual_end_time
+    while current_time <= end_time
       # 正確組合日期和時間，保持時區一致性
       slot_datetime = Time.zone.parse("#{date} #{current_time.strftime('%H:%M')}")
 
-      # 跳過過去的時間，並檢查是否符合最小提前預訂時間
-      if slot_datetime >= earliest_booking_time
+      # 增強時間過濾邏輯
+      if date == Date.current
+        # 當天：必須符合最小提前預訂時間，且不能是過去的時間
+        if slot_datetime >= earliest_booking_time && slot_datetime > Time.zone.now
+          slots << {
+            time: current_time.strftime('%H:%M'),
+            datetime: slot_datetime,
+            reservation_period_id: reservation_period.id,
+            interval_minutes: interval_minutes
+          }
+        end
+      elsif slot_datetime >= earliest_booking_time
+        # 未來日期：只需符合最小提前預訂時間
         slots << {
           time: current_time.strftime('%H:%M'),
           datetime: slot_datetime,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id,
+          interval_minutes: interval_minutes
         }
       end
 
       # 增加間隔時間
-      current_time += reservation_interval_minutes.minutes
+      current_time += interval_minutes.minutes
     end
 
     slots
   end
 
-  # 取得指定日期的所有可用時間選項（優化版本）
+  # 取得指定日期的所有可用時間選項（每日設定版本）
   def available_time_options_for_date(date)
     # 使用實例變數快取，避免重複計算同一天的時間選項
     @time_options_cache ||= {}
@@ -414,70 +498,60 @@ class Restaurant < ApplicationRecord
 
     # 檢查是否有特殊訂位日
     special_date = special_date_for(date)
-    
+
     if special_date&.closed?
       # 如果是關閉日，回傳空陣列
       @time_options_cache[cache_key] = []
       return []
-    elsif special_date&.custom_hours?
-      # 如果是自訂時段，使用特殊訂位日的時段
-      available_time_slots = special_date.generate_available_time_slots
-      
-      available_time_slots.each do |time_slot|
-        slot_datetime = Time.zone.parse("#{date} #{time_slot}")
-        
-        slots << {
-          time: time_slot,
-          datetime: slot_datetime,
-          business_period_id: nil # 特殊訂位日不綁定特定餐期
-        }
-      end
-      
-      @time_options_cache[cache_key] = slots.sort_by { |slot| slot[:time] }
-      return slots.sort_by { |slot| slot[:time] }
     end
 
-    # 正常營業日：使用一般營業時段
+    # 自訂時段現在也通過 reservation_periods 處理，不需要特殊邏輯
+
+    # 正常營業日：首先檢查營業時間設定
     weekday = date.wday
+    operating_hour = operating_hours.for_weekday(weekday).first
 
-    # 使用實例變數快取活躍的營業時段，避免重複查詢
-    @cached_active_periods ||= business_periods.active.includes(:restaurant).to_a
+    # 如果沒有營業時間設定，回傳空陣列
+    unless operating_hour.present?
+      @time_options_cache[cache_key] = []
+      return []
+    end
 
-    @cached_active_periods.each do |period|
-      next unless period.operates_on_weekday?(weekday)
+    # 使用新的每日營業時段系統
+    periods = reservation_periods_for_date(date)
 
+    periods.each do |period|
+      # 統一使用 generate_time_slots_for_period 處理所有時段
       period_slots = generate_time_slots_for_period(period, date)
       slots.concat(period_slots)
     end
 
     # 快取結果
     @time_options_cache[cache_key] = slots.sort_by { |slot| slot[:time] }
+    slots.sort_by { |slot| slot[:time] }
   end
 
-  # 格式化營業時間供前台顯示
+  # 格式化營業時間供前台顯示（使用 operating_hour）
   def formatted_business_hours
-    # 初始化所有週次的資料 - 使用 Array.new 減少分配
-    formatted_hours = Array.new(7) do |day_of_week|
+    # 初始化所有週次的資料
+    formatted_hours = OperatingHour::CHINESE_WEEKDAYS.map do |day_of_week, _|
       { day_of_week: day_of_week, is_closed: true, periods: [] }
     end
 
     # 一次性載入所有需要的資料，避免 N+1 查詢
-    active_periods = business_periods.active.includes(:restaurant)
+    all_operating_hours = operating_hours.ordered
     recurring_closures = closure_dates.where(recurring: true)
 
-    # 處理營業時段
-    active_periods.each do |period|
-      period.days_of_week.each do |day_name|
-        day_index = WEEKDAY_MAPPING[day_name]
-        next unless day_index
+    # 處理每日營業時間
+    all_operating_hours.each do |operating_hour|
+      day_index = operating_hour.weekday
+      next unless day_index.between?(0, 6)
 
-        formatted_hours[day_index][:is_closed] = false
-        formatted_hours[day_index][:periods] << {
-          name: period.display_name_or_name,
-          start_time: period.start_time.strftime('%H:%M'),
-          end_time: period.end_time.strftime('%H:%M')
-        }
-      end
+      formatted_hours[day_index][:is_closed] = false
+      formatted_hours[day_index][:periods] << {
+        start_time: operating_hour.open_time.strftime('%H:%M'),
+        end_time: operating_hour.close_time.strftime('%H:%M')
+      }
     end
 
     # 處理週間重複公休日設定

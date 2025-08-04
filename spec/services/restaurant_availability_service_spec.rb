@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe RestaurantAvailabilityService, type: :service do
-  let(:restaurant) { create(:restaurant, :with_business_periods, :with_tables) }
+  let(:restaurant) { create(:restaurant, :with_reservation_periods, :with_tables) }
   let(:service) { described_class.new(restaurant) }
   let(:party_size) { 4 }
   let(:adults) { 3 }
@@ -65,7 +65,7 @@ RSpec.describe RestaurantAvailabilityService, type: :service do
       times.each do |time_slot|
         expect(time_slot).to have_key(:time)
         expect(time_slot).to have_key(:datetime)
-        expect(time_slot).to have_key(:business_period_id)
+        expect(time_slot).to have_key(:reservation_period_id)
       end
     end
 

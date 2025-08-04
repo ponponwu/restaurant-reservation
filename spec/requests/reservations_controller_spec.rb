@@ -6,8 +6,8 @@ RSpec.describe ReservationsController do
 
   before do
     # 確保餐廳有基本的營業設定 - 設定為全週營業以避免測試受當前日期影響
-    unless restaurant.business_periods.any?
-      create(:business_period,
+    unless restaurant.reservation_periods.any?
+      create(:reservation_period,
              restaurant: restaurant,
              days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
     end
@@ -70,7 +70,7 @@ RSpec.describe ReservationsController do
             time_slot: '18:00',
             adults: 3,
             children: 1,
-            business_period_id: restaurant.business_periods.first&.id
+            reservation_period_id: restaurant.reservation_periods.first&.id
           }
         end
 
@@ -118,7 +118,7 @@ RSpec.describe ReservationsController do
             time_slot: '18:00',
             adults: 3,
             children: 1,
-            business_period_id: restaurant.business_periods.first&.id
+            reservation_period_id: restaurant.reservation_periods.first&.id
           }
         end
 
@@ -182,7 +182,7 @@ RSpec.describe ReservationsController do
           time_slot: '18:00',
           adults: 4,
           children: 0,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
 
         expect do
@@ -221,7 +221,7 @@ RSpec.describe ReservationsController do
           time_slot: '18:00',
           adults: 4,
           children: 0,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
 
         expect do
@@ -277,7 +277,7 @@ RSpec.describe ReservationsController do
           time_slot: '18:00',
           adults: 4,
           children: 0,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
 
         expect do
@@ -309,7 +309,7 @@ RSpec.describe ReservationsController do
           time_slot: '18:00',
           adults: 4,
           children: 0,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
 
         expect do
@@ -431,7 +431,7 @@ RSpec.describe ReservationsController do
           time_slot: '18:00',
           adults: 3,
           children: 1,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
       end
 
@@ -473,7 +473,7 @@ RSpec.describe ReservationsController do
           time_slot: '19:00',
           adults: 2,
           children: 0,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
       end
 
@@ -520,13 +520,13 @@ RSpec.describe ReservationsController do
           time_slot: '18:30',
           adults: 2,
           children: 0,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
       end
 
       before do
         # 確保餐廳有營業時段和桌位
-        create(:business_period, restaurant: restaurant) unless restaurant.business_periods.any?
+        create(:reservation_period, restaurant: restaurant) unless restaurant.reservation_periods.any?
         unless restaurant.restaurant_tables.any?
           table_group = restaurant.table_groups.first || restaurant.table_groups.create!(
             name: '主要區域',
@@ -563,7 +563,7 @@ RSpec.describe ReservationsController do
           time_slot: '18:00',
           adults: 3,
           children: 1,
-          business_period_id: restaurant.business_periods.first&.id
+          reservation_period_id: restaurant.reservation_periods.first&.id
         }
       end
 

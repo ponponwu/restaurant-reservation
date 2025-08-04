@@ -1,24 +1,25 @@
 <div class="bg-white shadow rounded-lg mb-8">
   <div class="border-b border-gray-200">
     <nav class="-mb-px flex space-x-8" aria-label="Tabs">
-      <!-- 營業時段 -->
-      <%= link_to admin_restaurant_settings_restaurant_business_periods_path(restaurant),
-          class: "#{current_tab == 'business_periods' ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center",
+      <!-- 餐廳設定 -->
+      <%= link_to admin_restaurant_settings_restaurant_restaurant_settings_path(restaurant),
+          class: "#{current_tab == 'restaurant_settings' ? 'border-blue-500 text-blue-700 bg-blue-100 shadow-sm' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'} whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center rounded-t-lg transition-all duration-200",
           data: { turbo_prefetch: false } do %>
         <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        營業時段
-        <% if current_tab == 'business_periods' %>
-          <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-            <%= restaurant.business_periods.active.count %>
-          </span>
-        <% end %>
+        餐廳設定
       <% end %>
       
+      <!-- 營業時段 -->
+      
+      
+      <!-- 週別營業時段 -->
+      
+
       <!-- 特殊日期 (新系統) -->
       <%= link_to admin_restaurant_settings_restaurant_special_dates_path(restaurant),
-          class: "#{current_tab == 'special_dates' ? 'border-purple-500 text-purple-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center",
+          class: "#{current_tab == 'special_dates' ? 'border-purple-500 text-purple-700 bg-purple-100 shadow-sm' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'} whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center rounded-t-lg transition-all duration-200",
           data: { turbo_prefetch: false } do %>
         <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -26,29 +27,14 @@
         特殊日期
         <% if current_tab == 'special_dates' %>
           <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-purple-100 text-purple-800">
-            <%= restaurant.special_reservation_dates.active.count %>
-          </span>
-        <% end %>
-      <% end %>
-      
-      <!-- 公休管理 (舊系統) -->
-      <%= link_to admin_restaurant_settings_restaurant_closure_dates_path(restaurant),
-          class: "#{current_tab == 'closure_dates' ? 'border-red-500 text-red-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center",
-          data: { turbo_prefetch: false } do %>
-        <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3a2 2 0 012-2h4a2 2 0 012 2v4m-6 4l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-        公休管理 (舊)
-        <% if current_tab == 'closure_dates' %>
-          <span class="ml-2 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
-            <%= restaurant.closure_dates.where('date >= ?', Date.current).count %>
+            <%= restaurant.special_reservation_dates.count %>
           </span>
         <% end %>
       <% end %>
       
       <!-- 預約規則 -->
       <%= link_to admin_restaurant_settings_restaurant_reservation_policies_path(restaurant),
-          class: "#{current_tab == 'reservation_policies' ? 'border-green-500 text-green-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center",
+          class: "#{current_tab == 'reservation_policies' ? 'border-green-500 text-green-700 bg-green-100 shadow-sm' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300 hover:bg-gray-50'} whitespace-nowrap py-4 px-4 border-b-2 font-medium text-sm flex items-center rounded-t-lg transition-all duration-200",
           data: { turbo_prefetch: false } do %>
         <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
@@ -75,7 +61,14 @@
   <!-- 選項卡說明 -->
   <div class="px-6 py-4 bg-gray-50">
     <% case current_tab %>
-    <% when 'business_periods' %>
+    <% when 'restaurant_settings' %>
+      <div class="flex items-center text-sm text-gray-600">
+        <svg class="mr-2 h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+        設定餐廳的基本營業時間，管理每週七天的營業狀態和時間範圍
+      </div>
+    <% when 'reservation_periods' %>
       <div class="flex items-center text-sm text-gray-600">
         <svg class="mr-2 h-4 w-4 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
@@ -91,10 +84,10 @@
       </div>
     <% when 'closure_dates' %>
       <div class="flex items-center text-sm text-gray-600">
-        <svg class="mr-2 h-4 w-4 text-red-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <svg class="mr-2 h-4 w-4 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
         </svg>
-        舊版公休日管理系統 (建議使用新版特殊日期功能)
+        管理每週營業時段，為每個星期幾設定個別的餐期時間和預約間隔
       </div>
     <% when 'reservation_policies' %>
       <div class="flex items-center text-sm text-gray-600">

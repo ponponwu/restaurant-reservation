@@ -6,7 +6,7 @@ RSpec.describe 'Admin Available Days API' do
 
   before do
     # 設定餐廳的營業時段
-    @lunch_period = restaurant.business_periods.create!(
+    @lunch_period = restaurant.reservation_periods.create!(
       name: 'lunch',
       display_name: '午餐',
       start_time: '11:30',
@@ -15,7 +15,7 @@ RSpec.describe 'Admin Available Days API' do
       active: true
     )
 
-    @dinner_period = restaurant.business_periods.create!(
+    @dinner_period = restaurant.reservation_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
       start_time: '17:30',

@@ -7,7 +7,7 @@ RSpec.describe '前端日曆整合測試', :js, type: :system do
   # Test Setup
   # ----------------------------------------------------------------
   let!(:restaurant) { create(:restaurant, name: '測試餐廳') }
-  let!(:business_period) { create(:business_period, restaurant: restaurant, name: '晚餐時段', start_time: '18:00', end_time: '21:00') }
+  let!(:reservation_period) { create(:reservation_period, restaurant: restaurant, name: '晚餐時段', start_time: '18:00', end_time: '21:00') }
   let!(:table) { create(:table, restaurant: restaurant, capacity: 4, max_capacity: 4) }
 
   before do
@@ -27,7 +27,7 @@ RSpec.describe '前端日曆整合測試', :js, type: :system do
       let(:next_monday) { Date.current.next_occurring(:monday) }
 
       before do
-        business_period.update!(days_of_week: %w[tuesday wednesday thursday friday saturday sunday])
+        reservation_period.update!(days_of_week: %w[tuesday wednesday thursday friday saturday sunday])
         visit restaurant_public_path(restaurant.slug)
         expect(page).to have_css('.flatpickr-calendar', wait: 5)
       end

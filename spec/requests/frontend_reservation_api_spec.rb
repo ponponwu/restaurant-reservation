@@ -2,13 +2,13 @@ require 'rails_helper'
 
 RSpec.describe 'Frontend Reservation API' do
   let(:restaurant) { create(:restaurant) }
-  let(:business_period) { create(:business_period, restaurant: restaurant) }
+  let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
   let(:table) { create(:table, restaurant: restaurant, table_group: table_group) }
 
   before do
     # 確保餐廳有完整設定
-    business_period
+    reservation_period
     table
     restaurant.reservation_policy.update!(reservation_enabled: true)
   end
@@ -25,7 +25,7 @@ RSpec.describe 'Frontend Reservation API' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
     end
 
@@ -235,7 +235,7 @@ RSpec.describe 'Frontend Reservation API' do
         adults: 2,
         children: 0,
         time: '18:00',
-        period_id: business_period.id
+        period_id: reservation_period.id
       }
     end
 

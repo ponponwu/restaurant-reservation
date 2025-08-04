@@ -226,12 +226,6 @@ class Admin::TablesController < AdminController
                   end
   end
 
-  def check_restaurant_access
-    return if current_user.can_manage_restaurant?(@restaurant)
-
-    redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的桌位管理'
-  end
-
   def set_table_group
     @table_group = @restaurant.table_groups.find(params[:table_group_id]) if params[:table_group_id]
   end

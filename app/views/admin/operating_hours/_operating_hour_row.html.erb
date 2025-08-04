@@ -1,0 +1,119 @@
+<%# 
+  Operating Hour Row - supports both display and edit modes
+  Variables:
+  - operating_hour: OperatingHour object (can be persisted or new)
+  - restaurant: Restaurant object
+  - edit_mode: boolean (optional, defaults to false for persisted records, true for new)
+%>
+<% edit_mode = local_assigns.fetch(:edit_mode, !operating_hour.persisted?) %>
+<% row_id = operating_hour.persisted? ? "operating_hour_#{operating_hour.id}" : "new_operating_hour_#{operating_hour.weekday}" %>
+
+<%= turbo_frame_tag row_id do %>
+  <div class="bg-white border border-gray-200 rounded-lg p-4 mb-3" 
+       data-controller="admin-operating-hour-row"
+       data-admin-operating-hour-row-edit-mode-value="<%= edit_mode %>">
+
+    <% if edit_mode %>
+      <!-- 編輯模式表單 -->
+      <%= form_with model: [:admin, @restaurant, operating_hour], 
+                    local: false,
+                    data: {
+                      action: "submit->admin-operating-hour-row#handleFormSubmit",
+                      turbo_frame: row_id
+                    },
+                    class: "space-y-4 #{'new-operating-hour-form' unless operating_hour.persisted?}" do |form| %>
+        
+        <!-- 隱藏欄位：weekday -->
+        <% if operating_hour.weekday.present? %>
+          <%= form.hidden_field :weekday, value: operating_hour.weekday %>
+        <% end %>
+        
+        <div class="flex items-center space-x-4">
+          
+          <!-- 時間輸入 -->
+          <div class="flex items-center space-x-2">
+            <%= form.label :open_time, "開始時間", class: "text-sm text-gray-700" %>
+            <%= form.time_field :open_time, 
+                               value: operating_hour.open_time&.strftime('%H:%M'),
+                               class: "block w-30 rounded border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm",
+                               required: true %>
+          </div>
+          
+          <div class="flex items-center space-x-2">
+            <%= form.label :close_time, "結束時間", class: "text-sm text-gray-700" %>
+            <%= form.time_field :close_time, 
+                               value: operating_hour.close_time&.strftime('%H:%M'),
+                               class: "block w-30 rounded border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 text-sm",
+                               required: true %>
+          </div>
+
+          <button type="submit" 
+                  class="inline-flex items-center px-3 py-1.5 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500">
+            <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path>
+            </svg>
+            <%= operating_hour.persisted? ? '更新' : '儲存' %>
+          </button>
+          
+          <button type="button" 
+                  class="inline-flex items-center px-3 py-1.5 border border-gray-300 text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
+                  data-action="click->admin-operating-hour-row#cancelEdit">
+            取消
+          </button>
+          
+        </div>
+        
+        <!-- 錯誤訊息 -->
+        <% if operating_hour.errors.any? %>
+          <div class="bg-red-50 border border-red-200 rounded-md p-3">
+            <div class="text-sm text-red-600">
+              <ul class="list-disc list-inside space-y-1">
+                <% operating_hour.errors.full_messages.each do |message| %>
+                  <li><%= message %></li>
+                <% end %>
+              </ul>
+            </div>
+          </div>
+        <% end %>
+      <% end %>
+      
+    <% else %>
+      <!-- 顯示模式 -->
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-4">
+          
+          
+          <!-- 時間顯示 -->
+          <div class="flex items-center space-x-2">
+            <span class="text-sm text-gray-700 cursor-pointer hover:text-indigo-600 hover:underline"
+                  data-action="click->admin-operating-hour-row#enterEditMode">
+              <%= operating_hour.open_time&.strftime('%H:%M') || '未設定' %> - 
+              <%= operating_hour.close_time&.strftime('%H:%M') || '未設定' %>
+            </span>
+          </div>
+        </div>
+        
+        <!-- 操作按鈕 -->
+        <div class="flex items-center space-x-2">
+          <button type="button" 
+                  class="text-indigo-600 hover:text-indigo-900 text-sm font-medium"
+                  data-action="click->admin-operating-hour-row#enterEditMode">
+            編輯
+          </button>
+          
+          <% if operating_hour.persisted? %>
+            <%= button_to '刪除', 
+                          admin_restaurant_operating_hour_path(@restaurant, operating_hour), 
+                          method: :delete,
+                          class: "text-red-600 hover:text-red-900 text-sm font-medium",
+                          form_class: "inline-block",
+                          data: { 
+                            "turbo-confirm": "確定要刪除這個營業時間嗎？",
+                            turbo_stream: true 
+                          } %>
+          <% end %>
+        </div>
+      </div>
+    <% end %>
+  </div>
+<% end %>

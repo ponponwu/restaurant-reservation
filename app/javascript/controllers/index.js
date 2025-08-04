@@ -16,6 +16,9 @@ application.register('closure-dates', ClosureDatesController)
 import ConfirmationController from './confirmation_controller'
 application.register('confirmation', ConfirmationController)
 
+import DailyReservationPeriodsController from './daily_reservation_periods_controller'
+application.register('daily-reservation-periods', DailyReservationPeriodsController)
+
 import DiningSettingsController from './dining_settings_controller'
 application.register('dining-settings', DiningSettingsController)
 
@@ -25,14 +28,17 @@ application.register('dropdown', DropdownController)
 import FlashController from './flash_controller'
 application.register('flash', FlashController)
 
-import FormValidationController from "./form_validation_controller"
-application.register("form-validation", FormValidationController)
+import FormValidationController from './form_validation_controller'
+application.register('form-validation', FormValidationController)
 
-import HelloController from "./hello_controller"
-application.register("hello", HelloController)
+import HelloController from './hello_controller'
+application.register('hello', HelloController)
 
 import ModalController from './modal_controller'
 application.register('modal', ModalController)
+
+import PeriodEditorController from './period_editor_controller'
+application.register('period-editor', PeriodEditorController)
 
 import ReservationCalendarController from './reservation_calendar_controller'
 application.register('reservation-calendar', ReservationCalendarController)
@@ -52,14 +58,32 @@ application.register('restaurant-info', RestaurantInfoController)
 import RestaurantManagementController from './restaurant_management_controller'
 application.register('restaurant-management', RestaurantManagementController)
 
-import SidebarController from "./sidebar_controller"
-application.register("sidebar", SidebarController)
+import SidebarController from './sidebar_controller'
+application.register('sidebar', SidebarController)
 
-import SortableController from "./sortable_controller"
-application.register("sortable", SortableController)
+import SortableController from './sortable_controller'
+application.register('sortable', SortableController)
 
-import SpecialDateFormController from "./special_date_form_controller"
-application.register("special-date-form", SpecialDateFormController)
+import SpecialDateFormController from './special_date_form_controller'
+application.register('special-date-form', SpecialDateFormController)
 
-import SpecialDatesController from "./special_dates_controller"
-application.register("special-dates", SpecialDatesController)
+import SpecialDatesController from './special_dates_controller'
+application.register('special-dates', SpecialDatesController)
+
+import TurboModalController from './turbo_modal_controller'
+application.register('turbo-modal', TurboModalController)
+
+import WeeklyReservationPeriodsController from './weekly_reservation_periods_controller'
+application.register('weekly-reservation-periods', WeeklyReservationPeriodsController)
+
+import OperatingHoursController from './operating_hours_controller'
+application.register('operating-hours', OperatingHoursController)
+
+import OperatingHourRowController from './operating_hour_row_controller'
+application.register('operating-hour-row', OperatingHourRowController)
+
+import AdminOperatingHoursController from './admin_operating_hours_controller'
+application.register('admin-operating-hours', AdminOperatingHoursController)
+
+import AdminOperatingHourRowController from './admin_operating_hour_row_controller'
+application.register('admin-operating-hour-row', AdminOperatingHourRowController)

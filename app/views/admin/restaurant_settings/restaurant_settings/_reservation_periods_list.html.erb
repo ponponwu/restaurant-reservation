@@ -1,0 +1,25 @@
+<% if reservation_periods.any? %>
+  <div class="space-y-4">
+    <% reservation_periods.each do |period| %>
+      <%= render 'admin/restaurant_settings/restaurant_settings/reservation_period_item', period: period, restaurant: restaurant %>
+    <% end %>
+  </div>
+<% else %>
+  <div class="text-center py-12">
+    <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+    </svg>
+    <h3 class="mt-2 text-sm font-medium text-gray-900">尚未設定營業時段</h3>
+    <p class="mt-1 text-sm text-gray-500">開始建立您的第一個營業時段</p>
+    <div class="mt-6">
+      <%= link_to new_admin_restaurant_reservation_period_path(restaurant),
+          class: "inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+          data: { action: "click->modal#openRemote", turbo_prefetch: false } do %>
+        <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+        </svg>
+        新增營業時段
+      <% end %>
+    </div>
+  </div>
+<% end %>

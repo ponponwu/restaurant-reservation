@@ -3,7 +3,7 @@ require 'rails_helper'
 RSpec.describe '複雜訂位情境系統測試' do
   let!(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let!(:admin_user) { create(:user, :super_admin, restaurant: restaurant) }
-  let!(:business_period) { create(:business_period, restaurant: restaurant) }
+  let!(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
 
   # 建立桌位群組
   let!(:square_table_group) { create(:table_group, name: '方桌區', restaurant: restaurant) }
@@ -77,7 +77,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       set_reservation_date(target_date.to_date)
 
       # 選擇餐期
-      select_business_period_safely
+      select_reservation_period_safely
 
       # 設定時間
       set_reservation_time('12:00')
@@ -98,7 +98,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       # 建立一個簡單的衝突情況
       existing_reservation = create(:reservation, :confirmed,
                                     restaurant: restaurant,
-                                    business_period: business_period,
+                                    reservation_period: reservation_period,
                                     table: square_tables.first,
                                     customer_name: '先存在的客戶',
                                     party_size: 2,
@@ -119,7 +119,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       target_datetime = existing_reservation.reservation_datetime
 
       set_reservation_date(target_datetime.to_date)
-      select_business_period_safely
+      select_reservation_period_safely
       set_reservation_time('12:00')
       set_reservation_datetime(target_datetime)
 
@@ -149,7 +149,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       target_datetime = target_date.change(hour: 18, min: 0)
 
       set_reservation_date(target_date.to_date)
-      select_business_period_safely
+      select_reservation_period_safely
       set_reservation_time('18:00')
       set_reservation_datetime(target_datetime)
 
@@ -195,7 +195,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       existing_datetime = 1.day.from_now.change(hour: 12, min: 0)
       create(:reservation, :confirmed,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              table: square_tables.first,
              customer_name: '已存在客戶',
              customer_phone: '0900000000',
@@ -216,7 +216,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       # 設定重疊時間
       conflict_datetime = existing_datetime + 30.minutes
       set_reservation_date(conflict_datetime.to_date)
-      select_business_period_safely
+      select_reservation_period_safely
       set_reservation_time('12:30')
       set_reservation_datetime(conflict_datetime)
 
@@ -237,7 +237,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       # 簡化測試：只建立一個預約作為範例
       create(:reservation, :confirmed,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              table: square_tables.first,
              customer_name: '已有客戶',
              party_size: 2,
@@ -257,7 +257,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       # 設定相同時間段
       target_date = 1.day.from_now.to_date
       set_reservation_date(target_date)
-      select_business_period_safely
+      select_reservation_period_safely
       set_reservation_time('19:00')
       set_reservation_datetime(1.day.from_now.change(hour: 19, min: 0))
 
@@ -299,7 +299,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       target_datetime = 1.day.from_now.change(hour: 18, min: 30)
 
       set_reservation_date(target_date)
-      select_business_period_safely
+      select_reservation_period_safely
       set_reservation_time('18:30')
       set_reservation_datetime(target_datetime)
 
@@ -341,7 +341,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       target_datetime = 1.day.from_now.change(hour: 18, min: 0)
 
       set_reservation_date(target_date)
-      select_business_period_safely
+      select_reservation_period_safely
       set_reservation_time('18:00')
       set_reservation_datetime(target_datetime)
 
@@ -367,7 +367,7 @@ RSpec.describe '複雜訂位情境系統測試' do
     let!(:existing_reservation) do
       create(:reservation, :confirmed,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              table: square_tables.first,
              customer_name: '可修改客戶',
              customer_phone: '0955555555',
@@ -410,7 +410,7 @@ RSpec.describe '複雜訂位情境系統測試' do
       # 建立等候清單訂位（使用pending狀態）
       waiting_reservation = create(:reservation,
                                    restaurant: restaurant,
-                                   business_period: business_period,
+                                   reservation_period: reservation_period,
                                    customer_name: '等候客戶',
                                    party_size: 2,
                                    status: 'pending',
@@ -505,36 +505,36 @@ RSpec.describe '複雜訂位情境系統測試' do
     page.execute_script("document.dispatchEvent(new Event('change'));")
   end
 
-  def select_business_period_safely
+  def select_reservation_period_safely
     # 等待頁面穩定
-    expect(page).to have_css('select[name="reservation[business_period_id]"]', wait: 5)
+    expect(page).to have_css('select[name="reservation[reservation_period_id]"]', wait: 5)
 
     # 嘗試多種選擇器找到餐期下拉選單
-    business_period_selected = false
+    reservation_period_selected = false
 
     # 方法1：使用name屬性
-    if page.has_css?('select[name="reservation[business_period_id]"]')
-      select_element = page.find('select[name="reservation[business_period_id]"]')
+    if page.has_css?('select[name="reservation[reservation_period_id]"]')
+      select_element = page.find('select[name="reservation[reservation_period_id]"]')
       period_options = select_element.all('option').reject { |opt| opt.text.include?('請選擇') || opt.value.blank? }
       if period_options.any?
-        select period_options.first.text, from: 'reservation[business_period_id]'
-        business_period_selected = true
+        select period_options.first.text, from: 'reservation[reservation_period_id]'
+        reservation_period_selected = true
       end
     end
 
     # 方法2：使用ID
-    if !business_period_selected && page.has_css?('#reservation_business_period_id')
-      select_element = page.find_by_id('reservation_business_period_id')
+    if !reservation_period_selected && page.has_css?('#reservation_reservation_period_id')
+      select_element = page.find_by_id('reservation_reservation_period_id')
       period_options = select_element.all('option').reject { |opt| opt.text.include?('請選擇') || opt.value.blank? }
       if period_options.any?
-        select period_options.first.text, from: 'reservation_business_period_id'
-        business_period_selected = true
+        select period_options.first.text, from: 'reservation_reservation_period_id'
+        reservation_period_selected = true
       end
     end
 
     # 觸發change事件
-    page.execute_script("document.dispatchEvent(new Event('change'));") if business_period_selected
-    business_period_selected
+    page.execute_script("document.dispatchEvent(new Event('change'));") if reservation_period_selected
+    reservation_period_selected
   end
 
   def select_available_table
@@ -625,7 +625,7 @@ RSpec.describe '複雜訂位情境系統測試' do
     all_tables.each_with_index do |table, index|
       create(:reservation, :confirmed,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              table: table,
              customer_name: "客滿客戶#{index}",
              customer_phone: "090000#{index.to_s.rjust(4, '0')}",
@@ -642,7 +642,7 @@ RSpec.describe '複雜訂位情境系統測試' do
     tables_to_fill.each_with_index do |table, index|
       create(:reservation, :confirmed,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              table: table,
              customer_name: "忙碌客戶#{index}",
              customer_phone: "091000#{index.to_s.rjust(4, '0')}",
@@ -662,13 +662,13 @@ RSpec.describe '複雜訂位情境系統測試' do
     false
   end
 
-  def select_business_period_manually
+  def select_reservation_period_manually
     # 手動選擇餐期，適用於複雜的測試場景
-    if page.has_css?('select[name="reservation[business_period_id]"]')
-      select_element = page.find('select[name="reservation[business_period_id]"]')
+    if page.has_css?('select[name="reservation[reservation_period_id]"]')
+      select_element = page.find('select[name="reservation[reservation_period_id]"]')
       period_options = select_element.all('option').reject { |opt| opt.text.include?('請選擇') || opt.value.blank? }
       if period_options.any?
-        select period_options.first.text, from: 'reservation[business_period_id]'
+        select period_options.first.text, from: 'reservation[reservation_period_id]'
         return true
       end
     end

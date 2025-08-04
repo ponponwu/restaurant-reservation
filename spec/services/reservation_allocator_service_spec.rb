@@ -6,8 +6,8 @@ RSpec.describe ReservationAllocatorService, type: :service do
   let!(:table_group_square) { create(:table_group, restaurant: restaurant, name: '方桌', sort_order: 2) }
   let!(:table_group_bar) { create(:table_group, restaurant: restaurant, name: '吧台', sort_order: 3) }
 
-  let!(:business_period) do
-    create(:business_period,
+  let!(:reservation_period) do
+    create(:reservation_period,
            restaurant: restaurant,
            start_time: '11:30',
            end_time: '14:30',
@@ -40,7 +40,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         it '為5人分配窗邊圓桌' do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 5,
                                adults_count: 5,
                                children_count: 0,
@@ -57,7 +57,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         it '為4人分配窗邊圓桌' do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 4,
                                adults_count: 4,
                                children_count: 0,
@@ -73,7 +73,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         it '為2人分配方桌' do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 2,
                                adults_count: 2,
                                children_count: 0,
@@ -92,7 +92,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         it '1人應優先分配到方桌而非吧台' do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 1,
                                adults_count: 1,
                                children_count: 0,
@@ -111,7 +111,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
             @square_tables.each do |table|
               create(:reservation, :confirmed,
                      restaurant: restaurant,
-                     business_period: business_period,
+                     reservation_period: reservation_period,
                      table: table,
                      party_size: 2,
                      adults_count: 2,
@@ -123,7 +123,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           it '1人應分配到吧台' do
             reservation = create(:reservation,
                                  restaurant: restaurant,
-                                 business_period: business_period,
+                                 reservation_period: reservation_period,
                                  party_size: 1,
                                  adults_count: 1,
                                  children_count: 0,
@@ -145,7 +145,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '拒絕超過窗邊圓桌上限的6人訂位' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 6,
                              adults_count: 6,
                              children_count: 0,
@@ -160,7 +160,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '拒絕低於窗邊圓桌下限的3人訂位（當無法併桌時）' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 3,
                              adults_count: 3,
                              children_count: 0,
@@ -176,7 +176,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         total_capacity = restaurant.total_capacity
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: total_capacity + 1,
                              adults_count: total_capacity + 1,
                              children_count: 0,
@@ -197,7 +197,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           # 佔用窗邊圓桌
           create(:reservation, :confirmed,
                  restaurant: restaurant,
-                 business_period: business_period,
+                 reservation_period: reservation_period,
                  table: @window_table,
                  party_size: 5,
                  adults_count: 5,
@@ -208,7 +208,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           @square_tables.each do |table|
             create(:reservation, :confirmed,
                    restaurant: restaurant,
-                   business_period: business_period,
+                   reservation_period: reservation_period,
                    table: table,
                    party_size: 2,
                    adults_count: 2,
@@ -220,7 +220,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           @bar_tables.each do |table|
             create(:reservation, :confirmed,
                    restaurant: restaurant,
-                   business_period: business_period,
+                   reservation_period: reservation_period,
                    table: table,
                    party_size: 1,
                    adults_count: 1,
@@ -232,7 +232,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         it '應該拒絕新的訂位' do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 1,
                                adults_count: 1,
                                children_count: 0,
@@ -250,7 +250,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           # 第一個訂位
           first_reservation = create(:reservation,
                                      restaurant: restaurant,
-                                     business_period: business_period,
+                                     reservation_period: reservation_period,
                                      party_size: 2,
                                      adults_count: 2,
                                      children_count: 0,
@@ -263,7 +263,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           # 第二個訂位
           second_reservation = create(:reservation,
                                       restaurant: restaurant,
-                                      business_period: business_period,
+                                      reservation_period: reservation_period,
                                       party_size: 2,
                                       adults_count: 2,
                                       children_count: 0,
@@ -284,7 +284,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       let(:dinner_time) { 1.day.from_now.change(hour: 18, min: 0) }
 
       let(:dinner_period) do
-        create(:business_period,
+        create(:reservation_period,
                restaurant: restaurant,
                name: '晚餐時段',
                start_time: '17:30',
@@ -299,7 +299,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 午餐時段訂位
         lunch_reservation = create(:reservation,
                                    restaurant: restaurant,
-                                   business_period: business_period,
+                                   reservation_period: reservation_period,
                                    party_size: 5,
                                    adults_count: 5,
                                    children_count: 0,
@@ -312,7 +312,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 晚餐時段訂位
         dinner_reservation = create(:reservation,
                                     restaurant: restaurant,
-                                    business_period: dinner_period,
+                                    reservation_period: dinner_period,
                                     party_size: 5,
                                     adults_count: 5,
                                     children_count: 0,
@@ -333,7 +333,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '有兒童時不應分配吧台座位' do
         reservation = create(:reservation, :with_children,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              reservation_datetime: reservation_time)
 
         service = described_class.new(reservation)
@@ -351,7 +351,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 建立並分配訂位
         original_reservation = create(:reservation,
                                       restaurant: restaurant,
-                                      business_period: business_period,
+                                      reservation_period: reservation_period,
                                       party_size: 2,
                                       adults_count: 2,
                                       children_count: 0,
@@ -367,13 +367,13 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 新的訂位應該可以分配到相同桌位
         new_reservation = create(:reservation,
                                  restaurant: restaurant,
-                                 business_period: business_period,
+                                 reservation_period: reservation_period,
                                  party_size: 2,
                                  adults_count: 2,
                                  children_count: 0,
                                  reservation_datetime: reservation_time)
 
-        # 確保 business_period_id 正確設置
+        # 確保 reservation_period_id 正確設置
         new_reservation.reload
         new_service = described_class.new(new_reservation)
         new_table = new_service.allocate_table
@@ -394,7 +394,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         it '應該拒絕所有訂位' do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 2,
                                adults_count: 2,
                                children_count: 0,
@@ -411,7 +411,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         total_capacity = restaurant.total_capacity
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: total_capacity,
                              adults_count: total_capacity,
                              children_count: 0,
@@ -436,7 +436,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         5.times do
           reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                party_size: 2,
                                adults_count: 2,
                                children_count: 0,
@@ -464,7 +464,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
     let(:reservation) do
       create(:reservation,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              party_size: 2,
              adults_count: 2,
              children_count: 0,
@@ -484,7 +484,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 佔用一張方桌
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: @square_tables.first,
                party_size: 2,
                adults_count: 2,
@@ -506,7 +506,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
     let(:reservation) do
       create(:reservation,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              party_size: 2,
              adults_count: 2,
              children_count: 0,
@@ -528,7 +528,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '正確回報有可用性' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 2,
                              adults_count: 2,
                              children_count: 0,
@@ -556,7 +556,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         @square_tables.each do |table|
           create(:reservation, :confirmed,
                  restaurant: restaurant,
-                 business_period: business_period,
+                 reservation_period: reservation_period,
                  table: table,
                  party_size: 2,
                  adults_count: 2,
@@ -567,7 +567,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 佔用窗邊圓桌
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: @window_table,
                party_size: 5,
                adults_count: 5,
@@ -579,7 +579,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 創建一個需要併桌的大型訂位
         large_reservation = create(:reservation,
                                    restaurant: restaurant,
-                                   business_period: business_period,
+                                   reservation_period: reservation_period,
                                    party_size: 3, # 需要併桌才能容納
                                    adults_count: 3,
                                    children_count: 0,
@@ -601,7 +601,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         @square_tables.each do |table|
           create(:reservation, :confirmed,
                  restaurant: restaurant,
-                 business_period: business_period,
+                 reservation_period: reservation_period,
                  table: table,
                  party_size: 2,
                  adults_count: 2,
@@ -611,7 +611,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
 
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: @window_table,
                party_size: 5,
                adults_count: 5,
@@ -621,7 +621,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         @bar_tables.each do |table|
           create(:reservation, :confirmed,
                  restaurant: restaurant,
-                 business_period: business_period,
+                 reservation_period: reservation_period,
                  table: table,
                  party_size: 1,
                  adults_count: 1,
@@ -633,7 +633,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '正確回報沒有可用性' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 2,
                              adults_count: 2,
                              children_count: 0,
@@ -656,7 +656,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
           adults: 2,
           children: 0,
           reservation_datetime: reservation_time,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         service = described_class.new(params)
@@ -681,7 +681,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '為大型聚會分配併桌' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 8,
                              adults_count: 8,
                              children_count: 0,
@@ -719,7 +719,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
 
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 4,
                              adults_count: 4,
                              children_count: 0,
@@ -750,7 +750,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '應該拒絕分配桌位' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 4,
                              adults_count: 4,
                              children_count: 0,
@@ -772,7 +772,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '應該正常分配桌位' do
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: business_period,
+                             reservation_period: reservation_period,
                              party_size: 4,
                              adults_count: 4,
                              children_count: 0,
@@ -789,7 +789,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
 
   # 無限用餐時間模式測試
   describe '無限用餐時間模式' do
-    let(:business_period) { create(:business_period, restaurant: restaurant, name: '午餐') }
+    let(:reservation_period) { create(:reservation_period, restaurant: restaurant, name: '午餐') }
     let(:table1) { create(:table, restaurant: restaurant, table_number: 'A1', capacity: 4) }
     let(:table2) { create(:table, restaurant: restaurant, table_number: 'A2', capacity: 4) }
 
@@ -803,7 +803,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 第一個訂位佔用桌位
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 1.day.from_now.change(hour: 12),
                party_size: 2,
@@ -813,7 +813,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 第二個訂位在同一餐期但不同時間，應該不能使用同一桌位
         second_reservation = create(:reservation,
                                     restaurant: restaurant,
-                                    business_period: business_period,
+                                    reservation_period: reservation_period,
                                     reservation_datetime: 1.day.from_now.change(hour: 13),
                                     party_size: 2,
                                     adults_count: 2,
@@ -826,12 +826,12 @@ RSpec.describe ReservationAllocatorService, type: :service do
       end
 
       it '不同餐期可以重複使用同一桌位' do
-        dinner_period = create(:business_period, restaurant: restaurant, name: '晚餐')
+        dinner_period = create(:reservation_period, restaurant: restaurant, name: '晚餐')
 
         # 午餐時段的訂位
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 1.day.from_now.change(hour: 12),
                party_size: 2,
@@ -841,7 +841,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 晚餐時段的訂位，可以使用同一桌位
         dinner_reservation = create(:reservation,
                                     restaurant: restaurant,
-                                    business_period: dinner_period,
+                                    reservation_period: dinner_period,
                                     reservation_datetime: 1.day.from_now.change(hour: 18),
                                     party_size: 2,
                                     adults_count: 2,
@@ -856,14 +856,13 @@ RSpec.describe ReservationAllocatorService, type: :service do
       it '忽略用餐時間和緩衝時間設定' do
         # 設定用餐時間，但在無限時模式下應該被忽略
         restaurant.reservation_policy.update!(
-          default_dining_duration_minutes: 60,
-          buffer_time_minutes: 30
+          default_dining_duration_minutes: 60
         )
 
         # 創建一個訂位
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 1.day.from_now.change(hour: 12),
                party_size: 2,
@@ -873,13 +872,13 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 在同一餐期的不同時間（但在傳統模式下會衝突的時間）
         new_reservation = create(:reservation,
                                  restaurant: restaurant,
-                                 business_period: business_period,
+                                 reservation_period: reservation_period,
                                  reservation_datetime: 1.day.from_now.change(hour: 12, min: 30),
                                  party_size: 2,
                                  adults_count: 2,
                                  children_count: 0)
 
-        # 確保 business_period_id 正確設置
+        # 確保 reservation_period_id 正確設置
         new_reservation.reload
         service = described_class.new(new_reservation)
         reserved_table_ids = service.send(:get_reserved_table_ids, new_reservation.reservation_datetime)
@@ -896,7 +895,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 在同一餐期已有一個4人訂位
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 1.day.from_now.change(hour: 12),
                party_size: 4,
@@ -906,13 +905,13 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 新的5人訂位應該被拒絕（4+5=9 > 8）
         new_reservation = create(:reservation,
                                  restaurant: restaurant,
-                                 business_period: business_period,
+                                 reservation_period: reservation_period,
                                  reservation_datetime: 1.day.from_now.change(hour: 13),
                                  party_size: 5,
                                  adults_count: 5,
                                  children_count: 0)
 
-        # 確保 business_period_id 正確設置
+        # 確保 reservation_period_id 正確設置
         new_reservation.reload
         service = described_class.new(new_reservation)
 
@@ -921,12 +920,12 @@ RSpec.describe ReservationAllocatorService, type: :service do
 
       it '不同餐期的容量獨立計算' do
         restaurant.update_column(:total_capacity, 8)
-        restaurant.reload dinner_period = create(:business_period, restaurant: restaurant, name: '晚餐')
+        restaurant.reload dinner_period = create(:reservation_period, restaurant: restaurant, name: '晚餐')
 
         # 午餐時段已有一個4人訂位
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 1.day.from_now.change(hour: 12),
                party_size: 4,
@@ -936,7 +935,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 晚餐時段的5人訂位應該被接受（不同餐期）
         dinner_reservation = create(:reservation,
                                     restaurant: restaurant,
-                                    business_period: dinner_period,
+                                    reservation_period: dinner_period,
                                     reservation_datetime: 1.day.from_now.change(hour: 18),
                                     party_size: 5,
                                     adults_count: 5,
@@ -962,7 +961,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 佔用其中一張可併桌的桌位
         existing_reservation = create(:reservation, :confirmed,
                                       restaurant: restaurant,
-                                      business_period: business_period,
+                                      reservation_period: reservation_period,
                                       table: table3,
                                       reservation_datetime: 1.day.from_now.change(hour: 12),
                                       party_size: 2,
@@ -972,13 +971,13 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 新的4人訂位需要併桌，但table3已被佔用
         new_reservation = create(:reservation,
                                  restaurant: restaurant,
-                                 business_period: business_period,
+                                 reservation_period: reservation_period,
                                  reservation_datetime: 1.day.from_now.change(hour: 13),
                                  party_size: 4,
                                  adults_count: 4,
                                  children_count: 0)
 
-        # 確保 business_period_id 正確設置
+        # 確保 reservation_period_id 正確設置
         new_reservation.reload
         service = described_class.new(new_reservation)
 
@@ -994,7 +993,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 先在無限時模式下創建訂位
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 1.day.from_now.change(hour: 12),
                party_size: 2,
@@ -1004,15 +1003,14 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 切換到限時模式
         restaurant.reservation_policy.update!(
           unlimited_dining_time: false,
-          default_dining_duration_minutes: 120,
-          buffer_time_minutes: 15
+          default_dining_duration_minutes: 120
         )
 
         # 新的訂位在5小時後（17點），在限時模式下應該可以使用同一桌位
-        # 12點訂位 + 2小時用餐 + 15分鐘緩衝 = 14:15 結束，17點開始應該沒問題
+        # 12點訂位 + 2小時用餐 = 14:00 結束，17點開始應該沒問題
         limited_reservation = create(:reservation,
                                      restaurant: restaurant,
-                                     business_period: business_period,
+                                     reservation_period: reservation_period,
                                      reservation_datetime: 1.day.from_now.change(hour: 17),
                                      party_size: 2,
                                      adults_count: 2,
@@ -1027,7 +1025,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
     end
 
     context '邊界情況測試' do
-      it '沒有business_period_id時不檢查衝突' do
+      it '沒有reservation_period_id時不檢查衝突' do
         reservation = create(:reservation,
                              restaurant: restaurant,
                              reservation_datetime: 1.day.from_now.change(hour: 12),
@@ -1046,7 +1044,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 今天的午餐
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table1,
                reservation_datetime: 2.days.from_now.change(hour: 12),
                party_size: 2,
@@ -1056,7 +1054,7 @@ RSpec.describe ReservationAllocatorService, type: :service do
         # 明天的午餐
         tomorrow_reservation = create(:reservation,
                                       restaurant: restaurant,
-                                      business_period: business_period,
+                                      reservation_period: reservation_period,
                                       reservation_datetime: 1.day.from_now.change(hour: 12),
                                       party_size: 2,
                                       adults_count: 2,

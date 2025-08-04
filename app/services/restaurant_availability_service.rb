@@ -23,11 +23,11 @@ class RestaurantAvailabilityService
       .to_a
 
     # 預載入營業時段資料
-    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
+    reservation_periods_cache = @restaurant.reservation_periods.active.index_by(&:id)
 
     (start_date..end_date).each do |date|
-      # 跳過今天，不允許當天預訂
-      next if date <= Date.current
+      # 跳過過去的日期，但允許當天預訂（時間過濾在 Restaurant 模型處理）
+      next if date < Date.current
 
       # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
       day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
@@ -37,7 +37,7 @@ class RestaurantAvailabilityService
         date,
         day_reservations,
         restaurant_tables,
-        business_periods_cache,
+        reservation_periods_cache,
         party_size
       )
 
@@ -68,10 +68,10 @@ class RestaurantAvailabilityService
 
     available_time_options.each do |time_option|
       datetime = time_option[:datetime]
-      business_period_id = time_option[:business_period_id]
+      reservation_period_id = time_option[:reservation_period_id]
 
       # 按營業時段分組訂位（在迴圈內過濾，但不重新查詢）
-      period_reservations = day_reservations.select { |r| r.business_period_id == business_period_id }
+      period_reservations = day_reservations.select { |r| r.reservation_period_id == reservation_period_id }
 
       # 檢查該時段是否有可用桌位
       next unless availability_service.has_availability_for_slot_optimized?(
@@ -79,13 +79,13 @@ class RestaurantAvailabilityService
         period_reservations,
         datetime,
         party_size,
-        business_period_id
+        reservation_period_id
       )
 
       available_times << {
         time: datetime.strftime('%H:%M'),
         datetime: datetime.iso8601,
-        business_period_id: business_period_id
+        reservation_period_id: reservation_period_id
       }
     end
 
@@ -110,11 +110,11 @@ class RestaurantAvailabilityService
       .to_a
 
     # 預載入營業時段資料
-    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
+    reservation_periods_cache = @restaurant.reservation_periods.active.index_by(&:id)
 
     (start_date..end_date).each do |date|
-      # 跳過今天，不允許當天預訂
-      next if date <= Date.current
+      # 跳過過去的日期，但允許當天預訂（時間過濾在 Restaurant 模型處理）
+      next if date < Date.current
 
       # 過濾出當天的訂位（在記憶體中過濾，不重新查詢）
       day_reservations = all_reservations.select { |r| r.reservation_datetime.to_date == date }
@@ -124,7 +124,7 @@ class RestaurantAvailabilityService
         date,
         day_reservations,
         restaurant_tables,
-        business_periods_cache,
+        reservation_periods_cache,
         party_size
       )
         return date
@@ -153,14 +153,14 @@ class RestaurantAvailabilityService
       .to_a
 
     # 預載入營業時段資料
-    business_periods_cache = @restaurant.business_periods.active.index_by(&:id)
+    reservation_periods_cache = @restaurant.reservation_periods.active.index_by(&:id)
 
     # 使用 AvailabilityService 的方法檢查可用性
     availability_service.has_availability_on_date_cached?(
       date,
       day_reservations,
       restaurant_tables,
-      business_periods_cache,
+      reservation_periods_cache,
       party_size
     )
   end
@@ -185,7 +185,7 @@ class RestaurantAvailabilityService
     @reservations_cache[cache_key] = @restaurant.reservations
       .where(status: %w[pending confirmed])
       .where('DATE(reservation_datetime) BETWEEN ? AND ?', start_date, end_date)
-      .includes(:business_period, :table)
+      .includes(:reservation_period, :table)
       .to_a
   end
 
@@ -221,7 +221,7 @@ class RestaurantAvailabilityService
     @reservations_cache[cache_key] = @restaurant.reservations
       .where(status: %w[pending confirmed])
       .where('DATE(reservation_datetime) = ?', date)
-      .includes(:business_period, :table)
+      .includes(:reservation_period, :table)
       .to_a
   end
 

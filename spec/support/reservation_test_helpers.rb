@@ -5,8 +5,8 @@ module ReservationTestHelpers
     table_capacity = options[:table_capacity] || 4
 
     # 確保有營業時段
-    unless restaurant.business_periods.any?
-      create(:business_period,
+    unless restaurant.reservation_periods.any?
+      create(:reservation_period,
              restaurant: restaurant,
              name: 'dinner',
              display_name: '晚餐',
@@ -56,11 +56,11 @@ module ReservationTestHelpers
 
     params = defaults.deep_merge(overrides)
 
-    # 自動添加 business_period_id 如果沒有提供
-    if params[:business_period_id].nil? && defined?(@restaurant)
-      params[:business_period_id] = @restaurant.business_periods.first&.id
-    elsif params[:business_period_id].nil? && defined?(restaurant)
-      params[:business_period_id] = restaurant.business_periods.first&.id
+    # 自動添加 reservation_period_id 如果沒有提供
+    if params[:reservation_period_id].nil? && defined?(@restaurant)
+      params[:reservation_period_id] = @restaurant.reservation_periods.first&.id
+    elsif params[:reservation_period_id].nil? && defined?(restaurant)
+      params[:reservation_period_id] = restaurant.reservation_periods.first&.id
     end
 
     params
@@ -88,7 +88,7 @@ module ReservationTestHelpers
         days_mask &= ~(2**day) # 移除指定的天
       end
 
-      restaurant.business_periods.update_all(days_of_week_mask: days_mask)
+      restaurant.reservation_periods.update_all(days_of_week_mask: days_mask)
     end
 
     # 特殊休息日
@@ -232,7 +232,7 @@ module ReservationTestHelpers
         period_name: '晚餐時段',
         time: '18:00',
         available: true,
-        business_period_id: @restaurant&.business_periods&.first&.id || 1
+        reservation_period_id: @restaurant&.reservation_periods&.first&.id || 1
       }
     ]
 

@@ -28,7 +28,7 @@ class Admin::RestaurantsController < AdminController
       total_tables: @restaurant.total_tables_count,
       total_capacity: @restaurant.total_capacity,
       available_tables: @restaurant.available_tables_count,
-      business_periods: @restaurant.business_periods.count
+      reservation_periods: @restaurant.reservation_periods.count
     }
   end
 
@@ -110,42 +110,6 @@ class Admin::RestaurantsController < AdminController
     end
   end
 
-  def toggle_status
-    # 檢查權限
-    unless current_user.super_admin?
-      respond_to do |format|
-        format.turbo_stream do
-          render turbo_stream: turbo_stream.update('flash_messages',
-                                                   partial: 'shared/flash',
-                                                   locals: { message: '您沒有權限修改餐廳狀態', type: 'error' })
-        end
-        format.html { redirect_to admin_restaurants_path, alert: '您沒有權限修改餐廳狀態' }
-        format.json { render json: { success: false, message: '權限不足' } }
-      end
-      return
-    end
-
-    @restaurant.update!(active: !@restaurant.active?)
-
-    respond_to do |format|
-      format.turbo_stream do
-        render turbo_stream: [
-          turbo_stream.replace("restaurant_#{@restaurant.id}",
-                               partial: 'restaurant_row',
-                               locals: { restaurant: @restaurant }),
-          turbo_stream.update('flash_messages',
-                              partial: 'shared/flash',
-                              locals: {
-                                message: "餐廳已#{@restaurant.active? ? '啟用' : '停用'}",
-                                type: 'success'
-                              })
-        ]
-      end
-      format.html { redirect_to admin_restaurants_path, notice: "餐廳已#{@restaurant.active? ? '啟用' : '停用'}" }
-      format.json { render json: { success: true, active: @restaurant.active? } }
-    end
-  end
-
   private
 
   def set_restaurant
@@ -155,12 +119,6 @@ class Admin::RestaurantsController < AdminController
                     # 餐廳管理員和員工只能存取自己的餐廳
                     Restaurant.where(id: current_user.restaurant_id).find_by!(slug: params[:id])
                   end
-  end
-
-  def check_restaurant_access
-    return if current_user.can_manage_restaurant?(@restaurant)
-
-    redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳'
   end
 
   def restaurant_params

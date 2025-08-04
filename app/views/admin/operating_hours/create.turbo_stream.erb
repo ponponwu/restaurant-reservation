@@ -1,0 +1,14 @@
+
+  <%= turbo_stream.append("weekday_#{@operating_hour.weekday}_operating_hours") do %>
+    <%= render 'operating_hour_row', operating_hour: @operating_hour, restaurant: @restaurant, edit_mode: false %>
+  <% end %>
+  
+  <%# 移除新增表單的 turbo_frame %>
+  <%= turbo_stream.remove("new_operating_hour_#{@operating_hour.weekday}") %>
+
+  
+  <%= turbo_stream.update('flash') do %>
+    <%= render 'shared/flash_message', 
+               message: '營業時間建立成功', 
+               type: 'success' %>
+  <% end %>

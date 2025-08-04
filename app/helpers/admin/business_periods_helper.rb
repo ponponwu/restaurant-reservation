@@ -1,2 +1,0 @@
-module Admin::BusinessPeriodsHelper
-end

@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe 'Restaurant Availability API', type: :request do
-  let(:restaurant) { create(:restaurant, :with_business_periods, :with_tables) }
+  let(:restaurant) { create(:restaurant, :with_reservation_periods, :with_tables) }
   let(:party_size) { 4 }
 
   before do
@@ -60,9 +60,9 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       json_response = JSON.parse(response.body)
       expect(json_response).to have_key('available_dates')
       expect(json_response).to have_key('has_capacity')
-      expect(json_response).to have_key('business_periods')
+      expect(json_response).to have_key('reservation_periods')
       expect(json_response['available_dates']).to be_an(Array)
-      expect(json_response['business_periods']).to be_an(Array)
+      expect(json_response['reservation_periods']).to be_an(Array)
     end
 
     it 'includes full_booked_until when no dates available but has capacity' do
@@ -268,7 +268,7 @@ RSpec.describe 'Restaurant Availability API', type: :request do
       times.each do |time_slot|
         expect(time_slot).to have_key('time')
         expect(time_slot).to have_key('datetime')
-        expect(time_slot).to have_key('business_period_id')
+        expect(time_slot).to have_key('reservation_period_id')
       end
     end
 

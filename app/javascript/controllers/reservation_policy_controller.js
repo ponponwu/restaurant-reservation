@@ -12,7 +12,6 @@ export default class extends Controller {
         'unlimitedCheckbox',
         'limitedTimeSettings',
         'diningDurationField',
-        'bufferTimeField',
         'durationPreview',
         'examplePreview',
     ]
@@ -200,9 +199,8 @@ export default class extends Controller {
         const diningMinutes = this.hasDiningDurationFieldTarget
             ? parseInt(this.diningDurationFieldTarget.value) || 120
             : 120
-        const bufferMinutes = this.hasBufferTimeFieldTarget ? parseInt(this.bufferTimeFieldTarget.value) || 15 : 15
 
-        const totalMinutes = diningMinutes + bufferMinutes
+        const totalMinutes = diningMinutes
         const hours = Math.floor(totalMinutes / 60)
         const minutes = totalMinutes % 60
 
@@ -225,7 +223,7 @@ export default class extends Controller {
             hour12: false,
         })
 
-        this.durationPreviewTarget.innerHTML = `總佔用時間：<span class="font-medium text-blue-600">${durationText}</span>`
-        this.examplePreviewTarget.innerHTML = `例如：18:00 訂位，桌位會被佔用到 <span class="font-medium text-blue-600">${endTimeString}</span>`
+        this.durationPreviewTarget.innerHTML = `用餐時間：<span class="font-medium text-blue-600">${durationText}</span>`
+        this.examplePreviewTarget.innerHTML = `例如：18:00 訂位，預計 <span class="font-medium text-blue-600">${endTimeString}</span> 用餐結束`
     }
 }

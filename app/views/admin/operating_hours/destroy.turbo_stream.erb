@@ -1,0 +1,33 @@
+<%# Turbo Stream response for successful operating hour deletion %>
+
+<% if request.referer&.include?('restaurant_settings') %>
+  <%# Restaurant settings page integration %>
+  <% weekday = @weekday %>
+  <% if weekday.present? %>
+    <% hours = @restaurant.operating_hours.for_weekday(weekday).sort_by { |p| p.sort_order || 0 } %>
+    <%= turbo_stream.update("weekday_#{weekday}_operating_hours") do %>
+      <% if hours.any? %>
+        <% hours.each_with_index do |operating_hour, index| %>
+          <%= render 'admin/operating_hours/operating_hour_row', 
+                     operating_hour: operating_hour, 
+                     restaurant: @restaurant,
+                     edit_mode: false,
+                     show_delete_button: hours.count > 1 %>
+        <% end %>
+        <%= turbo_frame_tag("new_operating_hour_#{weekday}") %>
+      <% else %>
+        <div class="text-center py-8 text-gray-500">全天公休</div>
+        <%= turbo_frame_tag("new_operating_hour_#{weekday}") %>
+      <% end %>
+    <% end %>
+  <% end %>
+<% else %>
+  <%# Standard operating hours page %>
+  <%= turbo_stream.remove("operating_hour_#{params[:id]}") %>
+  
+  <%= turbo_stream.update('flash') do %>
+    <%= render 'shared/flash_message', 
+               message: '營業時間刪除成功', 
+               type: 'success' %>
+  <% end %>
+<% end %>

@@ -3,12 +3,12 @@ require 'concurrent'
 
 RSpec.describe 'Frontend Stress Tests and Edge Cases' do
   let(:restaurant) { create(:restaurant) }
-  let(:business_period) { create(:business_period, restaurant: restaurant) }
+  let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
   let(:table) { create(:table, restaurant: restaurant, table_group: table_group) }
 
   before do
-    business_period
+    reservation_period
     table
     restaurant.reservation_policy.update!(reservation_enabled: true)
   end
@@ -25,7 +25,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
     end
 
@@ -107,7 +107,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       post restaurant_reservations_path(restaurant.slug), params: params
@@ -142,7 +142,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 20,
         children: 5,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       post restaurant_reservations_path(restaurant.slug), params: large_party_params
@@ -172,7 +172,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       post restaurant_reservations_path(restaurant.slug), params: params
@@ -196,7 +196,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         post restaurant_reservations_path(restaurant.slug), params: params
@@ -216,7 +216,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '00:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       post restaurant_reservations_path(restaurant.slug), params: midnight_params
@@ -238,7 +238,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       post restaurant_reservations_path(restaurant.slug), params: params
@@ -260,7 +260,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       post restaurant_reservations_path(restaurant.slug), params: params
@@ -292,7 +292,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         post restaurant_reservations_path(restaurant.slug), params: params
@@ -323,7 +323,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         adults: 2,
         children: 0,
         time: '18:00',
-        period_id: business_period.id
+        period_id: reservation_period.id
       }
 
       end_time = Time.current
@@ -349,7 +349,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
         time_slot: '18:00',
         adults: 2,
         children: 0,
-        business_period_id: business_period.id
+        reservation_period_id: reservation_period.id
       }
 
       expect do
@@ -382,7 +382,7 @@ RSpec.describe 'Frontend Stress Tests and Edge Cases' do
           time_slot: '18:00',
           adults: 8,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         post restaurant_reservations_path(restaurant.slug), params: params

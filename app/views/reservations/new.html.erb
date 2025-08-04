@@ -32,7 +32,7 @@
       </div>
 
       <!-- 訂位表單 -->
-      <div class="p-6">
+      <div class="p-6" data-controller="reservation-form">
         <%= form_with model: [@restaurant, @reservation], 
             url: restaurant_reservations_path(@restaurant.slug),
             local: true,
@@ -61,7 +61,7 @@
           <%= hidden_field_tag :adults, @adults %>
           <%= hidden_field_tag :children, @children %>
           <%= hidden_field_tag :time_slot, @selected_time %>
-          <%= hidden_field_tag :business_period_id, @business_period_id %>
+          <%= hidden_field_tag :reservation_period_id, @reservation_period_id %>
           
           <!-- 預約資訊確認 -->
           <div class="bg-blue-50 border border-blue-200 rounded-lg p-4">
@@ -118,7 +118,9 @@
               <%= form.telephone_field :customer_phone,
                   class: "block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if @reservation.errors[:customer_phone].any?}",
                   placeholder: "請輸入聯絡電話",
-                  required: true %>
+                  required: true,
+                  data: { "reservation-form-target": "phoneInput" } %>
+              <div data-reservation-form-target="phoneError" class="hidden mt-1 text-sm text-red-600"></div>
               <% if @reservation.errors[:customer_phone].any? %>
                 <p class="mt-1 text-sm text-red-600"><%= @reservation.errors[:customer_phone].first %></p>
               <% end %>
@@ -159,6 +161,7 @@
               <% end %>
               
               <%= form.submit "送出預約申請",
+                  "data-action": "click->reservation-form#validateForm",
                   class: "inline-flex justify-center py-3 px-6 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 order-1 sm:order-2" %>
             </div>
           </div>

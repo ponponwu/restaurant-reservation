@@ -2,7 +2,7 @@ module ComplexScenariosHelper
   # 建立標準的餐廳設定，包含多種桌位類型
   def create_standard_restaurant_setup
     restaurant = create(:restaurant, name: '標準測試餐廳')
-    business_period = create(:business_period, restaurant: restaurant)
+    reservation_period = create(:reservation_period, restaurant: restaurant)
 
     # 建立桌位群組
     square_group = create(:table_group, name: '方桌', restaurant: restaurant, priority: 1)
@@ -78,7 +78,7 @@ module ComplexScenariosHelper
 
     {
       restaurant: restaurant,
-      business_period: business_period,
+      reservation_period: reservation_period,
       tables: tables,
       groups: {
         square: square_group,
@@ -90,14 +90,14 @@ module ComplexScenariosHelper
   end
 
   # 建立壓力測試情境
-  def create_stress_test_scenario(restaurant, business_period, target_time, fill_percentage = 0.8)
+  def create_stress_test_scenario(restaurant, reservation_period, target_time, fill_percentage = 0.8)
     all_tables = restaurant.restaurant_tables.active.where(operational_status: 'normal')
     tables_to_fill = (all_tables.count * fill_percentage).round
 
     all_tables.limit(tables_to_fill).each_with_index do |table, index|
       create(:reservation, :confirmed,
              restaurant: restaurant,
-             business_period: business_period,
+             reservation_period: reservation_period,
              table: table,
              customer_name: "壓力測試客戶#{index + 1}",
              customer_phone: "0900#{1000 + index}",
@@ -115,14 +115,14 @@ module ComplexScenariosHelper
   end
 
   # 建立時間衝突測試情境
-  def create_time_conflict_scenario(restaurant, business_period, base_time)
+  def create_time_conflict_scenario(restaurant, reservation_period, base_time)
     conflicts = []
 
     # 情境1：重疊用餐時間
     table1 = restaurant.restaurant_tables.active.first
     reservation1 = create(:reservation, :confirmed,
                           restaurant: restaurant,
-                          business_period: business_period,
+                          reservation_period: reservation_period,
                           table: table1,
                           customer_name: '先到客戶',
                           reservation_datetime: base_time,
@@ -131,7 +131,7 @@ module ComplexScenariosHelper
     # 嘗試在1小時後預約同一桌（應該衝突）
     conflicting_reservation = build(:reservation,
                                     restaurant: restaurant,
-                                    business_period: business_period,
+                                    reservation_period: reservation_period,
                                     table: table1,
                                     customer_name: '衝突客戶',
                                     reservation_datetime: base_time + 1.hour,
@@ -146,7 +146,7 @@ module ComplexScenariosHelper
     # 情境2：緩衝時間後的預約（不應該衝突）
     non_conflicting_reservation = build(:reservation,
                                         restaurant: restaurant,
-                                        business_period: business_period,
+                                        reservation_period: reservation_period,
                                         table: table1,
                                         customer_name: '安全時間客戶',
                                         reservation_datetime: base_time + 3.hours,
@@ -162,7 +162,7 @@ module ComplexScenariosHelper
   end
 
   # 建立併桌測試情境
-  def create_table_combination_scenario(restaurant, business_period, party_size)
+  def create_table_combination_scenario(restaurant, reservation_period, party_size)
     # 確保有足夠的桌位可以併桌
     suitable_tables = restaurant.restaurant_tables
       .active
@@ -175,7 +175,7 @@ module ComplexScenariosHelper
     # 建立併桌的訂位
     large_reservation = create(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                customer_name: '大聚會客戶',
                                customer_phone: '0988888888',
                                party_size: party_size,
@@ -191,13 +191,13 @@ module ComplexScenariosHelper
   end
 
   # 建立特殊需求測試情境
-  def create_special_needs_scenarios(restaurant, business_period, base_time)
+  def create_special_needs_scenarios(restaurant, reservation_period, base_time)
     scenarios = []
 
     # 情境1：有兒童的家庭
     family_reservation = build(:reservation,
                                restaurant: restaurant,
-                               business_period: business_period,
+                               reservation_period: reservation_period,
                                customer_name: '家庭客戶',
                                party_size: 4,
                                adults_count: 2,
@@ -214,7 +214,7 @@ module ComplexScenariosHelper
     # 情境2：無障礙需求
     accessible_reservation = build(:reservation,
                                    restaurant: restaurant,
-                                   business_period: business_period,
+                                   reservation_period: reservation_period,
                                    customer_name: '無障礙客戶',
                                    party_size: 2,
                                    adults_count: 2,
@@ -231,7 +231,7 @@ module ComplexScenariosHelper
     # 情境3：商務聚餐
     business_reservation = build(:reservation,
                                  restaurant: restaurant,
-                                 business_period: business_period,
+                                 reservation_period: reservation_period,
                                  customer_name: '商務客戶',
                                  party_size: 6,
                                  adults_count: 6,

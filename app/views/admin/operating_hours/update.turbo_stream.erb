@@ -1,0 +1,14 @@
+
+<%# Standard operating hours page %>
+<%= turbo_stream.replace("operating_hour_#{@operating_hour.id}") do %>
+  <%= render 'admin/operating_hours/operating_hour_row', 
+             operating_hour: @operating_hour, 
+             restaurant: @restaurant,
+             edit_mode: false %>
+<% end %>
+
+<%= turbo_stream.update('flash') do %>
+  <%= render 'shared/flash_message', 
+              message: '營業時間更新成功', 
+              type: 'success' %>
+<% end %>

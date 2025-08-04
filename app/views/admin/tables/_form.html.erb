@@ -54,26 +54,23 @@
             { class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if table.errors[:table_type].any?}" } %>
       </div>
 
-      <!-- 標準容量 -->
-      <div class="col-span-6 sm:col-span-2">
-        <%= f.label :capacity, "標準容量", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.number_field :capacity, min: 1, max: 20,
-            class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if table.errors[:capacity].any?}" %>
-        <p class="mt-2 text-sm text-gray-500">標準可容納人數</p>
-      </div>
+      <!-- 隱藏的標準容量欄位 (自動設定為最大容量) -->
+      <%= f.hidden_field :capacity %>
 
-      <!-- 最小容量 -->
-      <div class="col-span-6 sm:col-span-2">
+      <!-- 最小容量 (必填) -->
+      <div class="col-span-6 sm:col-span-3">
         <%= f.label :min_capacity, "最小容量", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.number_field :min_capacity, min: 1,
+        <span class="text-red-500">*</span>
+        <%= f.number_field :min_capacity, min: 1, max: 20, required: true,
             class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if table.errors[:min_capacity].any?}" %>
         <p class="mt-2 text-sm text-gray-500">最少可容納人數</p>
       </div>
 
-      <!-- 最大容量 -->
-      <div class="col-span-6 sm:col-span-2">
+      <!-- 最大容量 (必填) -->
+      <div class="col-span-6 sm:col-span-3">
         <%= f.label :max_capacity, "最大容量", class: "block text-sm font-medium text-gray-700" %>
-        <%= f.number_field :max_capacity, min: 1,
+        <span class="text-red-500">*</span>
+        <%= f.number_field :max_capacity, min: 1, max: 20, required: true,
             class: "mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm #{'border-red-300' if table.errors[:max_capacity].any?}" %>
         <p class="mt-2 text-sm text-gray-500">最多可容納人數（可併桌）</p>
       </div>

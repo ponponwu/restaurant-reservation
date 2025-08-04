@@ -1,0 +1,101 @@
+<tr id="reservation_period_<%= reservation_period.id %>">
+  <td class="px-6 py-4 whitespace-nowrap">
+    <div class="text-sm font-medium text-gray-900">
+      <%= reservation_period.name %>
+    </div>
+  </td>
+  
+  <td class="px-6 py-4 whitespace-nowrap">
+    <div class="text-sm text-gray-900">
+      <%= reservation_period.formatted_time_range %>
+    </div>
+    <div class="text-sm text-gray-500">
+      <%= pluralize(reservation_period.duration_minutes, '分鐘') %>
+    </div>
+  </td>
+  
+  <td class="px-6 py-4 whitespace-nowrap">
+    <div class="flex flex-wrap gap-1">
+      <span class="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+        <%= reservation_period.chinese_weekday %>
+      </span>
+    </div>
+  </td>
+  
+  <td class="px-6 py-4 whitespace-nowrap">
+    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= 
+      reservation_period.active? ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'
+    %>">
+      <%= reservation_period.active? ? '啟用' : '停用' %>
+    </span>
+  </td>
+  
+  <td class="px-6 py-4 whitespace-nowrap">
+    <div class="text-sm text-gray-900">
+      <%= reservation_period.reservation_slots.count %> 個時段
+    </div>
+    <% if reservation_period.reservation_slots.any? %>
+      <div class="text-sm text-gray-500">
+        <%= reservation_period.reservation_slots.first.formatted_time %> - 
+        <%= reservation_period.reservation_slots.last.formatted_time %>
+      </div>
+    <% end %>
+  </td>
+  
+  <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+    <div class="flex items-center space-x-2">
+      <!-- 管理訂位時段 -->
+      <%= link_to admin_restaurant_reservation_period_reservation_slots_path(reservation_period.restaurant, reservation_period),
+          class: "text-blue-600 hover:text-blue-900",
+          title: "管理訂位時段" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+        </svg>
+      <% end %>
+      
+      <!-- 編輯 -->
+      <%= link_to edit_admin_restaurant_reservation_period_path(reservation_period.restaurant, reservation_period),
+          class: "text-indigo-600 hover:text-indigo-900",
+          data: { turbo_frame: "modal" },
+          title: "編輯" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"></path>
+        </svg>
+      <% end %>
+      
+      <!-- 啟用/停用 -->
+      <%= link_to toggle_active_admin_restaurant_reservation_period_path(reservation_period.restaurant, reservation_period),
+          method: :patch,
+          data: { 
+            confirm: "確定要#{reservation_period.active? ? '停用' : '啟用'}此訂位時段嗎？",
+            turbo_method: :patch
+          },
+          class: "#{reservation_period.active? ? 'text-red-600 hover:text-red-900' : 'text-green-600 hover:text-green-900'}",
+          title: reservation_period.active? ? "停用" : "啟用" do %>
+        <% if reservation_period.active? %>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        <% else %>
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        <% end %>
+      <% end %>
+      
+      <!-- 刪除 -->
+      <%= link_to admin_restaurant_reservation_period_path(reservation_period.restaurant, reservation_period),
+          method: :delete,
+          data: { 
+            confirm: "確定要刪除此訂位時段嗎？這將同時刪除所有相關的預約時間。",
+            turbo_method: :delete
+          },
+          class: "text-red-600 hover:text-red-900",
+          title: "刪除" do %>
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path>
+        </svg>
+      <% end %>
+    </div>
+  </td>
+</tr> 

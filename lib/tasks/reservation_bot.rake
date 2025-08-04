@@ -103,13 +103,13 @@ namespace :reservation_bot do
 
       available_time_options.each do |time_option|
         datetime = time_option[:datetime]
-        business_period_id = time_option[:business_period_id]
+        reservation_period_id = time_option[:reservation_period_id]
 
         # 跳過過去的時間
         next if datetime < Time.current
 
         # 策略性填滿桌位：優先使用大桌位，然後中桌位，最後單人桌
-        tables_filled = fill_tables_strategically(restaurant, datetime, business_period_id, date)
+        tables_filled = fill_tables_strategically(restaurant, datetime, reservation_period_id, date)
 
         if tables_filled > 0
           puts "     ✅ #{time_option[:time]} - 成功建立 #{tables_filled} 筆訂位並分配桌位"
@@ -245,7 +245,7 @@ namespace :reservation_bot do
   private
 
   # 策略性填滿桌位：按容量從大到小分配
-  def fill_tables_strategically(restaurant, datetime, business_period_id, _date)
+  def fill_tables_strategically(restaurant, datetime, reservation_period_id, _date)
     created_count = 0
 
     # 獲取該確切時間點已有的訂位
@@ -294,7 +294,7 @@ namespace :reservation_bot do
         adults_count: optimal_party_size,
         children_count: 0,
         reservation_datetime: datetime,
-        business_period_id: business_period_id,
+        reservation_period_id: reservation_period_id,
         status: 'confirmed',
         special_requests: '機器人測試訂位',
         skip_blacklist_validation: true,

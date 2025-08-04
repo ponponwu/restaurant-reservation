@@ -2,12 +2,12 @@ require 'rails_helper'
 
 RSpec.describe 'Internationalization Tests' do
   let(:restaurant) { create(:restaurant, name: 'International Restaurant') }
-  let(:business_period) { create(:business_period, restaurant: restaurant) }
+  let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
   let(:table) { create(:table, restaurant: restaurant, table_group: table_group) }
 
   before do
-    business_period
+    reservation_period
     table
     restaurant.reservation_policy.update!(reservation_enabled: true)
   end
@@ -23,7 +23,7 @@ RSpec.describe 'Internationalization Tests' do
           adults: 2,
           children: 0,
           time: '18:00',
-          period_id: business_period.id
+          period_id: reservation_period.id
         }
 
         # 如果重定向，跟隨重定向
@@ -45,7 +45,7 @@ RSpec.describe 'Internationalization Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
@@ -64,7 +64,7 @@ RSpec.describe 'Internationalization Tests' do
           adults: 2,
           children: 0,
           time: '18:00',
-          period_id: business_period.id
+          period_id: reservation_period.id
         }
 
         # 如果重定向，跟隨重定向
@@ -86,7 +86,7 @@ RSpec.describe 'Internationalization Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         expect(response).to have_http_status(:unprocessable_entity)
@@ -105,7 +105,7 @@ RSpec.describe 'Internationalization Tests' do
           adults: 2,
           children: 0,
           time: '18:00',
-          period_id: business_period.id
+          period_id: reservation_period.id
         }
 
         # 如果重定向，跟隨重定向
@@ -192,7 +192,7 @@ RSpec.describe 'Internationalization Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           expect(response).to have_http_status(:unprocessable_entity)
@@ -255,7 +255,7 @@ RSpec.describe 'Internationalization Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           # 應該能正確處理 Unicode 字符，不會導致錯誤
@@ -288,7 +288,7 @@ RSpec.describe 'Internationalization Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           # 系統應該能處理國際化郵件地址
@@ -315,7 +315,7 @@ RSpec.describe 'Internationalization Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           expect([200, 302, 422]).to include(response.status)

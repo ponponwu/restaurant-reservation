@@ -24,7 +24,6 @@ FactoryBot.define do
     # 用餐時間設定
     unlimited_dining_time { false }
     default_dining_duration_minutes { 120 }
-    buffer_time_minutes { 15 }
     allow_table_combinations { true }
     max_combination_tables { 3 }
 

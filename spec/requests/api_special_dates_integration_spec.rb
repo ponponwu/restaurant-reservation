@@ -4,12 +4,12 @@ RSpec.describe 'API Special Dates Integration', type: :request do
   let(:restaurant) { create(:restaurant) }
   let(:tomorrow) { Date.current + 1.day }
   let(:day_after_tomorrow) { Date.current + 2.days }
-  
+
   before do
     # Create some basic business periods
-    create(:business_period, restaurant: restaurant) # Default is lunch
-    create(:business_period, :dinner, restaurant: restaurant)
-    
+    create(:reservation_period, restaurant: restaurant) # Default is lunch
+    create(:reservation_period, :dinner, restaurant: restaurant)
+
     # Create table groups and tables
     table_group = create(:table_group, restaurant: restaurant)
     create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4)
@@ -24,7 +24,7 @@ RSpec.describe 'API Special Dates Integration', type: :request do
                start_date: tomorrow,
                end_date: tomorrow)
       end
-      
+
       let!(:special_custom_date) do
         create(:special_reservation_date, :custom_hours,
                restaurant: restaurant,
@@ -34,20 +34,20 @@ RSpec.describe 'API Special Dates Integration', type: :request do
 
       it 'excludes closed special dates from available days' do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['special_closures']).to include(tomorrow.to_s)
         expect(json_response['has_capacity']).to be true
       end
 
       it 'includes custom hours dates as available' do
         get "/restaurants/#{restaurant.slug}/available_days", params: { party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         # Custom hours dates should not be in special_closures
         expect(json_response['special_closures']).not_to include(day_after_tomorrow.to_s)
       end
@@ -65,10 +65,10 @@ RSpec.describe 'API Special Dates Integration', type: :request do
 
       it 'includes dates with custom hours' do
         get "/restaurants/#{restaurant.slug}/available_dates", params: { party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['available_dates']).to include(tomorrow.to_s)
         expect(json_response['has_capacity']).to be true
       end
@@ -84,10 +84,10 @@ RSpec.describe 'API Special Dates Integration', type: :request do
 
       it 'excludes closed dates' do
         get "/restaurants/#{restaurant.slug}/available_dates", params: { party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['available_dates']).not_to include(tomorrow.to_s)
       end
     end
@@ -103,18 +103,18 @@ RSpec.describe 'API Special Dates Integration', type: :request do
       end
 
       it 'returns time slots based on custom hours' do
-        get "/restaurants/#{restaurant.slug}/available_times", 
+        get "/restaurants/#{restaurant.slug}/available_times",
             params: { date: tomorrow.to_s, party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['available_times']).not_to be_empty
-        
+
         # Should have time slots within the custom hours range (18:00-20:00 with 120min intervals)
         times = json_response['available_times'].map { |slot| slot['time'] }
         expect(times).to include('18:00')
-        
+
         # Should not have times outside the custom range
         expect(times).not_to include('12:00') # Normal lunch time
         expect(times).not_to include('17:00') # Before custom start
@@ -131,12 +131,12 @@ RSpec.describe 'API Special Dates Integration', type: :request do
       end
 
       it 'returns empty times with closure message' do
-        get "/restaurants/#{restaurant.slug}/available_times", 
+        get "/restaurants/#{restaurant.slug}/available_times",
             params: { date: tomorrow.to_s, party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['available_times']).to be_empty
         expect(json_response['message']).to eq('餐廳當天公休')
       end
@@ -144,14 +144,14 @@ RSpec.describe 'API Special Dates Integration', type: :request do
 
     context 'with normal business period date' do
       it 'returns normal time slots when no special date exists' do
-        get "/restaurants/#{restaurant.slug}/available_times", 
+        get "/restaurants/#{restaurant.slug}/available_times",
             params: { date: tomorrow.to_s, party_size: 2 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['available_times']).not_to be_empty
-        
+
         # Should include normal business period times
         times = json_response['available_times'].map { |slot| slot['time'] }
         expect(times.any? { |time| time.start_with?('12:') }).to be true # Lunch times
@@ -170,19 +170,19 @@ RSpec.describe 'API Special Dates Integration', type: :request do
       end
 
       it 'returns slots based on custom hours' do
-        get "/restaurants/#{restaurant.slug}/reservations/available_slots", 
+        get "/restaurants/#{restaurant.slug}/reservations/available_slots",
             params: { date: tomorrow.to_s, adults: 2, children: 0 }
-        
+
         if response.status != 200
           puts "Response status: #{response.status}"
           puts "Response body: #{response.body}"
         end
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['slots']).not_to be_empty
-        
+
         # Should have slots within custom hours (18:00-20:00 with 120min intervals)
         times = json_response['slots'].map { |slot| slot['time'] }
         expect(times).to include('18:00')
@@ -198,12 +198,12 @@ RSpec.describe 'API Special Dates Integration', type: :request do
       end
 
       it 'returns empty slots with closure message' do
-        get "/restaurants/#{restaurant.slug}/reservations/available_slots", 
+        get "/restaurants/#{restaurant.slug}/reservations/available_slots",
             params: { date: tomorrow.to_s, adults: 2, children: 0 }
-        
+
         expect(response).to have_http_status(:ok)
         json_response = JSON.parse(response.body)
-        
+
         expect(json_response['slots']).to be_empty
         expect(json_response['message']).to eq('餐廳當天公休')
       end

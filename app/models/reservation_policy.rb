@@ -12,7 +12,6 @@ class ReservationPolicy < ApplicationRecord
   validates :phone_limit_period_days, presence: true, numericality: { greater_than: 0 }
   validates :default_dining_duration_minutes, presence: true, numericality: { greater_than: 0 },
                                               unless: :unlimited_dining_time?
-  validates :buffer_time_minutes, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :max_combination_tables, presence: true, numericality: { greater_than: 1 }
   validate :min_party_size_not_greater_than_max
 
@@ -116,7 +115,6 @@ class ReservationPolicy < ApplicationRecord
     restaurant.reservations
       .where(customer_phone: phone_number)
       .where(reservation_datetime: start_date.beginning_of_day..end_date.end_of_day)
-      .where.not(status: %i[cancelled no_show])
       .count
   end
 
@@ -130,7 +128,7 @@ class ReservationPolicy < ApplicationRecord
 
   # 格式化手機號碼限制說明
   def formatted_phone_limit_policy
-    "同一手機號碼在#{phone_limit_period_days}天內最多只能建立#{max_bookings_per_phone}個有效訂位"
+    "同一手機號碼在#{phone_limit_period_days}天內最多只能建立#{max_bookings_per_phone}個訂位"
   end
 
   # 檢查餐廳是否接受線上訂位
@@ -169,7 +167,7 @@ class ReservationPolicy < ApplicationRecord
   def total_dining_duration_minutes
     return nil if unlimited_dining_time?
 
-    default_dining_duration_minutes + buffer_time_minutes
+    default_dining_duration_minutes
   end
 
   def has_time_limit?
@@ -180,7 +178,7 @@ class ReservationPolicy < ApplicationRecord
     if unlimited_dining_time?
       '無限用餐時間'
     else
-      "用餐時間：#{default_dining_duration_minutes}分鐘 + 緩衝#{buffer_time_minutes}分鐘 = #{total_dining_duration_minutes}分鐘"
+      "用餐時間：#{default_dining_duration_minutes}分鐘"
     end
   end
 
@@ -217,7 +215,6 @@ class ReservationPolicy < ApplicationRecord
     # 用餐時間設定預設值
     self.unlimited_dining_time = false if unlimited_dining_time.nil?
     self.default_dining_duration_minutes ||= 120
-    self.buffer_time_minutes ||= 15
     self.allow_table_combinations = true if allow_table_combinations.nil?
     self.max_combination_tables ||= 3
   end

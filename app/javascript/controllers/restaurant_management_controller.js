@@ -192,7 +192,7 @@ export default class extends Controller {
             case 'restaurant-info':
                 return `/admin/restaurants/${slug}/edit`
             case 'business-periods':
-                return `/admin/restaurants/${slug}/business_periods`
+                return `/admin/restaurants/${slug}/reservation_periods`
             case 'closure-dates':
                 return `/admin/restaurant_settings/restaurants/${slug}/closure_dates`
             default:
@@ -350,7 +350,7 @@ export default class extends Controller {
         })
 
         // 重新綁定新增營業時段表單
-        const newBusinessPeriodForm = contentDiv.querySelector('#new_business_period_form form')
+        const newBusinessPeriodForm = contentDiv.querySelector('#new_reservation_period_form form')
         if (newBusinessPeriodForm) {
             newBusinessPeriodForm.addEventListener('submit', async (e) => {
                 e.preventDefault()

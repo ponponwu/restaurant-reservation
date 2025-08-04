@@ -2,12 +2,12 @@ require 'rails_helper'
 
 RSpec.describe 'API Security Tests' do
   let(:restaurant) { create(:restaurant, name: 'Security Test Restaurant') }
-  let(:business_period) { create(:business_period, restaurant: restaurant) }
+  let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let(:table_group) { create(:table_group, restaurant: restaurant) }
   let(:table) { create(:table, restaurant: restaurant, table_group: table_group) }
 
   before do
-    business_period
+    reservation_period
     table
     restaurant.reservation_policy.update!(reservation_enabled: true)
   end
@@ -39,7 +39,7 @@ RSpec.describe 'API Security Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           # 如果創建成功，檢查資料庫中的值是否被適當清理
@@ -72,7 +72,7 @@ RSpec.describe 'API Security Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           if response.status == 302
@@ -125,7 +125,7 @@ RSpec.describe 'API Security Tests' do
               time_slot: '18:00',
               adults: 2,
               children: 0,
-              business_period_id: business_period.id
+              reservation_period_id: reservation_period.id
             }
           end.not_to raise_error
 
@@ -179,7 +179,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         # 在測試環境中 CSRF 通常被停用，所以請求應該正常處理
@@ -203,7 +203,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         # 應該正確處理或拒絕過長的輸入
@@ -229,7 +229,7 @@ RSpec.describe 'API Security Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           expect(response).to have_http_status(:unprocessable_entity)
@@ -255,7 +255,7 @@ RSpec.describe 'API Security Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           # 驗證電話號碼的效果：
@@ -297,7 +297,7 @@ RSpec.describe 'API Security Tests' do
             time_slot: '18:00',
             adults: 2,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           responses << response.status
@@ -401,7 +401,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         # 系統應該能正確處理重複參數
@@ -434,7 +434,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         if response.status == 302
@@ -465,7 +465,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: 'invalid',
           adults: -1,
           children: -1,
-          business_period_id: 999_999
+          reservation_period_id: 999_999
         }
 
         # 檢查錯誤訊息不會洩露敏感信息
@@ -495,7 +495,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         # 不應該在回應中看到 stack trace
@@ -520,7 +520,7 @@ RSpec.describe 'API Security Tests' do
           time_slot: '18:00',
           adults: 2,
           children: 0,
-          business_period_id: business_period.id
+          reservation_period_id: reservation_period.id
         }
 
         expect([422, 302]).to include(response.status)
@@ -540,7 +540,7 @@ RSpec.describe 'API Security Tests' do
             time_slot: '18:00',
             adults: size,
             children: 0,
-            business_period_id: business_period.id
+            reservation_period_id: reservation_period.id
           }
 
           expect([422, 400]).to include(response.status)

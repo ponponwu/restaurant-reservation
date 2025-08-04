@@ -6,7 +6,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
 
   before do
     # 設定餐廳的營業時段
-    @lunch_period = restaurant.business_periods.create!(
+    @lunch_period = restaurant.reservation_periods.create!(
       name: 'lunch',
       display_name: '午餐',
       start_time: '11:30',
@@ -15,7 +15,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
       active: true
     )
 
-    @dinner_period = restaurant.business_periods.create!(
+    @dinner_period = restaurant.reservation_periods.create!(
       name: 'dinner',
       display_name: '晚餐',
       start_time: '17:30',
@@ -119,7 +119,7 @@ RSpec.describe 'Admin Reservation Flow with Closure Dates', :js do
         reservation = restaurant.reservations.last
         expect(reservation.customer_name).to eq('測試客戶')
         expect(reservation.reservation_datetime.to_date).to eq(target_date)
-        expect(reservation.business_period).to eq(@dinner_period)
+        expect(reservation.reservation_period).to eq(@dinner_period)
       end
 
       it '不應該能夠選擇週休息日' do

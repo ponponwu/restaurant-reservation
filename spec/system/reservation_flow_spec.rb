@@ -4,7 +4,7 @@ require 'rails_helper'
 
 RSpec.describe '訂位流程', :js, type: :system do
   let!(:restaurant) { create(:restaurant, name: '測試餐廳') }
-  let!(:business_period) { create(:business_period, restaurant: restaurant) }
+  let!(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let!(:table) { create(:table, restaurant: restaurant, capacity: 10, max_capacity: 10) }
 
   before do

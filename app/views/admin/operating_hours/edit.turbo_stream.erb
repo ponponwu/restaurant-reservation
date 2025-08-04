@@ -1,0 +1,4 @@
+<%# Turbo Stream response for editing operating hour in edit mode %>
+<%= turbo_stream.replace("operating_hour_#{@operating_hour.id}") do %>
+  <%= render 'operating_hour_row', operating_hour: @operating_hour, restaurant: @restaurant, edit_mode: true %>
+<% end %>

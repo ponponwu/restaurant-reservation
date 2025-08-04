@@ -8,8 +8,9 @@ class Reservation < ApplicationRecord
   # 1. 關聯定義（放在最前面）
   belongs_to :restaurant
   belongs_to :table, optional: true, class_name: 'RestaurantTable'
-  belongs_to :business_period, optional: true
+  belongs_to :reservation_period, optional: true
   has_one :table_combination, dependent: :destroy
+  has_many :sms_logs, dependent: :destroy
 
   # 向後相容性方法
   alias restaurant_table table
@@ -29,6 +30,9 @@ class Reservation < ApplicationRecord
   validate :party_size_matches_adults_and_children
   validate :customer_not_blacklisted, on: :create, unless: :skip_blacklist_validation
   validate :table_required_for_admin_creation
+  validate :check_table_availability_conflict, on: :create
+  validate :check_time_slot_overlap, on: :create
+  validate :check_customer_phone_duplicate, on: :create
 
   # 3. Scope 定義
   scope :active, -> { where.not(status: %w[cancelled no_show]) }
@@ -54,7 +58,7 @@ class Reservation < ApplicationRecord
   # Ransack 搜索屬性白名單
   def self.ransackable_attributes(_auth_object = nil)
     %w[
-      adults_count business_period_id children_count created_at
+      adults_count reservation_period_id children_count created_at
       customer_email customer_name customer_phone id party_size
       reservation_datetime restaurant_id special_requests status
       table_id updated_at cancelled_by cancelled_at cancellation_reason
@@ -64,13 +68,15 @@ class Reservation < ApplicationRecord
 
   # Ransack 搜索關聯白名單
   def self.ransackable_associations(_auth_object = nil)
-    %w[business_period restaurant table table_combination]
+    %w[reservation_period restaurant table table_combination]
   end
 
   # 5. 回調函數
   before_validation :sanitize_inputs
   before_create :generate_cancellation_token
+  after_create_commit :send_sms_notification_on_create
   after_update_commit :broadcast_status_change, if: :saved_change_to_status?
+  after_update_commit :send_sms_notification, if: :saved_change_to_status?
 
   # 6. 實例方法
   def display_name
@@ -110,8 +116,22 @@ class Reservation < ApplicationRecord
     Rails.application.routes.url_helpers.restaurant_reservation_cancel_url(
       restaurant.slug,
       cancellation_token,
-      host: Rails.application.config.action_mailer.default_url_options&.dig(:host) || 'localhost:3000'
+      host: build_url_host
     )
+  end
+
+  def short_cancellation_url
+    return nil if cancellation_token.blank?
+
+    original_url = cancellation_url
+    return nil if original_url.blank?
+
+    # 使用 URL 縮短服務
+    shortener = UrlShortenerService.new
+    shortener.shorten_url(original_url)
+  rescue StandardError => e
+    Rails.logger.error "Failed to generate short cancellation URL for reservation #{id}: #{e.message}"
+    cancellation_url # 失敗時回傳原始網址
   end
 
   def cancellation_deadline
@@ -214,11 +234,6 @@ class Reservation < ApplicationRecord
     return 0 if is_past?
 
     ((reservation_datetime - Time.current) / 1.hour).round(1)
-  end
-
-  def estimated_end_time
-    duration = 120 # 暫時使用固定值，等 restaurant.setting 方法實作後再改回
-    reservation_datetime + duration.minutes
   end
 
   def has_assigned_table?
@@ -385,33 +400,186 @@ class Reservation < ApplicationRecord
     # 這裡可以加入 Turbo Stream 廣播邏輯
   end
 
-  # 清除可用性快取
+  # 清除可用性快取（智能版本）
   def clear_availability_cache
     return if restaurant_id.blank?
 
-    # 清除當天和相關日期的快取
     target_date = reservation_datetime&.to_date || Date.current
 
-    # 清除可用時段快取（清除當天的所有人數組合）
-    (1..20).each do |party_size|
+    # 計算餐廳設定的時間戳（用於建構正確的 cache key）
+    restaurant_updated_at = [restaurant.updated_at,
+                             restaurant.reservation_policy&.updated_at,
+                             restaurant.reservation_periods.maximum(:updated_at)].compact.max
+
+    # 根據訂位影響範圍，智能清除 cache
+    affected_party_sizes = calculate_affected_party_sizes
+
+    affected_party_sizes.each do |party_size|
+      # 使用正確的 cache key 格式清除可用性狀態
+      availability_key = "availability_status:#{restaurant_id}:#{target_date}:#{party_size}:#{restaurant_updated_at.to_i}:v4"
+      Rails.cache.delete(availability_key)
+
+      # 清除可用時段快取（只清除相關組合）
       (0..party_size).each do |children|
         adults = party_size - children
-        cache_key = "available_slots:#{restaurant_id}:#{target_date}:#{party_size}:#{adults}:#{children}"
-        Rails.cache.delete(cache_key)
+        slots_key = "available_slots:#{restaurant_id}:#{target_date}:#{party_size}:#{adults}:#{children}:#{restaurant_updated_at.to_i}:v2"
+        Rails.cache.delete(slots_key)
       end
-
-      # 清除可用性狀態快取（包含所有人數組合）
-      Rails.cache.delete("availability_status:#{restaurant_id}:#{Date.current}:#{party_size}:v3")
     end
 
-    # 清除舊版本的快取鍵（向後相容）
-    Rails.cache.delete("availability_status:#{restaurant_id}:#{Date.current}")
-    Rails.cache.delete("availability_status:#{restaurant_id}:#{Date.current}:v2")
+    Rails.logger.info "Cleared availability cache for restaurant #{restaurant_id} on #{target_date} for party sizes: #{affected_party_sizes}"
+  end
 
-    Rails.logger.info "Cleared availability cache for restaurant #{restaurant_id} on #{target_date}"
+  # 計算受訂位影響的人數範圍
+  def calculate_affected_party_sizes
+    base_party_size = party_size || 2
+
+    # 獲取餐廳的最大人數限制
+    max_allowed = restaurant.policy&.max_party_size || 12
+
+    # 影響範圍：訂位人數的 ±2，最小1人，最大根據餐廳政策
+    range_start = [base_party_size - 2, 1].max
+    range_end = [base_party_size + 2, max_allowed].min
+
+    (range_start..range_end).to_a
   end
 
   def generate_cancellation_token
     self.cancellation_token = SecureRandom.hex(16)
+  end
+
+  # 樂觀鎖併發衝突檢測驗證
+  def check_table_availability_conflict
+    return unless table_id.present? && reservation_datetime.present?
+
+    # 計算用餐時間範圍
+    duration_minutes = restaurant.dining_duration_minutes || 120
+    new_start = reservation_datetime
+    new_end = reservation_datetime + duration_minutes.minutes
+
+    # 建立基本查詢條件
+    query = Reservation.where(
+      restaurant_id: restaurant_id,
+      table_id: table_id,
+      status: %w[confirmed pending]
+    ).where(
+      reservation_datetime: (new_start - duration_minutes.minutes)..(new_end)
+    )
+
+    # 如果是更新現有記錄，排除自己
+    query = query.where.not(id: id) if persisted?
+
+    potentially_conflicting = query
+
+    # 在 Ruby 中進行精確的時間重疊檢測
+    conflicting = potentially_conflicting.any? do |reservation|
+      existing_start = reservation.reservation_datetime
+      existing_end = existing_start + duration_minutes.minutes
+
+      # 檢查兩個時間區間是否重疊
+      new_start < existing_end && new_end > existing_start
+    end
+
+    return unless conflicting
+
+    errors.add(:reservation_datetime, '該桌位在此時段已被預訂')
+  end
+
+  def check_time_slot_overlap
+    return unless reservation_datetime.present?
+
+    # 建立基本查詢條件
+    query = Reservation.where(
+      restaurant_id: restaurant_id,
+      reservation_datetime: reservation_datetime,
+      status: %w[confirmed pending]
+    )
+
+    # 如果是更新現有記錄，排除自己
+    query = query.where.not(id: id) if persisted?
+
+    same_time_reservations = query
+
+    total_party_size = same_time_reservations.sum(:party_size) + (party_size || 0)
+    restaurant_capacity = restaurant.total_capacity
+
+    return unless total_party_size > restaurant_capacity
+
+    errors.add(:reservation_datetime, '該時段人數已滿，請選擇其他時間')
+  end
+
+  def check_customer_phone_duplicate
+    return unless customer_phone.present? && reservation_datetime.present?
+
+    # 建立基本查詢條件
+    query = Reservation.where(
+      restaurant_id: restaurant_id,
+      customer_phone: customer_phone,
+      reservation_datetime: reservation_datetime,
+      status: %w[confirmed pending]
+    )
+
+    # 如果是更新現有記錄，排除自己
+    query = query.where.not(id: id) if persisted?
+
+    duplicate = query.exists?
+
+    return unless duplicate
+
+    errors.add(:customer_phone, '此手機號碼已在相同時段重複預訂')
+  end
+
+  def send_sms_notification_on_create
+    # 只有在簡訊服務啟用時才發送通知
+    # return unless Rails.env.production? || ENV['SMS_SERVICE_ENABLED'] == 'true'
+    return if customer_phone.blank?
+
+    # 新建訂位時，如果狀態是 confirmed，發送確認簡訊
+    if confirmed?
+      SmsNotificationJob.perform_now(id, 'reservation_confirmation')
+      Rails.logger.info "Queued confirmation SMS for new reservation #{id}"
+    end
+  rescue StandardError => e
+    Rails.logger.error "Failed to queue SMS notification for new reservation #{id}: #{e.message}"
+  end
+
+  def send_sms_notification
+    # 只有在簡訊服務啟用時才發送通知
+    return unless Rails.env.production? || ENV['SMS_SERVICE_ENABLED'] == 'true'
+    return if customer_phone.blank?
+
+    # 根據狀態變更發送對應的簡訊通知
+    case status
+    when 'confirmed'
+      # 訂位確認通知（只在狀態變更時發送）
+      SmsNotificationJob.perform_later(id, 'reservation_confirmation')
+      Rails.logger.info "Queued confirmation SMS for reservation #{id} status change"
+    when 'cancelled'
+      # 訂位取消通知
+      cancellation_reason = self.cancellation_reason || '無特殊原因'
+      SmsNotificationJob.perform_later(id, 'reservation_cancellation', { cancellation_reason: cancellation_reason })
+      Rails.logger.info "Queued cancellation SMS for reservation #{id}"
+    end
+  rescue StandardError => e
+    Rails.logger.error "Failed to queue SMS notification for reservation #{id}: #{e.message}"
+  end
+
+  # 建構網址主機（與短網址服務保持一致）
+  def build_url_host
+    if Rails.application.config.action_mailer.default_url_options
+      host = Rails.application.config.action_mailer.default_url_options[:host]
+      port = Rails.application.config.action_mailer.default_url_options[:port]
+
+      # 如果有明確設定端口號，或者在開發環境且 host 是 localhost，則加上端口號
+      if port
+        "#{host}:#{port}"
+      elsif Rails.env.development? && host == 'localhost'
+        "#{host}:3000"
+      else
+        host
+      end
+    else
+      'localhost:3000'
+    end
   end
 end

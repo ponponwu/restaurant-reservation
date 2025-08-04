@@ -2,14 +2,67 @@
 <div id="modal_flash_messages" class="mb-4"></div>
 
 <!-- 主內容區域 -->
-<div class="grid grid-cols-1 lg:grid-cols-2 gap-8" data-controller="modal closure-dates">
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-8" data-controller="closure-dates">
   <!-- 左側：每週定休日設定 -->
   <div class="space-y-6">
     <%= render 'weekly_closure_section', restaurant: restaurant, closure_dates: closure_dates %>
   </div>
 
-  <!-- 右側：特別日公休設定 -->
+  <!-- 右側：營業時段管理 + 特別日公休設定 -->
   <div class="space-y-6">
+    <!-- 營業時段管理 -->
+    <div class="bg-white shadow rounded-lg">
+      <div class="px-6 py-5">
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg leading-6 font-medium text-gray-900 flex items-center">
+            <svg class="mr-2 h-5 w-5 text-blue-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+            </svg>
+            營業時段管理
+          </h3>
+          <% if @reservation_periods.any? %>
+            <%= link_to new_admin_restaurant_reservation_period_path(restaurant),
+                class: "inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+                data: { action: "click->modal#openRemote", turbo_prefetch: false } do %>
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+              新增時段
+            <% end %>
+          <% end %>
+        </div>
+
+        <!-- 營業時段列表 -->
+        <div id="reservation_periods_list">
+          <% if @reservation_periods.any? %>
+            <div class="space-y-3 max-h-80 overflow-y-auto">
+              <% @reservation_periods.each do |period| %>
+                <%= render 'reservation_period_item', period: period, restaurant: restaurant %>
+              <% end %>
+            </div>
+          <% else %>
+            <div class="text-center py-8">
+              <svg class="mx-auto h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg>
+              <h4 class="mt-2 text-sm font-medium text-gray-900">尚未設定營業時段</h4>
+              <p class="mt-1 text-xs text-gray-500">建立第一個營業時段以開始接受預約</p>
+              <div class="mt-4">
+                <%= link_to new_admin_restaurant_reservation_period_path(restaurant),
+                    class: "inline-flex items-center px-3 py-1 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700",
+                    data: { action: "click->modal#openRemote", turbo_prefetch: false } do %>
+                  <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+                  </svg>
+                  新增營業時段
+                <% end %>
+              </div>
+            </div>
+          <% end %>
+        </div>
+      </div>
+    </div>
+
     <!-- 特別日公休表單 -->
     <div class="bg-white shadow rounded-lg">
       <div class="px-6 py-5">

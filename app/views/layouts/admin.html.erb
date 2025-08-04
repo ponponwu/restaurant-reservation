@@ -119,9 +119,31 @@
         <% end %>
 
         <!-- 餐廳營運管理 (餐廳管理員 或 有餐廳權限的超級管理員) -->
-        <% if current_user&.restaurant.present? || (current_user&.super_admin? && defined?(@restaurant) && @restaurant.present?) %>
-          <% restaurant_for_nav = current_user&.restaurant || @restaurant %>
-          <% if restaurant_for_nav.present? %>
+        <%
+          # 為導航選擇適當的餐廳 - 使用更安全的邏輯
+          begin
+            restaurant_for_nav = current_user&.restaurant || 
+                                defined?(@restaurant) && @restaurant || 
+                                Restaurant.active.first
+            
+            # 檢查用戶是否有餐廳管理權限
+            can_access_restaurant = current_user&.super_admin? || 
+                                  current_user&.manager? || 
+                                  current_user&.employee?
+            
+            # 額外安全檢查
+            show_restaurant_nav = restaurant_for_nav.present? && 
+                                can_access_restaurant && 
+                                restaurant_for_nav.respond_to?(:id) &&
+                                restaurant_for_nav.id.present?
+          rescue => e
+            # 如果發生任何錯誤，隱藏餐廳導航
+            restaurant_for_nav = nil
+            show_restaurant_nav = false
+            Rails.logger.error "Admin navigation error: #{e.message}"
+          end
+        %>
+        <% if show_restaurant_nav %>
             <div class="mb-6 restaurant-section">
               <h3 class="px-3 text-xs font-semibold text-gray-500 uppercase tracking-wider nav-section-title">
                 餐廳營運
@@ -156,16 +178,6 @@
                   </svg>
                   桌位管理
                 <% end %>
-
-                <%= link_to admin_restaurant_business_periods_path(restaurant_for_nav),
-                    class: "#{is_business_periods_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
-                           group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
-                  <svg class="#{is_business_periods_page?(restaurant_for_nav) ? 'text-green-500' : 'text-gray-400 group-hover:text-gray-500'} 
-                             mr-3 h-5 w-5 nav-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  營業時段
-                <% end %>
               </div>
             </div>
 
@@ -175,7 +187,7 @@
                 進階設定
               </h3>
               <div class="mt-2 space-y-1">
-                <%= link_to admin_restaurant_settings_restaurant_index_path(restaurant_for_nav.slug),
+                <%= link_to admin_restaurant_settings_restaurant_special_dates_path(restaurant_for_nav.slug),
                     class: "#{is_restaurant_settings_page?(restaurant_for_nav) ? 'current-page-highlight' : 'text-gray-700 hover:bg-gray-100'} 
                            group flex items-center px-3 py-2 text-sm font-medium rounded-md transition-colors nav-link sidebar-item-hover" do %>
                   <svg class="#{is_restaurant_settings_page?(restaurant_for_nav) ? 'text-indigo-500' : 'text-gray-400 group-hover:text-gray-500'} 
@@ -205,8 +217,8 @@
               </h3>
               <div class="space-y-2">
                 <%= link_to new_admin_restaurant_reservation_path(restaurant_for_nav),
-                    class: "group flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 rounded-md transition-colors quick-action-btn" do %>
-                  <svg class="mr-3 h-4 w-4 quick-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    class: "group flex items-center px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-md transition-colors quick-action-btn" do %>
+                  <svg class="mr-3 h-4 w-4 text-gray-400 group-hover:text-gray-500 quick-action-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
                   </svg>
                   新增訂位
@@ -222,7 +234,6 @@
                 <% end %>
               </div>
             </div>
-          <% end %>
         <% end %>
       </nav>
 

@@ -7,6 +7,9 @@ Rails.application.routes.draw do
   # 首頁
   get 'home', to: 'home#index'
 
+  # 短網址重定向路由
+  get '/s/:token', to: 'short_urls#redirect', as: 'short_url_redirect'
+
   # 餐廳前台路由（放在前面，避免與 admin 衝突）
   get '/restaurant/:slug', to: 'restaurants#show', as: 'restaurant_public'
 
@@ -40,10 +43,6 @@ Rails.application.routes.draw do
 
     # 餐廳管理
     resources :restaurants do
-      member do
-        patch :toggle_status
-      end
-
       # 黑名單管理
       resources :blacklists do
         member do
@@ -52,7 +51,19 @@ Rails.application.routes.draw do
       end
 
       # 營業時段管理
-      resources :business_periods do
+      resources :operating_hours do
+        member do
+          patch :toggle_active
+        end
+      end
+
+      # 預約時段管理
+      resources :reservation_periods do
+        collection do
+          get :edit_day
+          post :update_day
+          post :disable_day
+        end
         member do
           patch :toggle_active
         end
@@ -116,19 +127,31 @@ Rails.application.routes.draw do
     namespace :restaurant_settings do
       resources :restaurants, param: :slug, only: [] do
         get '/', to: 'restaurant_settings#index', as: :index
-        get '/business_periods', to: 'restaurant_settings#business_periods', as: :business_periods
+        # get '/operating_hours', to: 'restaurant_settings#operating_hours', as: :operating_hours
+        get '/reservation_periods', to: 'restaurant_settings#reservation_periods', as: :reservation_periods
         get '/closure_dates', to: 'restaurant_settings#closure_dates', as: :closure_dates
         post '/closure_dates', to: 'restaurant_settings#create_closure_date'
         post '/weekly_closure', to: 'restaurant_settings#create_weekly_closure', as: :create_weekly_closure
         delete '/closure_dates/:closure_date_id', to: 'restaurant_settings#destroy_closure_date', as: :destroy_closure_date
-        
+
+        # 週別營業時段管理
+        get '/weekly_day/:weekday/edit', to: 'restaurant_settings#edit_weekly_day', as: :edit_weekly_day
+        patch '/weekly_day/:weekday', to: 'restaurant_settings#update_weekly_day', as: :update_weekly_day
+        post '/weekly_day/copy', to: 'restaurant_settings#copy_weekly_day', as: :copy_weekly_day
+
         # 特殊日期設定 (新系統)
         resources :special_dates, controller: 'special_dates', except: [:show] do
           member do
             patch :toggle_active
           end
         end
-        
+
+        get '/restaurant_settings', to: 'restaurant_settings#restaurant_settings', as: :restaurant_settings
+        patch '/restaurant_settings', to: 'restaurant_settings#update_restaurant_settings'
+        put '/restaurant_settings', to: 'restaurant_settings#update_restaurant_settings'
+
+        post '/toggle_day_status', to: 'restaurant_settings#toggle_day_status', as: :toggle_day_status
+
         get '/reservation_policies', to: 'restaurant_settings#reservation_policies', as: :reservation_policies
         patch '/reservation_policies', to: 'restaurant_settings#update_reservation_policy'
         put '/reservation_policies', to: 'restaurant_settings#update_reservation_policy'

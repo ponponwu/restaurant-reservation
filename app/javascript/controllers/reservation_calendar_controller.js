@@ -118,7 +118,7 @@ export default class extends Controller {
 
             const data = await response.json()
             this.availableDates = data.available_dates || []
-            this.businessPeriods = data.business_periods || []
+            this.businessPeriods = data.reservation_periods || []
 
             // 過濾掉今天及之前的日期
             this.availableDates = this.availableDates.filter((dateStr) => {

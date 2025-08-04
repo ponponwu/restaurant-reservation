@@ -5,7 +5,7 @@ class Admin::ReservationsController < Admin::BaseController
 
   def index
     @q = @restaurant.reservations.ransack(params[:q])
-    reservations_query = @q.result.includes(:table, :business_period)
+    reservations_query = @q.result.includes(:table, :reservation_period)
 
     # 處理日期篩選，預設顯示今天的訂位
     if params[:show_all] == 'true'
@@ -37,14 +37,7 @@ class Admin::ReservationsController < Admin::BaseController
       @show_all = false
     end
 
-    # 取得所有訂位並按用餐期分組
-    reservations_ordered = reservations_query.order(reservation_datetime: :asc)
-
-    # 按用餐期分組，並確保用餐期按開始時間排序
-    @reservations_by_period = reservations_ordered.group_by(&:business_period)
-      .sort_by { |period, _| period&.start_time || Time.zone.parse('00:00') }
-
-    # 為了保持分頁功能，也保留原本的 @reservations
+    # 取得所有訂位並按最新訂單排序（新到舊）
     @pagy, @reservations = pagy(reservations_query.order(reservation_datetime: :desc), items: 20)
 
     respond_to do |format|
@@ -53,8 +46,7 @@ class Admin::ReservationsController < Admin::BaseController
         render turbo_stream: turbo_stream.update('reservations-container',
                                                  partial: 'reservations_table',
                                                  locals: {
-                                                   reservations: @reservations,
-                                                   reservations_by_period: @reservations_by_period
+                                                   reservations: @reservations
                                                  })
       end
       format.json { render json: @reservations }
@@ -120,8 +112,8 @@ class Admin::ReservationsController < Admin::BaseController
     end
 
     # 自動確定營業時段
-    if @reservation.reservation_datetime.present? && @reservation.business_period_id.blank?
-      @reservation.business_period_id = determine_business_period(@reservation.reservation_datetime)
+    if @reservation.reservation_datetime.present? && @reservation.reservation_period_id.blank?
+      @reservation.reservation_period_id = determine_reservation_period(@reservation.reservation_datetime)
     end
 
     # 檢查是否有 admin_override 參數（用於跳過驗證）
@@ -292,7 +284,7 @@ class Admin::ReservationsController < Admin::BaseController
   def search
     @q = @restaurant.reservations.ransack(params[:q])
     @reservations = @q.result
-      .includes(:table, :business_period)
+      .includes(:table, :reservation_period)
       .order(reservation_datetime: :desc)
       .limit(50)
 
@@ -328,7 +320,7 @@ class Admin::ReservationsController < Admin::BaseController
     redirect_to admin_restaurants_path, alert: '找不到指定的餐廳'
   end
 
-  def determine_business_period(datetime)
+  def determine_reservation_period(datetime)
     return nil unless datetime
 
     # 確保使用台北時區的時間來比較
@@ -337,7 +329,7 @@ class Admin::ReservationsController < Admin::BaseController
     # 檢查是否在營業時段內 - 直接使用Ruby邏輯避免時區問題
     time_minutes = (taipei_time.hour * 60) + taipei_time.min
 
-    matching_period = @restaurant.business_periods.active.find do |period|
+    matching_period = @restaurant.reservation_periods.active.find do |period|
       start_minutes = (period.start_time.hour * 60) + period.start_time.min
       end_minutes = (period.end_time.hour * 60) + period.end_time.min
       time_minutes >= start_minutes && time_minutes <= end_minutes
@@ -345,7 +337,7 @@ class Admin::ReservationsController < Admin::BaseController
 
     # 如果找不到完全匹配的時段，找最接近即將開始的時段
     if matching_period.blank?
-      periods = @restaurant.business_periods.active.order(:start_time)
+      periods = @restaurant.reservation_periods.active.order(:start_time)
 
       matching_period = periods.min_by do |period|
         start_minutes = (period.start_time.hour * 60) + period.start_time.min
@@ -372,7 +364,7 @@ class Admin::ReservationsController < Admin::BaseController
   end
 
   def set_form_data
-    @business_periods = @restaurant.business_periods.active
+    @reservation_periods = @restaurant.reservation_periods.active
     @available_tables = @restaurant.restaurant_tables.active.ordered
   end
 
@@ -381,13 +373,13 @@ class Admin::ReservationsController < Admin::BaseController
       :customer_name, :customer_phone, :customer_email,
       :party_size, :adults_count, :children_count,
       :reservation_datetime, :status, :notes, :special_requests,
-      :table_id, :business_period_id, :admin_override
+      :table_id, :reservation_period_id, :admin_override
     )
   end
 
   # 為訂位分配桌位
   def allocate_table_for_reservation(reservation, admin_override = false)
-    Rails.logger.info "🔧 開始為訂位 #{reservation.id} 分配桌位，人數：#{reservation.party_size}，時間：#{reservation.reservation_datetime}，餐期：#{reservation.business_period_id}，強制模式：#{admin_override}"
+    Rails.logger.info "🔧 開始為訂位 #{reservation.id} 分配桌位，人數：#{reservation.party_size}，時間：#{reservation.reservation_datetime}，餐期：#{reservation.reservation_period_id}，強制模式：#{admin_override}"
 
     allocator = ReservationAllocatorService.new({
                                                   restaurant: @restaurant,
@@ -395,7 +387,7 @@ class Admin::ReservationsController < Admin::BaseController
                                                   adults: reservation.adults_count || reservation.party_size,
                                                   children: reservation.children_count || 0,
                                                   reservation_datetime: reservation.reservation_datetime,
-                                                  business_period_id: reservation.business_period_id
+                                                  reservation_period_id: reservation.reservation_period_id
                                                 })
 
     # 檢查可用性（管理員強制模式下可以跳過）

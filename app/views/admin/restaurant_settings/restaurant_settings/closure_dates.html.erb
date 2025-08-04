@@ -1,14 +1,15 @@
 <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
-     data-controller="closure-dates"
+     data-controller="closure-dates turbo-modal modal"
      data-closure-dates-restaurant-slug-value="<%= @restaurant.slug %>"
-     data-closure-dates-closure-dates-url-value="<%= admin_restaurant_settings_restaurant_closure_dates_path(@restaurant) %>">
+     data-closure-dates-closure-dates-url-value="<%= admin_restaurant_settings_restaurant_closure_dates_path(@restaurant) %>"
+     data-action="keydown->turbo-modal#keydown">
 
   <!-- 頁面標題 -->
   <div class="mb-8">
     <div class="flex items-center justify-between">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900">公休日設定</h1>
-        <p class="mt-2 text-sm text-gray-600">管理餐廳的每週固定公休日和特別日公休設定</p>
+        <h1 class="text-3xl font-bold text-gray-900">每週營業時段管理</h1>
+        <p class="mt-2 text-sm text-gray-600">設定每個星期幾的餐期時段，管理每週營業時間和特別日公休</p>
       </div>
       <div class="flex space-x-3">
         <%= link_to admin_restaurant_path(@restaurant),
@@ -18,14 +19,6 @@
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"></path>
           </svg>
           回到餐廳
-        <% end %>
-        <%= link_to admin_restaurant_settings_restaurant_index_path(@restaurant),
-            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50",
-            data: { turbo_prefetch: false } do %>
-          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
-          </svg>
-          返回設定首頁
         <% end %>
       </div>
     </div>
@@ -40,5 +33,27 @@
   <!-- 主內容包裝器 -->
   <div id="closure-dates-content">
     <%= render 'closure_dates_content', restaurant: @restaurant, closure_dates: @closure_dates %>
+  </div>
+
+
+  <!-- 營業時段管理 Modal -->
+  <div id="modal-container" 
+       class="fixed inset-0 z-50 overflow-y-auto hidden" 
+       aria-labelledby="modal-title" 
+       role="dialog" 
+       aria-modal="true"
+       data-turbo-modal-target="container">
+    <div class="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
+      <!-- 背景遮罩 -->
+      <div class="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity" 
+           data-action="click->turbo-modal#backgroundClick"></div>
+
+      <!-- Modal 面板 -->
+      <div class="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full sm:w-auto mx-4">
+        <div id="modal-content">
+          <!-- Modal 內容會被動態載入到這裡 -->
+        </div>
+      </div>
+    </div>
   </div>
 </div>

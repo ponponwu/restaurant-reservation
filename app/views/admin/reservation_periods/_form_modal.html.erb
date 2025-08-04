@@ -1,0 +1,17 @@
+<div class="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
+  <div class="flex items-center justify-between mb-4">
+    <h3 class="text-lg leading-6 font-medium text-gray-900" id="modal-title">
+      <%= reservation_period.persisted? ? '編輯營業時段' : '新增營業時段' %>
+    </h3>
+    <button type="button"
+            class="text-gray-400 hover:text-gray-500"
+            title="關閉"
+            data-action="click->turbo-modal#close">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+      </svg>
+    </button>
+  </div>
+  
+  <%= render 'form', reservation_period: reservation_period %>
+</div>

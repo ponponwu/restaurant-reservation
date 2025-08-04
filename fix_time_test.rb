@@ -7,8 +7,8 @@ content = File.read(file_path)
 
 puts '修復限時模式對比測試...'
 
-# 問題：在限時模式下，需要確保時間間隔足夠大，超過用餐時間+緩衝時間
-# 目前設定是 default_dining_duration_minutes: 120 (2小時) + buffer_time_minutes: 15 = 135分鐘
+# 問題：在限時模式下，需要確保時間間隔足夠大，超過用餐時間
+# 目前設定是 default_dining_duration_minutes: 120 (2小時)
 # 從12點到16點是4小時（240分鐘），應該足夠，但可能還有其他問題
 
 # 讓我們增加時間間隔到5小時，並確保邏輯正確

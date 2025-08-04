@@ -1,6 +1,6 @@
 class ReservationSlot < ApplicationRecord
   # 1. 關聯定義
-  belongs_to :business_period
+  belongs_to :reservation_period
 
   # 2. 驗證規則
   validates :slot_time, presence: true
@@ -13,9 +13,9 @@ class ReservationSlot < ApplicationRecord
   scope :for_time, ->(time) { where(slot_time: time) }
   scope :ordered, -> { order(:slot_time) }
   scope :available_for_date, lambda { |_date|
-    joins(:business_period)
+    joins(:reservation_period)
       .where(active: true)
-      .where(business_periods: { active: true })
+      .where(reservation_periods: { active: true })
   }
 
   # 4. 回調函數
@@ -34,8 +34,8 @@ class ReservationSlot < ApplicationRecord
     slot_end = slot_start + interval_minutes.minutes
 
     used_capacity = Reservation
-      .joins(:business_period)
-      .where(business_period: business_period)
+      .joins(:reservation_period)
+      .where(reservation_period: reservation_period)
       .where(reservation_datetime: slot_start..slot_end)
       .where(status: 'confirmed')
       .sum(:party_size)
@@ -49,7 +49,7 @@ class ReservationSlot < ApplicationRecord
 
   def is_available_for_booking?(datetime)
     return false unless active?
-    return false unless business_period.active?
+    return false unless reservation_period.active?
 
     # 檢查是否在預約截止時間之前
     deadline = datetime - reservation_deadline.minutes
@@ -58,7 +58,7 @@ class ReservationSlot < ApplicationRecord
 
   def has_capacity_for?(party_size, date)
     return false unless active?
-    return false unless business_period.active?
+    return false unless reservation_period.active?
 
     # 檢查是否有足夠容量
     available_capacity_for_date(date) >= party_size

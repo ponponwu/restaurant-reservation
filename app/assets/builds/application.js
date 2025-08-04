@@ -11742,6 +11742,79 @@ var confirmation_controller_default = class extends Controller {
   }
 };
 
+// app/javascript/controllers/daily_reservation_periods_controller.js
+var daily_reservation_periods_controller_default = class extends Controller {
+  static targets = ["container"];
+  connect() {
+    console.log("Daily reservation periods controller connected");
+  }
+  toggleDay(event) {
+    const weekday = event.target.dataset.weekday;
+    const isChecked = event.target.checked;
+    const row = event.target.closest(".daily-period-row");
+    const statusDisplay = row.querySelector(".status-display");
+    if (isChecked) {
+      statusDisplay.innerHTML = '<span class="text-gray-500">\u9EDE\u64CA\u7DE8\u8F2F\u8A2D\u5B9A\u71DF\u696D\u6642\u6BB5</span>';
+      row.classList.remove("opacity-50");
+    } else {
+      statusDisplay.innerHTML = '<span class="text-gray-500">\u4E0D\u958B\u653E\u8A02\u4F4D</span>';
+      row.classList.add("opacity-50");
+      this.disableDay(weekday);
+    }
+  }
+  editDay(event) {
+    const weekday = event.target.dataset.weekday;
+    this.openEditModal(weekday);
+  }
+  copyDay(event) {
+    const weekday = event.target.dataset.weekday;
+    console.log(`Copy day ${weekday}`);
+  }
+  async openEditModal(weekday) {
+    try {
+      const response = await fetch(`/admin/restaurants/${this.getRestaurantSlug()}/reservation_periods/edit_day?weekday=${weekday}`, {
+        headers: {
+          "Accept": "text/html",
+          "X-Requested-With": "XMLHttpRequest"
+        }
+      });
+      if (response.ok) {
+        const html = await response.text();
+        const modalContainer = document.getElementById("edit-modal-container");
+        const modalContent = document.getElementById("edit-modal-content");
+        modalContent.innerHTML = html;
+        modalContainer.classList.remove("hidden");
+        setTimeout(() => {
+          modalContainer.classList.add("opacity-100");
+        }, 10);
+      }
+    } catch (error2) {
+      console.error("Error opening edit modal:", error2);
+    }
+  }
+  async disableDay(weekday) {
+    try {
+      await fetch(`/admin/restaurants/${this.getRestaurantSlug()}/reservation_periods/disable_day`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": this.getCSRFToken(),
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({ weekday })
+      });
+    } catch (error2) {
+      console.error("Error disabling day:", error2);
+    }
+  }
+  getRestaurantSlug() {
+    return window.location.pathname.split("/")[3];
+  }
+  getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
+  }
+};
+
 // app/javascript/controllers/dining_settings_controller.js
 var dining_settings_controller_default = class extends Controller {
   static targets = [
@@ -11970,6 +12043,12 @@ var modal_controller_default = class extends Controller {
   connect() {
     this.pendingForm = null;
     this.pendingAction = null;
+    if (!window.modalState) {
+      window.modalState = {
+        pendingForm: null,
+        pendingAction: null
+      };
+    }
     window.showModalFlash = (message, type) => {
       this.showFlash(message, type);
     };
@@ -11997,8 +12076,10 @@ var modal_controller_default = class extends Controller {
   // 顯示確認對話框
   show(event) {
     event.preventDefault();
+    console.log("\u{1F525} Modal show triggered");
     const button = event.currentTarget;
     const form = button.closest("form");
+    console.log("\u{1F4DD} Form found:", form);
     const title = button.dataset.confirmTitle || "\u78BA\u8A8D\u64CD\u4F5C";
     const message = button.dataset.confirmMessage || "\u60A8\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
     const confirmText = button.dataset.confirmText || "\u78BA\u8A8D";
@@ -12017,22 +12098,28 @@ var modal_controller_default = class extends Controller {
     messageElement.textContent = message;
     confirmBtnElement.textContent = confirmText;
     this.setModalStyleForElement(modal, type);
-    this.pendingForm = form;
-    this.pendingAction = () => {
+    window.modalState.pendingForm = form;
+    window.modalState.pendingAction = () => {
+      console.log("\u{1F680} Executing pending action, form:", form);
       if (form) {
+        console.log("\u{1F4E8} Submitting form:", form.action);
         form.submit();
       } else {
         const href = button.href;
         if (href) {
+          console.log("\u{1F517} Navigating to:", href);
           window.location.href = href;
         }
       }
     };
+    console.log("\u{1F4BE} Saved to global state:", window.modalState);
+    this.pendingForm = form;
+    this.pendingAction = window.modalState.pendingAction;
     modal.classList.remove("hidden");
-    modal.classList.add("flex");
+    modal.classList.add("block");
     requestAnimationFrame(() => {
       overlayElement?.classList.add("opacity-100");
-      contentElement?.classList.add("opacity-100", "translate-y-0", "sm:scale-100");
+      contentElement?.classList.add("opacity-100");
     });
   }
   // 關閉對話框
@@ -12043,15 +12130,19 @@ var modal_controller_default = class extends Controller {
       const contentElement = confirmationModal?.querySelector('[data-modal-target="content"]');
       if (overlayElement && contentElement) {
         overlayElement.classList.remove("opacity-100");
-        contentElement.classList.remove("opacity-100", "translate-y-0", "sm:scale-100");
+        contentElement.classList.remove("opacity-100");
       }
       setTimeout(() => {
         if (confirmationModal) {
           confirmationModal.classList.add("hidden");
-          confirmationModal.classList.remove("flex");
+          confirmationModal.classList.remove("block");
         }
         this.pendingForm = null;
         this.pendingAction = null;
+        if (window.modalState) {
+          window.modalState.pendingForm = null;
+          window.modalState.pendingAction = null;
+        }
       }, 200);
       return;
     }
@@ -12066,10 +12157,19 @@ var modal_controller_default = class extends Controller {
   }
   // 確認操作
   confirm() {
-    if (this.pendingAction) {
-      this.pendingAction();
+    console.log("\u2705 Modal confirm triggered");
+    console.log("\u{1F50D} Current global state:", window.modalState);
+    const pendingAction = window.modalState?.pendingAction || this.pendingAction;
+    console.log("\u26A1 Pending action found:", !!pendingAction);
+    if (pendingAction) {
+      pendingAction();
+      if (window.modalState) {
+        window.modalState.pendingForm = null;
+        window.modalState.pendingAction = null;
+      }
       this.close();
     } else {
+      console.log("\u274C No pending action found");
       this.close();
     }
   }
@@ -12170,6 +12270,45 @@ var modal_controller_default = class extends Controller {
       flashContainer.classList.add("hidden");
     }
   }
+  // 攔截表單提交，顯示確認對話框
+  interceptSubmit(event) {
+    event.preventDefault();
+    console.log("\u{1F525} Form submit intercepted");
+    const form = event.currentTarget;
+    console.log("\u{1F4DD} Form found:", form);
+    const title = form.dataset.confirmTitle || "\u78BA\u8A8D\u64CD\u4F5C";
+    const message = form.dataset.confirmMessage || "\u60A8\u78BA\u5B9A\u8981\u57F7\u884C\u6B64\u64CD\u4F5C\u55CE\uFF1F";
+    const confirmText = form.dataset.confirmText || "\u78BA\u8A8D";
+    const type = form.dataset.confirmType || "danger";
+    const modal = document.getElementById("confirmation-modal");
+    const titleElement = modal?.querySelector('[data-modal-target="title"]');
+    const messageElement = modal?.querySelector('[data-modal-target="message"]');
+    const confirmBtnElement = modal?.querySelector('[data-modal-target="confirmBtn"]');
+    const overlayElement = modal?.querySelector('[data-modal-target="overlay"]');
+    const contentElement = modal?.querySelector('[data-modal-target="content"]');
+    if (!modal || !titleElement || !messageElement || !confirmBtnElement) {
+      console.error("\u274C Modal elements not found");
+      form.submit();
+      return;
+    }
+    titleElement.textContent = title;
+    messageElement.textContent = message;
+    confirmBtnElement.textContent = confirmText;
+    this.setModalStyleForElement(modal, type);
+    window.modalState.pendingForm = form;
+    window.modalState.pendingAction = () => {
+      console.log("\u{1F680} Executing pending form submission");
+      console.log("\u{1F4E8} Submitting form:", form.action);
+      form.submit();
+    };
+    console.log("\u{1F4BE} Saved form to global state:", window.modalState);
+    modal.classList.remove("hidden");
+    modal.classList.add("block");
+    requestAnimationFrame(() => {
+      overlayElement?.classList.add("opacity-100");
+      contentElement?.classList.add("opacity-100");
+    });
+  }
   testClick() {
     alert("Stimulus modal controller \u5DE5\u4F5C\u6B63\u5E38\uFF01");
   }
@@ -12218,6 +12357,195 @@ var modal_controller_default = class extends Controller {
                 </div>
             `;
     });
+  }
+};
+
+// app/javascript/controllers/period_editor_controller.js
+var period_editor_controller_default = class extends Controller {
+  static targets = ["customPeriodsSection", "periodsList"];
+  connect() {
+    console.log("Period editor controller connected");
+    this.updateAllPreviews();
+  }
+  modeChanged(event) {
+    const mode = event.target.value;
+    const customSection = document.getElementById("custom-periods-section");
+    if (mode === "custom_hours") {
+      customSection.classList.remove("hidden");
+    } else {
+      customSection.classList.add("hidden");
+    }
+  }
+  timeChanged(event) {
+    const periodItem = event.target.closest(".period-item");
+    this.updatePreview(periodItem);
+  }
+  intervalChanged(event) {
+    const periodItem = event.target.closest(".period-item");
+    this.updatePreview(periodItem);
+  }
+  addPeriod(event) {
+    const periodsContainer = document.getElementById("periods-list");
+    const existingPeriods = periodsContainer.querySelectorAll(".period-item");
+    const newIndex2 = existingPeriods.length;
+    const newPeriodHTML = this.createPeriodHTML(newIndex2);
+    periodsContainer.insertAdjacentHTML("beforeend", newPeriodHTML);
+    const newPeriod = periodsContainer.lastElementChild;
+    this.updatePreview(newPeriod);
+  }
+  removePeriod(event) {
+    const periodItem = event.target.closest(".period-item");
+    periodItem.remove();
+    this.reindexPeriods();
+  }
+  async savePeriods(event) {
+    const weekday = event.target.dataset.weekday;
+    const mode = document.querySelector('input[name="operation_mode"]:checked').value;
+    const periods = this.collectPeriods();
+    try {
+      const response = await fetch(`/admin/restaurants/${this.getRestaurantSlug()}/reservation_periods/update_day`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "X-CSRF-Token": this.getCSRFToken(),
+          "X-Requested-With": "XMLHttpRequest"
+        },
+        body: JSON.stringify({
+          weekday,
+          operation_mode: mode,
+          periods
+        })
+      });
+      if (response.ok) {
+        this.closeModal();
+        window.location.reload();
+      } else {
+        console.error("Error saving periods");
+      }
+    } catch (error2) {
+      console.error("Error saving periods:", error2);
+    }
+  }
+  updatePreview(periodItem) {
+    const startTime = periodItem.querySelector('input[name$="[start_time]"]').value;
+    const endTime = periodItem.querySelector('input[name$="[end_time]"]').value;
+    const interval = parseInt(periodItem.querySelector('select[name$="[interval]"]').value);
+    if (startTime && endTime && interval) {
+      const slots = this.generateTimeSlots(startTime, endTime, interval);
+      const slotCount = periodItem.querySelector(".slot-count");
+      const slotsPreview = periodItem.querySelector(".time-slots-preview");
+      if (slotCount) slotCount.textContent = slots.length;
+      if (slotsPreview) slotsPreview.textContent = slots.join(", ");
+    }
+  }
+  updateAllPreviews() {
+    const periods = document.querySelectorAll(".period-item");
+    periods.forEach((period) => this.updatePreview(period));
+  }
+  generateTimeSlots(startTime, endTime, intervalMinutes) {
+    const slots = [];
+    const start2 = /* @__PURE__ */ new Date(`2000-01-01T${startTime}:00`);
+    const end = /* @__PURE__ */ new Date(`2000-01-01T${endTime}:00`);
+    let current = new Date(start2);
+    while (current <= end) {
+      slots.push(current.toTimeString().slice(0, 5));
+      current.setMinutes(current.getMinutes() + intervalMinutes);
+    }
+    return slots;
+  }
+  createPeriodHTML(index2) {
+    return `
+      <div class="period-item bg-gray-50 p-4 rounded-lg" data-period-index="${index2}">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div class="md:col-span-2">
+            <div class="flex items-center space-x-2">
+              <input type="time" 
+                     name="periods[${index2}][start_time]" 
+                     value="18:00"
+                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                     data-action="change->period-editor#timeChanged" />
+              <span class="text-gray-500">\u81F3</span>
+              <input type="time" 
+                     name="periods[${index2}][end_time]" 
+                     value="20:00"
+                     class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                     data-action="change->period-editor#timeChanged" />
+            </div>
+          </div>
+          <div>
+            <select name="periods[${index2}][interval]" 
+                    class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
+                    data-action="change->period-editor#intervalChanged">
+              <option value="15">15 \u5206\u9418</option>
+              <option value="30" selected>30 \u5206\u9418</option>
+              <option value="60">60 \u5206\u9418</option>
+              <option value="90">90 \u5206\u9418</option>
+              <option value="120">120 \u5206\u9418</option>
+              <option value="150">150 \u5206\u9418</option>
+              <option value="180">180 \u5206\u9418</option>
+              <option value="210">210 \u5206\u9418</option>
+              <option value="240">240 \u5206\u9418</option>
+            </select>
+          </div>
+        </div>
+        <div class="mt-3">
+          <div class="text-sm text-gray-600">
+            \u8A02\u4F4D\u6642\u9593\u9078\u9805\uFF1A\u5171 <span class="slot-count">5</span> \u500B
+          </div>
+          <div class="time-slots-preview mt-1 text-sm text-gray-500">
+            18:00, 18:30, 19:00, 19:30, 20:00
+          </div>
+        </div>
+        <div class="mt-3 flex justify-end">
+          <button type="button" 
+                  class="text-red-600 hover:text-red-800 text-sm"
+                  data-action="click->period-editor#removePeriod"
+                  data-period-index="${index2}">
+            \u79FB\u9664\u6B64\u6642\u6BB5
+          </button>
+        </div>
+      </div>
+    `;
+  }
+  collectPeriods() {
+    const periods = [];
+    const periodItems = document.querySelectorAll(".period-item");
+    periodItems.forEach((item) => {
+      const startTime = item.querySelector('input[name$="[start_time]"]').value;
+      const endTime = item.querySelector('input[name$="[end_time]"]').value;
+      const interval = item.querySelector('select[name$="[interval]"]').value;
+      if (startTime && endTime) {
+        periods.push({
+          start_time: startTime,
+          end_time: endTime,
+          interval_minutes: parseInt(interval)
+        });
+      }
+    });
+    return periods;
+  }
+  reindexPeriods() {
+    const periodItems = document.querySelectorAll(".period-item");
+    periodItems.forEach((item, index2) => {
+      item.dataset.periodIndex = index2;
+      item.querySelector('input[name$="[start_time]"]').name = `periods[${index2}][start_time]`;
+      item.querySelector('input[name$="[end_time]"]').name = `periods[${index2}][end_time]`;
+      item.querySelector('select[name$="[interval]"]').name = `periods[${index2}][interval]`;
+      const removeButton = item.querySelector('button[data-action*="removePeriod"]');
+      if (removeButton) {
+        removeButton.dataset.periodIndex = index2;
+      }
+    });
+  }
+  closeModal() {
+    const modalContainer = document.getElementById("edit-modal-container");
+    modalContainer.classList.add("hidden");
+  }
+  getRestaurantSlug() {
+    return window.location.pathname.split("/")[3];
+  }
+  getCSRFToken() {
+    return document.querySelector('meta[name="csrf-token"]')?.getAttribute("content");
   }
 };
 
@@ -12317,7 +12645,7 @@ var reservation_calendar_controller_default = class extends Controller {
       }
       const data = await response.json();
       this.availableDates = data.available_dates || [];
-      this.businessPeriods = data.business_periods || [];
+      this.businessPeriods = data.reservation_periods || [];
       this.availableDates = this.availableDates.filter((dateStr) => {
         const date = this.parseLocalDate(dateStr);
         return !this.isDateBeforeOrToday(date);
@@ -13438,7 +13766,15 @@ var reservation_controller_default = class extends Controller {
 
 // app/javascript/controllers/reservation_form_controller.js
 var reservation_form_controller_default = class extends Controller {
-  static targets = ["partySizeField", "adultsField", "childrenField", "datetimeField", "submitButton"];
+  static targets = [
+    "partySizeField",
+    "adultsField",
+    "childrenField",
+    "datetimeField",
+    "submitButton",
+    "phoneInput",
+    "phoneError"
+  ];
   static values = {
     restaurantId: String,
     checkAvailabilityUrl: String
@@ -13518,23 +13854,33 @@ var reservation_form_controller_default = class extends Controller {
     }
   }
   // 獲取 CSRF Token
-  getCSRFToken() {
-    const token = document.querySelector('[name="csrf-token"]');
-    return token ? token.content : "";
+  // getCSRFToken() {
+  //     const token = document.querySelector('[name="csrf-token"]')
+  //     return token ? token.content : ''
+  // }
+  // 電話號碼驗證
+  validatePhone() {
+    if (!this.hasPhoneInputTarget) return true;
+    const phone = this.phoneInputTarget.value;
+    const phoneRegex = /^09\d{8}$/;
+    const isValid = phoneRegex.test(phone);
+    if (!isValid) {
+      this.phoneErrorTarget.textContent = "\u8ACB\u8F38\u5165\u6709\u6548\u7684\u53F0\u7063\u624B\u6A5F\u865F\u78BC (\u4F8B\u5982: 0912345678)";
+      this.phoneErrorTarget.classList.remove("hidden");
+      this.phoneInputTarget.classList.add("border-red-500");
+    } else {
+      this.phoneErrorTarget.textContent = "";
+      this.phoneErrorTarget.classList.add("hidden");
+      this.phoneInputTarget.classList.remove("border-red-500");
+    }
+    return isValid;
   }
   // 表單提交前的驗證
   validateForm(event) {
-    const partySize = parseInt(this.partySizeFieldTarget.value) || 0;
-    const adults = parseInt(this.adultsFieldTarget.value) || 0;
-    const children = parseInt(this.childrenFieldTarget.value) || 0;
-    if (adults + children !== partySize) {
+    console.log("validateForm triggered");
+    const isPhoneValid = this.validatePhone();
+    if (!isPhoneValid) {
       event.preventDefault();
-      alert("\u5927\u4EBA\u6578\u548C\u5C0F\u5B69\u6578\u7684\u7E3D\u548C\u5FC5\u9808\u7B49\u65BC\u7E3D\u4EBA\u6578");
-      return false;
-    }
-    if (adults < 1) {
-      event.preventDefault();
-      alert("\u81F3\u5C11\u9700\u89811\u4F4D\u5927\u4EBA");
       return false;
     }
     return true;
@@ -13568,7 +13914,6 @@ var reservation_policy_controller_default = class extends Controller {
     "unlimitedCheckbox",
     "limitedTimeSettings",
     "diningDurationField",
-    "bufferTimeField",
     "durationPreview",
     "examplePreview"
   ];
@@ -13711,8 +14056,7 @@ var reservation_policy_controller_default = class extends Controller {
       return;
     }
     const diningMinutes = this.hasDiningDurationFieldTarget ? parseInt(this.diningDurationFieldTarget.value) || 120 : 120;
-    const bufferMinutes = this.hasBufferTimeFieldTarget ? parseInt(this.bufferTimeFieldTarget.value) || 15 : 15;
-    const totalMinutes = diningMinutes + bufferMinutes;
+    const totalMinutes = diningMinutes;
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     let durationText;
@@ -13731,8 +14075,8 @@ var reservation_policy_controller_default = class extends Controller {
       minute: "2-digit",
       hour12: false
     });
-    this.durationPreviewTarget.innerHTML = `\u7E3D\u4F54\u7528\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${durationText}</span>`;
-    this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u684C\u4F4D\u6703\u88AB\u4F54\u7528\u5230 <span class="font-medium text-blue-600">${endTimeString}</span>`;
+    this.durationPreviewTarget.innerHTML = `\u7528\u9910\u6642\u9593\uFF1A<span class="font-medium text-blue-600">${durationText}</span>`;
+    this.examplePreviewTarget.innerHTML = `\u4F8B\u5982\uFF1A18:00 \u8A02\u4F4D\uFF0C\u9810\u8A08 <span class="font-medium text-blue-600">${endTimeString}</span> \u7528\u9910\u7D50\u675F`;
   }
 };
 
@@ -13912,7 +14256,7 @@ var restaurant_management_controller_default = class extends Controller {
       case "restaurant-info":
         return `/admin/restaurants/${slug}/edit`;
       case "business-periods":
-        return `/admin/restaurants/${slug}/business_periods`;
+        return `/admin/restaurants/${slug}/reservation_periods`;
       case "closure-dates":
         return `/admin/restaurant_settings/restaurants/${slug}/closure_dates`;
       default:
@@ -14035,7 +14379,7 @@ var restaurant_management_controller_default = class extends Controller {
         }
       });
     });
-    const newBusinessPeriodForm = contentDiv.querySelector("#new_business_period_form form");
+    const newBusinessPeriodForm = contentDiv.querySelector("#new_reservation_period_form form");
     if (newBusinessPeriodForm) {
       newBusinessPeriodForm.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -17225,17 +17569,439 @@ var special_dates_controller_default = class extends Controller {
   }
 };
 
+// app/javascript/controllers/turbo_modal_controller.js
+var turbo_modal_controller_default = class extends Controller {
+  static targets = ["container", "frame"];
+  connect() {
+    this.boundFrameLoad = this.frameLoad.bind(this);
+    this.boundFrameBeforeLoad = this.frameBeforeLoad.bind(this);
+    if (this.hasFrameTarget) {
+      this.frameTarget.addEventListener("turbo:frame-load", this.boundFrameLoad);
+      this.frameTarget.addEventListener("turbo:before-frame-render", this.boundFrameBeforeLoad);
+    }
+  }
+  disconnect() {
+    if (this.hasFrameTarget && this.boundFrameLoad) {
+      this.frameTarget.removeEventListener("turbo:frame-load", this.boundFrameLoad);
+      this.frameTarget.removeEventListener("turbo:before-frame-render", this.boundFrameBeforeLoad);
+    }
+  }
+  frameBeforeLoad(event) {
+    this.showLoading();
+  }
+  frameLoad(event) {
+    if (this.frameTarget.innerHTML.trim()) {
+      this.show();
+    } else {
+      this.hide();
+    }
+  }
+  show() {
+    if (this.hasContainerTarget) {
+      this.containerTarget.classList.remove("hidden");
+      requestAnimationFrame(() => {
+        this.containerTarget.classList.add("opacity-100");
+      });
+    }
+  }
+  hide() {
+    if (this.hasContainerTarget) {
+      this.containerTarget.classList.add("hidden");
+      this.containerTarget.classList.remove("opacity-100");
+    }
+  }
+  close() {
+    if (this.hasFrameTarget) {
+      this.frameTarget.innerHTML = "";
+    }
+    this.hide();
+  }
+  showLoading() {
+    if (this.hasFrameTarget) {
+      this.frameTarget.innerHTML = `
+        <div class="px-4 pt-5 pb-4 sm:p-6">
+          <div class="text-center">
+            <svg class="animate-spin h-8 w-8 text-gray-400 mx-auto" fill="none" viewBox="0 0 24 24">
+              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 0 1 8-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 0 1 4 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+            </svg>
+            <p class="mt-2 text-gray-500">\u8F09\u5165\u4E2D...</p>
+          </div>
+        </div>
+      `;
+    }
+    this.show();
+  }
+  // 監聽鍵盤事件
+  keydown(event) {
+    if (event.key === "Escape") {
+      this.close();
+    }
+  }
+  // 處理背景點擊
+  backgroundClick(event) {
+    if (event.target === event.currentTarget) {
+      this.close();
+    }
+  }
+};
+
+// app/javascript/controllers/weekly_reservation_periods_controller.js
+var weekly_reservation_periods_controller_default = class extends Controller {
+  static values = {
+    restaurantSlug: String
+  };
+  connect() {
+    console.log("Weekly Business Periods Controller connected");
+  }
+  editDay(event) {
+    const weekday = event.currentTarget.dataset.weekday;
+    const url = `/admin/restaurant_settings/restaurants/${this.restaurantSlugValue}/weekly_day/${weekday}/edit`;
+    this.loadModal(url);
+  }
+  copyDay(event) {
+    const sourceWeekday = event.currentTarget.dataset.weekday;
+    this.showCopyDialog(sourceWeekday);
+  }
+  showCopyDialog(sourceWeekday) {
+    const targetOptions = [
+      { value: 0, label: "\u661F\u671F\u65E5" },
+      { value: 1, label: "\u661F\u671F\u4E00" },
+      { value: 2, label: "\u661F\u671F\u4E8C" },
+      { value: 3, label: "\u661F\u671F\u4E09" },
+      { value: 4, label: "\u661F\u671F\u56DB" },
+      { value: 5, label: "\u661F\u671F\u4E94" },
+      { value: 6, label: "\u661F\u671F\u516D" }
+    ].filter((option2) => option2.value != sourceWeekday);
+    const checkboxes = targetOptions.map(
+      (option2) => `<label class="flex items-center">
+        <input type="checkbox" name="target_weekdays" value="${option2.value}" class="mr-2">
+        ${option2.label}
+      </label>`
+    ).join("");
+    const content = `
+      <div class="p-6">
+        <h3 class="text-lg font-medium mb-4">\u8907\u88FD\u71DF\u696D\u6642\u6BB5\u5230\u5176\u4ED6\u661F\u671F</h3>
+        <div class="space-y-2 mb-6">
+          ${checkboxes}
+        </div>
+        <div class="flex justify-end space-x-3">
+          <button type="button" class="px-4 py-2 border border-gray-300 rounded text-sm" onclick="this.closest('.modal').style.display='none'">\u53D6\u6D88</button>
+          <button type="button" class="px-4 py-2 bg-blue-600 text-white rounded text-sm" onclick="this.submitCopy(${sourceWeekday})">\u8907\u88FD</button>
+        </div>
+      </div>
+    `;
+    this.showModal(content);
+  }
+  submitCopy(sourceWeekday) {
+    const selectedTargets = document.querySelectorAll('input[name="target_weekdays"]:checked');
+    if (selectedTargets.length === 0) {
+      alert("\u8ACB\u9078\u64C7\u8981\u8907\u88FD\u5230\u7684\u661F\u671F");
+      return;
+    }
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = `/admin/restaurant_settings/restaurants/${this.restaurantSlugValue}/weekly_day/copy`;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+    form.innerHTML = `
+      <input type="hidden" name="authenticity_token" value="${csrfToken}">
+      <input type="hidden" name="source_weekday" value="${sourceWeekday}">
+    `;
+    selectedTargets.forEach((checkbox) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = "target_weekdays[]";
+      input.value = checkbox.value;
+      form.appendChild(input);
+    });
+    this.closeModal();
+    document.body.appendChild(form);
+    form.submit();
+  }
+  loadModal(url) {
+    fetch(url, {
+      headers: {
+        "X-Requested-With": "XMLHttpRequest",
+        "Accept": "text/html"
+      }
+    }).then((response) => response.text()).then((html) => {
+      this.showModal(html);
+    }).catch((error2) => {
+      console.error("Error loading modal:", error2);
+    });
+  }
+  showModal(content) {
+    const modalContainer = document.getElementById("weekly-modal-container");
+    const modalContent = document.getElementById("weekly-modal-content");
+    modalContent.innerHTML = content;
+    modalContainer.classList.remove("hidden");
+    if (window.Stimulus && !window.Stimulus.router.modules.find((m) => m.identifier === "period-editor")) {
+      window.Stimulus.register("period-editor", PeriodEditorController);
+    }
+    const periodEditorElement = modalContent.querySelector('[data-controller*="period-editor"]');
+    if (periodEditorElement && window.Stimulus) {
+      window.Stimulus.application.start();
+    }
+  }
+  closeModal() {
+    const modalContainer = document.getElementById("weekly-modal-container");
+    modalContainer.classList.add("hidden");
+  }
+  saveWeeklyPeriods(event) {
+    const weekday = event.target.dataset.weekday;
+    const operationMode = document.querySelector('input[name="operation_mode"]:checked').value;
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = `/admin/restaurant_settings/restaurants/${this.restaurantSlugValue}/weekly_day/${weekday}`;
+    const csrfToken = document.querySelector('meta[name="csrf-token"]').getAttribute("content");
+    form.innerHTML = `
+      <input type="hidden" name="_method" value="patch">
+      <input type="hidden" name="authenticity_token" value="${csrfToken}">
+      <input type="hidden" name="operation_mode" value="${operationMode}">
+    `;
+    if (operationMode === "custom_hours") {
+      const periods = document.querySelectorAll(".period-item");
+      periods.forEach((period, index2) => {
+        const startTime = period.querySelector('input[type="time"]:first-of-type').value;
+        const endTime = period.querySelector('input[type="time"]:last-of-type').value;
+        const interval = period.querySelector("select").value;
+        form.innerHTML += `
+          <input type="hidden" name="periods[${index2}][start_time]" value="${startTime}">
+          <input type="hidden" name="periods[${index2}][end_time]" value="${endTime}">
+          <input type="hidden" name="periods[${index2}][interval]" value="${interval}">
+        `;
+      });
+    }
+    document.body.appendChild(form);
+    form.submit();
+  }
+};
+var PeriodEditorController = class extends Controller {
+  modeChanged(event) {
+    const mode = event.target.value;
+    const customSection = document.getElementById("custom-periods-section");
+    if (mode === "custom_hours") {
+      customSection.classList.remove("hidden");
+    } else {
+      customSection.classList.add("hidden");
+    }
+  }
+  timeChanged(event) {
+    this.updateTimeSlots(event.target.closest(".period-item"));
+  }
+  intervalChanged(event) {
+    this.updateTimeSlots(event.target.closest(".period-item"));
+  }
+  updateTimeSlots(periodItem) {
+    const startTime = periodItem.querySelector('input[type="time"]:first-of-type').value;
+    const endTime = periodItem.querySelector('input[type="time"]:last-of-type').value;
+    const interval = parseInt(periodItem.querySelector("select").value);
+    if (startTime && endTime && interval) {
+      const slots = this.generateTimeSlots(startTime, endTime, interval);
+      const slotCount = periodItem.querySelector(".slot-count");
+      const slotPreview = periodItem.querySelector(".time-slots-preview");
+      slotCount.textContent = slots.length;
+      slotPreview.textContent = slots.join(", ");
+    }
+  }
+  generateTimeSlots(startTime, endTime, intervalMinutes) {
+    const slots = [];
+    const start2 = /* @__PURE__ */ new Date(`2000-01-01T${startTime}:00`);
+    const end = /* @__PURE__ */ new Date(`2000-01-01T${endTime}:00`);
+    let current = new Date(start2);
+    while (current < end) {
+      slots.push(current.toLocaleTimeString("zh-TW", { hour: "2-digit", minute: "2-digit", hour12: false }));
+      current.setMinutes(current.getMinutes() + intervalMinutes);
+    }
+    return slots;
+  }
+  addPeriod() {
+    const periodsList = document.getElementById("periods-list");
+    const newIndex2 = periodsList.children.length;
+    const newPeriod = document.createElement("div");
+    newPeriod.className = "period-item bg-gray-50 p-4 rounded-lg";
+    newPeriod.dataset.periodIndex = newIndex2;
+    newPeriod.innerHTML = `
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div class="md:col-span-2">
+          <div class="flex items-center space-x-2">
+            <input type="time" name="periods[${newIndex2}][start_time]" value="18:00" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" data-action="change->period-editor#timeChanged" />
+            <span class="text-gray-500">\u81F3</span>
+            <input type="time" name="periods[${newIndex2}][end_time]" value="20:00" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" data-action="change->period-editor#timeChanged" />
+          </div>
+        </div>
+        <div>
+          <select name="periods[${newIndex2}][interval]" class="block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm" data-action="change->period-editor#intervalChanged">
+            <option value="15">15 \u5206\u9418</option>
+            <option value="30" selected>30 \u5206\u9418</option>
+            <option value="60">60 \u5206\u9418</option>
+            <option value="90">90 \u5206\u9418</option>
+            <option value="120">120 \u5206\u9418</option>
+            <option value="150">150 \u5206\u9418</option>
+            <option value="180">180 \u5206\u9418</option>
+            <option value="210">210 \u5206\u9418</option>
+            <option value="240">240 \u5206\u9418</option>
+          </select>
+        </div>
+      </div>
+      <div class="mt-3">
+        <div class="text-sm text-gray-600">\u8A02\u4F4D\u6642\u9593\u9078\u9805\uFF1A\u5171 <span class="slot-count">5</span> \u500B</div>
+        <div class="time-slots-preview mt-1 text-sm text-gray-500">18:00, 18:30, 19:00, 19:30, 20:00</div>
+      </div>
+      <div class="mt-3 flex justify-end">
+        <button type="button" class="text-red-600 hover:text-red-800 text-sm" data-action="click->period-editor#removePeriod" data-period-index="${newIndex2}">\u79FB\u9664\u6B64\u6642\u6BB5</button>
+      </div>
+    `;
+    periodsList.appendChild(newPeriod);
+    this.updateTimeSlots(newPeriod);
+  }
+  removePeriod(event) {
+    const periodItem = event.target.closest(".period-item");
+    periodItem.remove();
+  }
+};
+if (window.Stimulus) {
+  window.Stimulus.register("period-editor", PeriodEditorController);
+}
+
+// app/javascript/controllers/operating_hours_controller.js
+var operating_hours_controller_default = class extends Controller {
+  connect() {
+    console.log("OperatingHours controller connected (now simplified).");
+  }
+};
+
+// app/javascript/controllers/operating_hour_row_controller.js
+var operating_hour_row_controller_default = class extends Controller {
+  static targets = ["timeDisplay", "editForm"];
+  connect() {
+    console.log("Operating Hour Row controller connected");
+  }
+  // 顯示編輯表單
+  showForm() {
+    const timeDisplay = this.element.querySelector(".text-gray-700");
+    const editForm = this.element.querySelector("form");
+    if (timeDisplay && editForm) {
+      timeDisplay.classList.add("hidden");
+      editForm.classList.remove("hidden");
+      editForm.classList.add("flex");
+      const firstTimeInput = editForm.querySelector('input[type="time"]');
+      if (firstTimeInput) {
+        firstTimeInput.focus();
+      }
+    }
+  }
+  // 取消編輯
+  cancel() {
+    const timeDisplay = this.element.querySelector(".text-gray-700");
+    const editForm = this.element.querySelector("form");
+    if (timeDisplay && editForm) {
+      timeDisplay.classList.remove("hidden");
+      editForm.classList.add("hidden");
+      editForm.classList.remove("flex");
+    }
+  }
+  // 表單提交成功後的處理
+  formSuccess() {
+    console.log("Form submitted successfully");
+  }
+};
+
+// app/javascript/controllers/admin_operating_hours_controller.js
+var admin_operating_hours_controller_default = class extends Controller {
+  connect() {
+    console.log("Admin Operating Hours controller connected");
+  }
+  // 新增營業時間 (通用)
+  addNew(event) {
+    console.log("Adding new operating hour");
+  }
+  // 新增特定星期的營業時間
+  addNewForWeekday(event) {
+    const weekday = event.currentTarget.dataset.weekday;
+    console.log(`Adding new operating hour for weekday: ${weekday}`);
+  }
+};
+
+// app/javascript/controllers/admin_operating_hour_row_controller.js
+var admin_operating_hour_row_controller_default = class extends Controller {
+  static values = { editMode: Boolean };
+  connect() {
+    console.log("Admin Operating Hour Row controller connected");
+    console.log("Edit mode:", this.editModeValue);
+    if (this.editModeValue) {
+      this.focusFirstTimeInput();
+    }
+  }
+  // 進入編輯模式
+  enterEditMode(event) {
+    event.preventDefault();
+    console.log("Entering edit mode");
+    const operatingHourId = this.getOperatingHourId();
+    if (operatingHourId) {
+      const editUrl = `/admin/restaurants/${this.getRestaurantId()}/operating_hours/${operatingHourId}/edit`;
+      Turbo.visit(editUrl, { frame: this.getFrameId() });
+    }
+  }
+  // 取消編輯
+  cancelEdit(event) {
+    event.preventDefault();
+    console.log("Canceling edit");
+    const operatingHourId = this.getOperatingHourId();
+    if (operatingHourId) {
+      const showUrl = `/admin/restaurants/${this.getRestaurantId()}/operating_hours/${operatingHourId}`;
+      Turbo.visit(showUrl, { frame: this.getFrameId() });
+    } else {
+      this.element.remove();
+    }
+  }
+  // 處理表單提交
+  handleFormSubmit(event) {
+    console.log("Handling form submit");
+  }
+  // 私有方法：聚焦到第一個時間輸入框
+  focusFirstTimeInput() {
+    const firstTimeInput = this.element.querySelector('input[type="time"]');
+    if (firstTimeInput) {
+      setTimeout(() => {
+        firstTimeInput.focus();
+      }, 100);
+    }
+  }
+  // 私有方法：獲取營業時間 ID
+  getOperatingHourId() {
+    const frameElement = this.element.closest("turbo-frame");
+    if (frameElement && frameElement.id.startsWith("operating_hour_")) {
+      const match = frameElement.id.match(/operating_hour_(\d+)/);
+      return match ? match[1] : null;
+    }
+    return null;
+  }
+  // 私有方法：獲取餐廳 ID (從 URL 或 data 屬性)
+  getRestaurantId() {
+    const pathMatch = window.location.pathname.match(/\/restaurants\/([^\/]+)/);
+    return pathMatch ? pathMatch[1] : null;
+  }
+  // 私有方法：獲取 frame ID
+  getFrameId() {
+    const frameElement = this.element.closest("turbo-frame");
+    return frameElement ? frameElement.id : null;
+  }
+};
+
 // app/javascript/controllers/index.js
 application.register("admin-reservation", admin_reservation_controller_default);
 application.register("calendar", calendar_controller_default);
 application.register("closure-dates", closure_dates_controller_default);
 application.register("confirmation", confirmation_controller_default);
+application.register("daily-reservation-periods", daily_reservation_periods_controller_default);
 application.register("dining-settings", dining_settings_controller_default);
 application.register("dropdown", dropdown_controller_default);
 application.register("flash", flash_controller_default);
 application.register("form-validation", form_validation_controller_default);
 application.register("hello", hello_controller_default);
 application.register("modal", modal_controller_default);
+application.register("period-editor", period_editor_controller_default);
 application.register("reservation-calendar", reservation_calendar_controller_default);
 application.register("reservation", reservation_controller_default);
 application.register("reservation-form", reservation_form_controller_default);
@@ -17246,6 +18012,12 @@ application.register("sidebar", sidebar_controller_default);
 application.register("sortable", sortable_controller_default);
 application.register("special-date-form", special_date_form_controller_default);
 application.register("special-dates", special_dates_controller_default);
+application.register("turbo-modal", turbo_modal_controller_default);
+application.register("weekly-reservation-periods", weekly_reservation_periods_controller_default);
+application.register("operating-hours", operating_hours_controller_default);
+application.register("operating-hour-row", operating_hour_row_controller_default);
+application.register("admin-operating-hours", admin_operating_hours_controller_default);
+application.register("admin-operating-hour-row", admin_operating_hour_row_controller_default);
 /*! Bundled license information:
 
 @hotwired/turbo/dist/turbo.es2017-esm.js:

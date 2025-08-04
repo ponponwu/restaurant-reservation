@@ -1,7 +1,7 @@
 require 'rails_helper'
 
 RSpec.describe 'Admin::RestaurantSettings' do
-  let(:user) { create(:user, :admin) }
+  let(:user) { create(:user, :super_admin) }
   let(:restaurant) { create(:restaurant) }
 
   before do
@@ -15,9 +15,9 @@ RSpec.describe 'Admin::RestaurantSettings' do
     end
   end
 
-  describe 'GET /admin/restaurant_settings/restaurants/:restaurant_slug/business_periods' do
+  describe 'GET /admin/restaurant_settings/restaurants/:restaurant_slug/reservation_periods' do
     it 'returns http success' do
-      get admin_restaurant_settings_restaurant_business_periods_path(restaurant.slug)
+      get admin_restaurant_settings_restaurant_reservation_periods_path(restaurant.slug)
       expect(response).to have_http_status(:success)
     end
   end
@@ -33,6 +33,27 @@ RSpec.describe 'Admin::RestaurantSettings' do
     it 'returns http success' do
       get admin_restaurant_settings_restaurant_reservation_policies_path(restaurant.slug)
       expect(response).to have_http_status(:success)
+    end
+  end
+
+  describe 'GET /admin/restaurant_settings/restaurants/:restaurant_slug/weekly_day/:weekday/edit' do
+    it 'returns http success' do
+      get admin_restaurant_settings_restaurant_edit_weekly_day_path(restaurant.slug, 1)
+      expect(response).to have_http_status(:success)
+    end
+  end
+
+  describe 'PATCH /admin/restaurant_settings/restaurants/:restaurant_slug/weekly_day/:weekday' do
+    it 'updates weekly reservation periods' do
+      patch admin_restaurant_settings_restaurant_update_weekly_day_path(restaurant.slug, 1), params: {
+        operation_mode: 'custom_hours',
+        periods: [
+          { start_time: '12:00', end_time: '14:00', interval: 30 },
+          { start_time: '18:00', end_time: '20:00', interval: 30 }
+        ]
+      }
+      expect(response).to have_http_status(:redirect)
+      expect(restaurant.reservation_periods.for_weekday(1).count).to eq(2)
     end
   end
 

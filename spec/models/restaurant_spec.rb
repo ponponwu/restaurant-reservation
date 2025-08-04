@@ -52,9 +52,9 @@ RSpec.describe Restaurant do
     it { is_expected.to have_many(:users).dependent(:nullify) }
     it { is_expected.to have_many(:restaurant_tables).dependent(:destroy) }
     it { is_expected.to have_many(:table_groups).dependent(:destroy) }
-    it { is_expected.to have_many(:business_periods).dependent(:destroy) }
+    it { is_expected.to have_many(:reservation_periods).dependent(:destroy) }
     it { is_expected.to have_many(:reservations).dependent(:destroy) }
-    it { is_expected.to have_many(:reservation_slots).through(:business_periods) }
+    it { is_expected.to have_many(:reservation_slots).through(:reservation_periods) }
     it { is_expected.to have_many(:closure_dates).dependent(:destroy) }
     it { is_expected.to have_one(:reservation_policy).dependent(:destroy) }
   end
@@ -115,24 +115,6 @@ RSpec.describe Restaurant do
 
   describe 'instance methods' do
     let(:restaurant) { create(:restaurant) }
-
-    describe '#soft_delete!' do
-      it 'sets active to false and deleted_at to current time' do
-        before_time = Time.current
-        restaurant.soft_delete!
-        expect(restaurant.active).to be false
-        expect(restaurant.deleted_at).to be_within(1.second).of(before_time)
-      end
-    end
-
-    describe '#restore!' do
-      it 'sets active to true and deleted_at to nil' do
-        restaurant.update!(active: false, deleted_at: Time.current)
-        restaurant.restore!
-        expect(restaurant.active).to be true
-        expect(restaurant.deleted_at).to be_nil
-      end
-    end
 
     describe '#calculate_total_capacity' do
       it 'returns 0 when no tables' do
@@ -221,8 +203,8 @@ RSpec.describe Restaurant do
     end
 
     describe '#formatted_business_hours' do
-      let!(:business_period) do
-        create(:business_period,
+      let!(:reservation_period) do
+        create(:reservation_period,
                restaurant: restaurant,
                days_of_week: %w[monday tuesday],
                start_time: '09:00',
@@ -266,8 +248,8 @@ RSpec.describe Restaurant do
     describe '#generate_time_slots_for_period' do
       include ActiveSupport::Testing::TimeHelpers
 
-      let(:business_period) do
-        create(:business_period,
+      let(:reservation_period) do
+        create(:reservation_period,
                restaurant: restaurant,
                start_time: '10:00',
                end_time: '16:00')
@@ -286,7 +268,7 @@ RSpec.describe Restaurant do
 
           # 模擬當前時間為 11:00
           travel_to Time.zone.parse("#{today} 11:00") do
-            slots = restaurant.generate_time_slots_for_period(business_period, today)
+            slots = restaurant.generate_time_slots_for_period(reservation_period, today)
 
             # 應該過濾掉 11:XX 和 12:XX 的時間槽（2小時內）
             # 只保留 13:00 之後的時間槽
@@ -303,7 +285,7 @@ RSpec.describe Restaurant do
 
           today = Date.current
           travel_to Time.zone.parse("#{today} 11:00") do
-            slots = restaurant.generate_time_slots_for_period(business_period, today)
+            slots = restaurant.generate_time_slots_for_period(reservation_period, today)
 
             # 應該包含所有未來的時間槽
             slot_times = slots.map { |slot| slot[:time] }

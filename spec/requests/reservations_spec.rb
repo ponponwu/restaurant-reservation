@@ -2,12 +2,12 @@ require 'rails_helper'
 
 RSpec.describe 'Reservations' do
   let(:restaurant) { create(:restaurant) }
-  let(:business_period) { create(:business_period, restaurant: restaurant) }
+  let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
   let(:table) { create(:table, restaurant: restaurant, table_number: 'A1', capacity: 4) }
 
   before do
     # 確保餐廳有營業時段和桌位
-    business_period.update!(days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday]) # 設定為每天營業
+    reservation_period.update!(days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday]) # 設定為每天營業
     table
   end
 
@@ -96,7 +96,7 @@ RSpec.describe 'Reservations' do
         adults: 2,
         children: 0,
         time: '18:00',
-        period_id: business_period.id
+        period_id: reservation_period.id
       }
     end
 
@@ -134,7 +134,7 @@ RSpec.describe 'Reservations' do
         adults: 2,
         children: 0,
         time_slot: '18:00',
-        business_period_id: business_period.id,
+        reservation_period_id: reservation_period.id,
         reservation: {
           customer_name: '測試客戶',
           customer_phone: '0912345678',

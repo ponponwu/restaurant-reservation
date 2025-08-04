@@ -6,78 +6,26 @@
   </div>
   <div class="bg-white divide-y divide-gray-200">
     <% if reservations.any? %>
-      <!-- 按用餐期分組顯示 -->
-      <% if defined?(reservations_by_period) && reservations_by_period.present? %>
-        <% reservations_by_period.each do |business_period, period_reservations| %>
-          <div class="border-b border-gray-100 last:border-b-0">
-            <!-- 用餐期標題 -->
-            <div class="bg-blue-50 px-6 py-3 border-l-4 border-blue-400">
-              <div class="flex items-center justify-between">
-                <div class="flex items-center">
-                  <svg class="w-5 h-5 text-blue-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-                  </svg>
-                  <h4 class="text-base font-semibold text-blue-900">
-                    <% if business_period %>
-                      <%= business_period.name %>
-                      <span class="text-sm font-normal text-blue-700">
-                        (<%= business_period.start_time.strftime('%H:%M') %> - <%= business_period.end_time.strftime('%H:%M') %>)
-                      </span>
-                    <% else %>
-                      <span class="text-gray-600">未指定用餐期</span>
-                    <% end %>
-                  </h4>
-                </div>
-                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  <%= period_reservations.count %> 筆訂位
-                </span>
-              </div>
-            </div>
-
-            <!-- 該用餐期的訂位列表 -->
-            <div class="overflow-x-auto">
-              <table class="min-w-full divide-y divide-gray-200">
-                <thead class="bg-gray-50">
-                  <tr>
-                    <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客戶資訊</th>
-                    <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
-                    <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">人數</th>
-                    <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">桌位</th>
-                    <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
-                    <th class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-                  </tr>
-                </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
-                  <% period_reservations.each do |reservation| %>
-                    <%= render "reservation_row", reservation: reservation %>
-                  <% end %>
-                </tbody>
-              </table>
-            </div>
-          </div>
-        <% end %>
-      <% else %>
-        <!-- 原本的表格顯示方式（當沒有分組資料時） -->
-        <div class="overflow-x-auto">
-          <table class="min-w-full divide-y divide-gray-200">
-            <thead class="bg-gray-50">
-              <tr>
-                <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客戶資訊</th>
-                <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
-                <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">人數</th>
-                <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">桌位</th>
-                <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
-                <th class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
-              </tr>
-            </thead>
-            <tbody class="bg-white divide-y divide-gray-200">
-              <% reservations.each do |reservation| %>
-                <%= render "reservation_row", reservation: reservation %>
-              <% end %>
-            </tbody>
-          </table>
-        </div>
-      <% end %>
+      <!-- 單純表格顯示，按最新訂單排序 -->
+      <div class="overflow-x-auto">
+        <table class="min-w-full divide-y divide-gray-200">
+          <thead class="bg-gray-50">
+            <tr>
+              <th class="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">客戶資訊</th>
+              <th class="px-3 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">時間</th>
+              <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">人數</th>
+              <th class="px-2 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">桌位</th>
+              <th class="px-3 py-3 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">狀態</th>
+              <th class="px-2 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">操作</th>
+            </tr>
+          </thead>
+          <tbody class="bg-white divide-y divide-gray-200">
+            <% reservations.each do |reservation| %>
+              <%= render "reservation_row", reservation: reservation %>
+            <% end %>
+          </tbody>
+        </table>
+      </div>
 
       <!-- 手機版卡片式佈局 -->
       <div class="hidden space-y-3 p-4">

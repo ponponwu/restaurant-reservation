@@ -84,7 +84,7 @@ Rails.logger.debug { "桌位群組已創建: #{table_group.name}" }
 end
 
 # 建立營業時段
-lunch_period = restaurant.business_periods.find_or_create_by(name: 'lunch') do |bp|
+lunch_period = restaurant.reservation_periods.find_or_create_by(name: 'lunch') do |bp|
   bp.display_name = '午餐時段'
   bp.start_time = '11:30'
   bp.end_time = '14:30'
@@ -92,7 +92,7 @@ lunch_period = restaurant.business_periods.find_or_create_by(name: 'lunch') do |
   bp.status = 'active'
 end
 
-dinner_period = restaurant.business_periods.find_or_create_by(name: 'dinner') do |bp|
+dinner_period = restaurant.reservation_periods.find_or_create_by(name: 'dinner') do |bp|
   bp.display_name = '晚餐時段'
   bp.start_time = '17:30'
   bp.end_time = '21:30'

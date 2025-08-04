@@ -64,8 +64,8 @@ RSpec.describe '桌位分配系統' do
   end
 
   describe 'Reservation 訂位驗證' do
-    let(:business_period) do
-      create(:business_period,
+    let(:reservation_period) do
+      create(:reservation_period,
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
@@ -76,7 +76,7 @@ RSpec.describe '桌位分配系統' do
       it '應該要求大人數和小孩數的總和等於總人數' do
         reservation = build(:reservation,
                             restaurant: restaurant,
-                            business_period: business_period,
+                            reservation_period: reservation_period,
                             party_size: 4,
                             adults_count: 2,
                             children_count: 1) # 總和只有3，不等於party_size的4
@@ -88,7 +88,7 @@ RSpec.describe '桌位分配系統' do
       it '應該接受正確的人數組合' do
         reservation = build(:reservation,
                             restaurant: restaurant,
-                            business_period: business_period,
+                            reservation_period: reservation_period,
                             party_size: 4,
                             adults_count: 2,
                             children_count: 2)
@@ -103,7 +103,7 @@ RSpec.describe '桌位分配系統' do
 
         reservation = build(:reservation,
                             restaurant: restaurant,
-                            business_period: business_period,
+                            reservation_period: reservation_period,
                             party_size: 15,
                             adults_count: 15,
                             children_count: 0)
@@ -118,7 +118,7 @@ RSpec.describe '桌位分配系統' do
         past_time = 1.hour.ago
         reservation = build(:reservation,
                             restaurant: restaurant,
-                            business_period: business_period,
+                            reservation_period: reservation_period,
                             reservation_datetime: past_time)
 
         expect(reservation).not_to be_valid
@@ -157,8 +157,8 @@ RSpec.describe '桌位分配系統' do
   end
 
   describe '營業時段和桌位衝突檢查' do
-    let(:business_period) do
-      create(:business_period,
+    let(:reservation_period) do
+      create(:reservation_period,
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
@@ -180,7 +180,7 @@ RSpec.describe '桌位分配系統' do
           # 建立一個在相同時間的訂位
           create(:reservation, :confirmed,
                  restaurant: restaurant,
-                 business_period: business_period,
+                 reservation_period: reservation_period,
                  table: table,
                  reservation_datetime: base_time)
         end
@@ -234,8 +234,8 @@ RSpec.describe '桌位分配系統' do
 
   describe 'TableCombination 併桌功能' do
     let(:table_group) { create(:table_group, restaurant: restaurant) }
-    let(:business_period) do
-      create(:business_period,
+    let(:reservation_period) do
+      create(:reservation_period,
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
@@ -245,7 +245,7 @@ RSpec.describe '桌位分配系統' do
     context '併桌驗證' do
       let(:table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4) }
       let(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4) }
-      let(:reservation) { create(:reservation, restaurant: restaurant, business_period: business_period, party_size: 6, adults_count: 6, children_count: 0) }
+      let(:reservation) { create(:reservation, restaurant: restaurant, reservation_period: reservation_period, party_size: 6, adults_count: 6, children_count: 0) }
 
       it '應該允許建立桌位組合' do
         combination = TableCombination.new(
@@ -274,8 +274,8 @@ RSpec.describe '桌位分配系統' do
 
   describe '資料完整性和約束' do
     let(:table_group) { create(:table_group, restaurant: restaurant) }
-    let(:business_period) do
-      create(:business_period,
+    let(:reservation_period) do
+      create(:reservation_period,
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
@@ -302,7 +302,7 @@ RSpec.describe '桌位分配系統' do
       it 'Reservation 需要客戶資訊和時間' do
         reservation = build(:reservation,
                             restaurant: restaurant,
-                            business_period: business_period,
+                            reservation_period: reservation_period,
                             customer_name: nil,
                             customer_phone: nil,
                             reservation_datetime: nil)
@@ -318,7 +318,7 @@ RSpec.describe '桌位分配系統' do
       let(:table) { create(:table, restaurant: restaurant, table_group: table_group) }
 
       it '餐廳應該有關聯的訂位' do
-        reservation = create(:reservation, restaurant: restaurant, business_period: business_period, table: table,
+        reservation = create(:reservation, restaurant: restaurant, reservation_period: reservation_period, table: table,
                                            party_size: 2, adults_count: 2, children_count: 0)
 
         expect(restaurant.reservations).to include(reservation)
@@ -326,7 +326,7 @@ RSpec.describe '桌位分配系統' do
       end
 
       it '桌位應該有關聯的訂位' do
-        reservation = create(:reservation, :confirmed, restaurant: restaurant, business_period: business_period, table: table,
+        reservation = create(:reservation, :confirmed, restaurant: restaurant, reservation_period: reservation_period, table: table,
                                                        party_size: 2, adults_count: 2, children_count: 0)
 
         expect(table.reservations).to include(reservation)
@@ -367,7 +367,7 @@ RSpec.describe '桌位分配系統' do
 
   describe '複雜的桌位分配情境' do
     let(:restaurant) { create(:restaurant) }
-    let!(:business_period) { create(:business_period, restaurant: restaurant) }
+    let!(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
 
     context '併桌功能測試' do
       it '應該能正確計算併桌後的總容量' do
@@ -414,7 +414,7 @@ RSpec.describe '桌位分配系統' do
         # 第一個訂位：12:00-14:00
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table,
                reservation_datetime: base_datetime,
                party_size: 2)
@@ -434,7 +434,7 @@ RSpec.describe '桌位分配系統' do
         late_night = base_datetime.change(hour: 23, min: 30)
         create(:reservation, :confirmed,
                restaurant: restaurant,
-               business_period: business_period,
+               reservation_period: reservation_period,
                table: table,
                reservation_datetime: late_night,
                party_size: 2)
@@ -452,7 +452,7 @@ RSpec.describe '桌位分配系統' do
     context '特殊營業時段處理' do
       it '應該正確處理假日營業時間' do
         # 建立假日營業時段
-        holiday_period = create(:business_period,
+        holiday_period = create(:reservation_period,
                                 restaurant: restaurant,
                                 start_time: '10:00',
                                 end_time: '22:00',
@@ -463,24 +463,24 @@ RSpec.describe '桌位分配系統' do
 
         reservation = create(:reservation,
                              restaurant: restaurant,
-                             business_period: holiday_period,
+                             reservation_period: holiday_period,
                              table: table,
                              reservation_datetime: saturday_time,
                              party_size: 2)
 
         expect(reservation.valid?).to be true
-        expect(reservation.business_period).to eq(holiday_period)
+        expect(reservation.reservation_period).to eq(holiday_period)
       end
 
       it '應該處理季節性營業時間調整' do
         # 建立夏季營業時段（延長營業）
-        summer_period = create(:business_period,
+        summer_period = create(:reservation_period,
                                restaurant: restaurant,
                                start_time: '11:00',
                                end_time: '23:00')
 
         # 建立冬季營業時段（縮短營業）
-        winter_period = create(:business_period,
+        winter_period = create(:reservation_period,
                                restaurant: restaurant,
                                start_time: '12:00',
                                end_time: '21:00')
@@ -491,7 +491,7 @@ RSpec.describe '桌位分配系統' do
         summer_time = Date.current.change(hour: 22, min: 30)
         build(:reservation,
               restaurant: restaurant,
-              business_period: summer_period,
+              reservation_period: summer_period,
               table: table,
               reservation_datetime: summer_time,
               party_size: 2)
@@ -504,7 +504,7 @@ RSpec.describe '桌位分配系統' do
         winter_time = (Date.current + 1.month).change(hour: 22, min: 30)
         build(:reservation,
               restaurant: restaurant,
-              business_period: winter_period,
+              reservation_period: winter_period,
               table: table,
               reservation_datetime: winter_time,
               party_size: 2)
@@ -573,7 +573,7 @@ RSpec.describe '桌位分配系統' do
         # 有兒童的訂位
         family_reservation = build(:reservation,
                                    restaurant: restaurant,
-                                   business_period: business_period,
+                                   reservation_period: reservation_period,
                                    party_size: 3,
                                    adults_count: 2,
                                    children_count: 1)

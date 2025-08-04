@@ -4,7 +4,7 @@ class ReservationAllocatorService
     if params.is_a?(Reservation)
       @reservation = params
       @restaurant = params.restaurant
-      @business_period_id = params.business_period_id
+      @reservation_period_id = params.reservation_period_id
       @reservation_datetime = params.reservation_datetime
     else
       @restaurant = params[:restaurant]
@@ -13,7 +13,7 @@ class ReservationAllocatorService
       @children = params[:children] || params[:child_count] || 0
       @reservation_datetime = params[:reservation_datetime] ||
                               Time.zone.parse("#{params[:date]} #{params[:time]}")
-      @business_period_id = params[:business_period_id]
+      @reservation_period_id = params[:reservation_period_id]
       @table_group_id = params[:table_group_id]
     end
   end
@@ -83,16 +83,16 @@ class ReservationAllocatorService
 
   # 簡化：檢查桌位在指定餐期的預訂狀況（不限時模式下每餐期每桌只有一個訂位）
   def check_table_booking_in_period(table, target_datetime)
-    return { has_booking: false, existing_booking: nil } unless @business_period_id
+    return { has_booking: false, existing_booking: nil } unless @reservation_period_id
 
     target_date = target_datetime.to_date
-    business_period = BusinessPeriod.find(@business_period_id)
+    reservation_period = ReservationPeriod.find(@reservation_period_id)
 
     # 查找該桌位在同一餐期的預訂
     existing_booking = Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
       .where('DATE(reservation_datetime) = ?', target_date)
-      .where(business_period: business_period)
+      .where(reservation_period: reservation_period)
       .where(
         '(table_id = ?) OR (id IN (SELECT reservation_id FROM table_combinations tc JOIN table_combination_tables tct ON tc.id = tct.table_combination_id WHERE tct.restaurant_table_id = ?))',
         table.id, table.id
@@ -166,15 +166,15 @@ class ReservationAllocatorService
 
     # 如果是無限時模式，檢查同一餐期的衝突（每餐期每桌只有一個訂位）
     if @restaurant.policy.unlimited_dining_time?
-      return [] unless @business_period_id # 如果沒有餐期ID，不檢查衝突
+      return [] unless @reservation_period_id # 如果沒有餐期ID，不檢查衝突
 
       target_date = datetime.to_date
-      business_period = BusinessPeriod.find(@business_period_id)
+      reservation_period = ReservationPeriod.find(@reservation_period_id)
 
       conflicting_reservations = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
         .where('DATE(reservation_datetime) = ?', target_date)
-        .where(business_period: business_period)
+        .where(reservation_period: reservation_period)
         .includes(:table, table_combination: :restaurant_tables)
     else
       # 使用餐廳設定的用餐時間
@@ -270,15 +270,15 @@ class ReservationAllocatorService
 
     # 如果是無限時模式，檢查同一餐期的容量
     if @restaurant.policy.unlimited_dining_time?
-      return false unless @business_period_id # 如果沒有餐期ID，不檢查容量限制
+      return false unless @reservation_period_id # 如果沒有餐期ID，不檢查容量限制
 
       target_date = datetime.to_date
-      business_period = BusinessPeriod.find(@business_period_id)
+      reservation_period = ReservationPeriod.find(@reservation_period_id)
 
       query = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
         .where('DATE(reservation_datetime) = ?', target_date)
-        .where(business_period: business_period)
+        .where(reservation_period: reservation_period)
 
       # 排除當前正在處理的預訂（如果有的話）
       query = query.where.not(id: @reservation.id) if @reservation&.persisted?

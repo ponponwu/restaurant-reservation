@@ -1,4 +1,4 @@
-class Admin::BlacklistsController < Admin::BaseController
+class Admin::BlacklistsController < AdminController
   before_action :set_restaurant
   before_action :check_restaurant_access
   before_action :set_blacklist, only: %i[show edit update destroy toggle_active]
@@ -127,12 +127,6 @@ class Admin::BlacklistsController < Admin::BaseController
     return if @restaurant
 
     redirect_to admin_restaurants_path, alert: '找不到指定的餐廳'
-  end
-
-  def check_restaurant_access
-    return if current_user.can_manage_restaurant?(@restaurant)
-
-    redirect_to admin_restaurants_path, alert: '您沒有權限存取此餐廳的黑名單管理'
   end
 
   def set_blacklist

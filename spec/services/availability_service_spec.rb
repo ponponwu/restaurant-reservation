@@ -3,8 +3,8 @@ require 'rails_helper'
 RSpec.describe AvailabilityService, type: :service do
   let(:restaurant) { create(:restaurant) }
   let(:service) { described_class.new(restaurant) }
-  let(:lunch_period) { create(:business_period, restaurant: restaurant, name: '午餐', start_time: '11:30', end_time: '14:00') }
-  let(:dinner_period) { create(:business_period, restaurant: restaurant, name: '晚餐', start_time: '17:30', end_time: '21:00') }
+  let(:lunch_period) { create(:reservation_period, restaurant: restaurant, name: '午餐', start_time: '11:30', end_time: '14:00') }
+  let(:dinner_period) { create(:reservation_period, restaurant: restaurant, name: '晚餐', start_time: '17:30', end_time: '21:00') }
   let(:table_group) { create(:table_group, restaurant: restaurant, name: '主用餐區') }
   let!(:table_2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 2, max_capacity: 2, table_number: 'A1') }
   let!(:table_4) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4, table_number: 'A2') }
@@ -22,8 +22,8 @@ RSpec.describe AvailabilityService, type: :service do
     before do
       # Mock restaurant methods to return available time options
       allow(restaurant).to receive(:available_time_options_for_date).with(test_date).and_return([
-                                                                                                  { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-                                                                                                  { datetime: test_date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+                                                                                                  { datetime: test_date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' },
+                                                                                                  { datetime: test_date.beginning_of_day + 18.hours, reservation_period_id: dinner_period.id, time: '18:00' }
                                                                                                 ])
     end
 
@@ -51,19 +51,19 @@ RSpec.describe AvailabilityService, type: :service do
         # 預訂所有桌位的午餐時段
         create(:reservation,
                restaurant: restaurant,
-               business_period: lunch_period,
+               reservation_period: lunch_period,
                table: table_2,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
         create(:reservation,
                restaurant: restaurant,
-               business_period: lunch_period,
+               reservation_period: lunch_period,
                table: table_4,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
         create(:reservation,
                restaurant: restaurant,
-               business_period: lunch_period,
+               reservation_period: lunch_period,
                table: table_6,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
@@ -71,7 +71,7 @@ RSpec.describe AvailabilityService, type: :service do
 
       it '當只有午餐時段且全被預訂時返回 false' do
         allow(restaurant).to receive(:available_time_options_for_date).and_return([
-                                                                                    { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' }
+                                                                                    { datetime: test_date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' }
                                                                                   ])
 
         expect(service.has_any_availability_on_date?(test_date, 2)).to be false
@@ -79,8 +79,8 @@ RSpec.describe AvailabilityService, type: :service do
 
       it '但晚餐時段仍可用時返回 true' do
         allow(restaurant).to receive(:available_time_options_for_date).and_return([
-                                                                                    { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-                                                                                    { datetime: test_date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+                                                                                    { datetime: test_date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' },
+                                                                                    { datetime: test_date.beginning_of_day + 18.hours, reservation_period_id: dinner_period.id, time: '18:00' }
                                                                                   ])
 
         expect(service.has_any_availability_on_date?(test_date, 2)).to be true
@@ -96,10 +96,10 @@ RSpec.describe AvailabilityService, type: :service do
 
     before do
       allow(restaurant).to receive(:available_time_options_for_date).and_return([
-                                                                                  { datetime: test_date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-                                                                                  { datetime: test_date.beginning_of_day + 13.hours, business_period_id: lunch_period.id, time: '13:00' },
-                                                                                  { datetime: test_date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' },
-                                                                                  { datetime: test_date.beginning_of_day + 19.hours, business_period_id: dinner_period.id, time: '19:00' }
+                                                                                  { datetime: test_date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' },
+                                                                                  { datetime: test_date.beginning_of_day + 13.hours, reservation_period_id: lunch_period.id, time: '13:00' },
+                                                                                  { datetime: test_date.beginning_of_day + 18.hours, reservation_period_id: dinner_period.id, time: '18:00' },
+                                                                                  { datetime: test_date.beginning_of_day + 19.hours, reservation_period_id: dinner_period.id, time: '19:00' }
                                                                                 ])
     end
 
@@ -136,19 +136,19 @@ RSpec.describe AvailabilityService, type: :service do
       before do
         create(:reservation,
                restaurant: restaurant,
-               business_period: lunch_period,
+               reservation_period: lunch_period,
                table: table_2,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
         create(:reservation,
                restaurant: restaurant,
-               business_period: lunch_period,
+               reservation_period: lunch_period,
                table: table_4,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
         create(:reservation,
                restaurant: restaurant,
-               business_period: lunch_period,
+               reservation_period: lunch_period,
                table: table_6,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
@@ -168,7 +168,7 @@ RSpec.describe AvailabilityService, type: :service do
           [table_2, table_4, table_6].each do |table|
             create(:reservation,
                    restaurant: restaurant,
-                   business_period: period,
+                   reservation_period: period,
                    table: table,
                    reservation_datetime: test_date.beginning_of_day + hour.hours,
                    status: 'confirmed')
@@ -192,8 +192,8 @@ RSpec.describe AvailabilityService, type: :service do
       it '返回空陣列' do
         allow(restaurant).to receive(:available_time_options_for_date) do |date|
           [
-            { datetime: date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-            { datetime: date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+            { datetime: date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' },
+            { datetime: date.beginning_of_day + 18.hours, reservation_period_id: dinner_period.id, time: '18:00' }
           ]
         end
 
@@ -221,7 +221,7 @@ RSpec.describe AvailabilityService, type: :service do
           [table_2, table_4, table_6].each do |table|
             create(:reservation,
                    restaurant: restaurant,
-                   business_period: period,
+                   reservation_period: period,
                    table: table,
                    reservation_datetime: test_date.beginning_of_day + (period == lunch_period ? 12 : 18).hours,
                    status: 'confirmed')
@@ -232,8 +232,8 @@ RSpec.describe AvailabilityService, type: :service do
       it '包含完全被預訂的日期' do
         allow(restaurant).to receive(:available_time_options_for_date) do |date|
           [
-            { datetime: date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-            { datetime: date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+            { datetime: date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' },
+            { datetime: date.beginning_of_day + 18.hours, reservation_period_id: dinner_period.id, time: '18:00' }
           ]
         end
 
@@ -251,8 +251,8 @@ RSpec.describe AvailabilityService, type: :service do
       it '返回空陣列或少量不可用日期' do
         allow(restaurant).to receive(:available_time_options_for_date) do |date|
           [
-            { datetime: date.beginning_of_day + 12.hours, business_period_id: lunch_period.id, time: '12:00' },
-            { datetime: date.beginning_of_day + 18.hours, business_period_id: dinner_period.id, time: '18:00' }
+            { datetime: date.beginning_of_day + 12.hours, reservation_period_id: lunch_period.id, time: '12:00' },
+            { datetime: date.beginning_of_day + 18.hours, reservation_period_id: dinner_period.id, time: '18:00' }
           ]
         end
 
@@ -304,13 +304,13 @@ RSpec.describe AvailabilityService, type: :service do
         reservations = [
           create(:reservation,
                  restaurant: restaurant,
-                 business_period: lunch_period,
+                 reservation_period: lunch_period,
                  table: table_2,
                  reservation_datetime: future_datetime,
                  status: 'confirmed'),
           create(:reservation,
                  restaurant: restaurant,
-                 business_period: lunch_period,
+                 reservation_period: lunch_period,
                  table: table_4,
                  reservation_datetime: future_datetime,
                  status: 'confirmed')
@@ -331,7 +331,7 @@ RSpec.describe AvailabilityService, type: :service do
         reservations = [
           create(:reservation,
                  restaurant: restaurant,
-                 business_period: lunch_period,
+                 reservation_period: lunch_period,
                  table: table_2,
                  reservation_datetime: future_datetime,
                  status: 'confirmed')

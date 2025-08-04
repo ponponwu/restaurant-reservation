@@ -5,9 +5,6 @@
       <div class="text-sm font-medium text-gray-900">
         <%= special_date.name %>
       </div>
-      <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= special_date.active? ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800' %>">
-        <%= special_date.active? ? '啟用' : '停用' %>
-      </span>
       <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium <%= special_date.closed? ? 'bg-red-100 text-red-800' : 'bg-blue-100 text-blue-800' %>">
         <%= special_date.closed? ? '公休' : '自訂時段' %>
       </span>
@@ -36,14 +33,6 @@
           </div>
         <% end %>
         
-        <% if special_date.priority > 0 %>
-          <div class="flex items-center">
-            <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"></path>
-            </svg>
-            優先權: <%= special_date.priority %>
-          </div>
-        <% end %>
       </div>
       
       <% if special_date.description.present? %>
@@ -66,25 +55,7 @@
     <% end %>
     
     <!-- 啟用/停用按鈕 -->
-    <%= link_to toggle_active_admin_restaurant_settings_restaurant_special_date_path(restaurant, special_date),
-        method: :patch,
-        class: "text-sm font-medium #{special_date.active? ? 'text-orange-600 hover:text-orange-900' : 'text-green-600 hover:text-green-900'}",
-        data: { 
-          turbo_method: :patch, 
-          turbo_prefetch: false,
-          turbo_confirm: "確定要#{special_date.active? ? '停用' : '啟用'}此特殊日期設定嗎？"
-        },
-        title: special_date.active? ? '停用' : '啟用' do %>
-      <% if special_date.active? %>
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728L5.636 5.636m12.728 12.728L18.364 5.636M5.636 18.364l12.728-12.728"></path>
-        </svg>
-      <% else %>
-        <svg class="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
-        </svg>
-      <% end %>
-    <% end %>
+    
     
     <!-- 刪除按鈕 -->
     <%= link_to admin_restaurant_settings_restaurant_special_date_path(restaurant, special_date),

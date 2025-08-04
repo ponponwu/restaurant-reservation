@@ -84,18 +84,30 @@ class ReservationsController < ApplicationController
     return unless validate_reservation_enabled
 
     @reservation = build_reservation
-    setup_create_params
+
+    # 設定參數並驗證
+    unless setup_create_params
+      @selected_date = begin
+        Date.parse(params[:date])
+      rescue StandardError
+        Date.current
+      end
+      render :new, status: :unprocessable_entity
+      return
+    end
 
     # 檢查手機號碼訂位限制
     return unless validate_phone_booking_limit
 
-    # 使用改善的併發控制
-    result = create_reservation_with_concurrency_control
+    # 使用樂觀鎖機制
+    result = create_reservation_with_optimistic_locking
 
     if result[:success]
       success_message = '訂位建立成功！'
       if @reservation.cancellation_token.present?
-        cancel_url = restaurant_reservation_cancel_url(@restaurant.slug, @reservation.cancellation_token)
+        # 優先使用短網址，失敗時降級到完整網址
+        cancel_url = @reservation.short_cancellation_url ||
+                     restaurant_reservation_cancel_url(@restaurant.slug, @reservation.cancellation_token)
         success_message += "<br/>如需取消訂位，請使用此連結：<a href='#{cancel_url}' class='text-blue-600 underline'>取消訂位</a>"
       end
 
@@ -111,7 +123,7 @@ class ReservationsController < ApplicationController
   def set_restaurant
     @restaurant = Restaurant.includes(
       :reservation_policy,
-      :business_periods,
+      :reservation_periods,
       :closure_dates,
       restaurant_tables: :table_group
     ).find_by!(slug: params[:slug])
@@ -201,14 +213,14 @@ class ReservationsController < ApplicationController
     # 包含餐廳設定的最後更新時間，確保設定變更時快取失效
     restaurant_updated_at = [@restaurant.updated_at,
                              @restaurant.reservation_policy&.updated_at,
-                             @restaurant.business_periods.maximum(:updated_at)].compact.max
+                             @restaurant.reservation_periods.maximum(:updated_at)].compact.max
 
     "availability_status:#{@restaurant.id}:#{Date.current}:#{party_size}:#{restaurant_updated_at.to_i}:v4"
   end
 
   def build_slots_cache_key(date, party_size, adults, children)
     restaurant_updated_at = [@restaurant.updated_at,
-                             @restaurant.business_periods.maximum(:updated_at)].compact.max
+                             @restaurant.reservation_periods.maximum(:updated_at)].compact.max
 
     "available_slots:#{@restaurant.id}:#{date}:#{party_size}:#{adults}:#{children}:#{restaurant_updated_at.to_i}:v2"
   end
@@ -295,7 +307,7 @@ class ReservationsController < ApplicationController
     @children = params[:children].to_i
     @selected_party_size = @adults + @children
     @selected_time = params[:time]
-    @business_period_id = params[:period_id]
+    @reservation_period_id = params[:reservation_period_id]
 
     @reservation.party_size = @selected_party_size if @selected_party_size.present?
   end
@@ -313,14 +325,51 @@ class ReservationsController < ApplicationController
     @adults = params[:adults]&.to_i || 2
     @children = params[:children].to_i
     @selected_time = params[:time_slot]
-    @business_period_id = params[:business_period_id]
+    @reservation_period_id = params[:reservation_period_id]
+
+    # 驗證必要參數
+    if @selected_time.blank?
+      @reservation.errors.add(:base, '請選擇預約時間')
+      return false
+    end
+
+    # 找到對應的預約時段ID（如果沒有提供的話）
+    if @reservation_period_id.blank?
+      @reservation_period_id = find_reservation_period_for_time(@selected_date, @selected_time)
+
+      # 檢查是否為有效的自訂時段（reservation_period_id 為 nil 但時間有效）
+      if @reservation_period_id.blank?
+        # 檢查是否為特殊訂位日的有效時間
+        special_date = @restaurant.special_date_for(@selected_date)
+        if special_date&.custom_hours?
+          # 驗證時間是否在自訂時段範圍內
+          target_datetime = Time.zone.parse("#{@selected_date} #{@selected_time}")
+          valid_custom_time = special_date.custom_periods.any? do |period|
+            period_start = Time.zone.parse("#{@selected_date} #{period['start_time']}")
+            period_end = Time.zone.parse("#{@selected_date} #{period['end_time']}")
+            target_datetime >= period_start && target_datetime <= period_end
+          end
+
+          unless valid_custom_time
+            @reservation.errors.add(:base, '所選時間無效，請重新選擇')
+            return false
+          end
+          # 自訂時段的 reservation_period_id 保持為 nil
+        else
+          @reservation.errors.add(:base, '所選時間無效，請重新選擇')
+          return false
+        end
+      end
+    end
 
     @reservation.party_size = @adults + @children
     @reservation.adults_count = @adults
     @reservation.children_count = @children
-    @reservation.reservation_datetime = Time.zone.parse("#{@selected_date} #{params[:time_slot]}")
+    @reservation.reservation_datetime = Time.zone.parse("#{@selected_date} #{@selected_time}")
     @reservation.status = :confirmed
-    @reservation.business_period_id = @business_period_id
+    @reservation.reservation_period_id = @reservation_period_id
+
+    true
   end
 
   # 驗證訂位功能是否啟用
@@ -370,152 +419,116 @@ class ReservationsController < ApplicationController
     true
   end
 
-  # 使用改善的併發控制建立訂位
-  def create_reservation_with_concurrency_control
-    result = nil
-    ReservationLockManager.with_lock(@restaurant.id, @reservation.reservation_datetime,
-                                     @reservation.party_size) do
-      ActiveRecord::Base.transaction do
-        result = allocate_table_and_save_reservation
-        # 如果分配失敗，觸發 rollback
-        raise ActiveRecord::Rollback unless result[:success]
-      end
-    end
+  # 使用樂觀鎖機制建立訂位（真正的樂觀鎖實現）
+  def create_reservation_with_optimistic_locking
+    max_retries = 3
+    retries = 0
 
-    # 如果 transaction 被 rollback，result 仍然保有分配結果
-    result || { success: false, errors: ['訂位處理失敗'] }
-  rescue ConcurrentReservationError => e
-    { success: false, errors: [e.message] }
-  rescue StandardError => e
-    Rails.logger.error "Reservation allocation error: #{e.message}\n#{e.backtrace.join("\n")}"
-    { success: false, errors: ['訂位處理時發生錯誤，請稍後再試。'] }
-  end
+    begin
+      # 執行樂觀鎖分配（內部已處理資料庫約束衝突）
+      result = allocate_table_and_save_reservation
 
-  # 分配桌位並保存訂位
-  def allocate_table_and_save_reservation
-    # 使用增強的併發控制分配器
-    allocator = EnhancedReservationAllocatorService.new({
-                                                          restaurant: @restaurant,
-                                                          party_size: @reservation.party_size,
-                                                          adults: @adults,
-                                                          children: @children,
-                                                          reservation_datetime: @reservation.reservation_datetime,
-                                                          business_period_id: @business_period_id
-                                                        })
+      # 成功時清除快取
+      clear_availability_cache if result[:success]
 
-    # 使用增強的可用性檢查（帶鎖定）
-    availability_check = allocator.check_availability_with_lock
-    unless availability_check[:has_availability]
-      Rails.logger.warn "Enhanced availability check failed for reservation: #{@reservation.inspect}"
-      return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間。'] }
-    end
-
-    # 使用增強的分配方法（帶鎖定）
-    allocated_table = allocator.allocate_table_with_lock
-    if allocated_table.nil?
-      Rails.logger.warn "Enhanced table allocation failed for reservation: #{@reservation.inspect}"
-      return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間。'] }
-    end
-
-    # 保存訂位
-    save_result = save_reservation_with_table(allocated_table)
-
-    if save_result[:success]
-      # 清除相關快取
-      clear_availability_cache
-      Rails.logger.info "Reservation created successfully: #{@reservation.id}"
-      { success: true }
-    else
-      Rails.logger.error "Failed to save reservation: #{save_result[:errors].join(', ')}"
-      { success: false, errors: save_result[:errors] }
-    end
-  end
-
-  # 保存訂位和桌位分配
-  def save_reservation_with_table(allocated_table)
-    if allocated_table.is_a?(Array)
-      save_combination_reservation(allocated_table)
-    else
-      save_single_table_reservation(allocated_table)
-    end
-  end
-
-  # 保存併桌訂位
-  def save_combination_reservation(tables)
-    # 使用事務確保原子性操作
-    ActiveRecord::Base.transaction do
-      combination = TableCombination.new(
-        reservation: @reservation,
-        name: "併桌 #{tables.map(&:table_number).join('+')}"
-      )
-
-      tables.each do |table|
-        combination.table_combination_tables.build(restaurant_table: table)
-      end
-
-      @reservation.table = tables.first
-
-      # 先保存訂位，再保存併桌組合
-      unless @reservation.save
-        Rails.logger.error "前台創建併桌訂位失敗 - 訂位保存失敗: #{@reservation.errors.full_messages.join(', ')}"
-        raise ActiveRecord::Rollback
-      end
-
-      unless combination.save
-        Rails.logger.error "前台創建併桌訂位失敗 - 併桌組合保存失敗: #{combination.errors.full_messages.join(', ')}"
-        raise ActiveRecord::Rollback
-      end
-
-      Rails.logger.info "前台創建併桌訂位成功: #{tables.map(&:table_number).join(', ')}"
-      { success: true }
-    end
-  rescue ActiveRecord::Rollback
-    # 收集所有錯誤訊息
-    all_errors = []
-    all_errors.concat(@reservation.errors.full_messages) if @reservation.errors.any?
-    all_errors.concat(combination.errors.full_messages) if defined?(combination) && combination&.errors&.any?
-
-    # 檢查是否有敏感錯誤
-    has_sensitive_error = all_errors.any? do |error|
-      error.include?('黑名單') ||
-        error.include?('無法進行訂位') ||
-        error.include?('訂位失敗，請聯繫餐廳')
-    end
-
-    if has_sensitive_error
-      { success: false, errors: ['訂位失敗，請聯繫餐廳'] }
-    else
-      { success: false, errors: all_errors.presence || ['併桌訂位建立失敗'] }
-    end
-  end
-
-  # 保存單桌訂位
-  def save_single_table_reservation(table)
-    @reservation.table = table
-
-    if @reservation.save
-      { success: true }
-    else
-      Rails.logger.error "前台創建單桌訂位失敗: #{@reservation.errors.full_messages.join(', ')}"
-
-      # 檢查是否有敏感錯誤並處理
-      error_messages = @reservation.errors.full_messages
-      has_sensitive_error = error_messages.any? do |error|
-        error.include?('黑名單') ||
-          error.include?('無法進行訂位') ||
-          error.include?('訂位失敗，請聯繫餐廳')
-      end
-
-      if has_sensitive_error
-        { success: false, errors: ['訂位失敗，請聯繫餐廳'] }
+      result
+    rescue ActiveRecord::StaleObjectError => e
+      # 真正的樂觀鎖衝突（版本不符）
+      retries += 1
+      if retries < max_retries
+        Rails.logger.info "樂觀鎖版本衝突，重試第 #{retries} 次: #{e.message}"
+        sleep(0.1 * (2**retries)) # 指數退避：0.2s, 0.4s, 0.8s
+        @reservation.reload if @reservation.persisted?
+        retry
       else
-        { success: false, errors: error_messages }
+        Rails.logger.warn "樂觀鎖重試次數用盡: #{e.message}"
+        { success: false, errors: ['該時段預訂踴躍，請稍後再試或選擇其他時間'] }
       end
+    rescue StandardError => e
+      Rails.logger.error "預訂創建錯誤: #{e.message}\n#{e.backtrace.join("\n")}"
+      { success: false, errors: ['訂位處理時發生錯誤，請稍後再試'] }
     end
+  end
+
+  # 分配桌位並保存訂位（真正的樂觀鎖版本）
+  def allocate_table_and_save_reservation
+    # 樂觀鎖核心：依賴資料庫約束檢測衝突
+    ActiveRecord::Base.transaction do
+      # 使用樂觀鎖分配器（無鎖查詢）
+      allocator = EnhancedReservationAllocatorService.new({
+                                                            restaurant: @restaurant,
+                                                            party_size: @reservation.party_size,
+                                                            adults: @adults,
+                                                            children: @children,
+                                                            reservation_datetime: @reservation.reservation_datetime,
+                                                            reservation_period_id: @reservation_period_id
+                                                          })
+
+      # 樂觀分配桌位（無鎖）
+      allocated_table = allocator.allocate_table_with_optimistic_locking
+      return { success: false, errors: ['該時段已無可用桌位，請選擇其他時間'] } unless allocated_table
+
+      # 設置桌位到預訂
+      @reservation.table = allocated_table.is_a?(Array) ? nil : allocated_table
+
+      # 依賴 lock_version 和資料庫約束進行衝突檢測
+      @reservation.save!
+
+      # 處理併桌情況
+      save_table_combination(allocated_table) if allocated_table.is_a?(Array)
+
+      Rails.logger.info "訂位建立成功: #{@reservation.id}"
+
+      # 訂位成功後發送確認簡訊
+      send_reservation_confirmation_sms(@reservation)
+
+      { success: true }
+    end
+  rescue ActiveRecord::RecordNotUnique => e
+    # 資料庫約束衝突（桌位已被預訂）
+    Rails.logger.info "資料庫約束衝突: #{e.message}"
+    { success: false, errors: ['該時段已被其他顧客預訂，請選擇其他時間'] }
+  rescue ActiveRecord::RecordInvalid => e
+    # 驗證錯誤
+    Rails.logger.error "預訂驗證失敗: #{e.message}"
+    { success: false, errors: [@reservation.errors.full_messages.first || e.message] }
+  rescue PG::NotNullViolation => e
+    # PostgreSQL NOT NULL 約束違反，特別處理 reservation_period_id
+    if e.message.include?('reservation_period_id')
+      Rails.logger.error "預約時段ID為空: #{e.message}"
+      { success: false, errors: ['預約時段資訊不完整，請重新選擇時間'] }
+    else
+      Rails.logger.error "資料庫約束錯誤: #{e.message}"
+      { success: false, errors: ['預約資料不完整，請檢查所有必填欄位'] }
+    end
+  rescue StandardError => e
+    Rails.logger.error "訂位處理錯誤: #{e.message}\n#{e.backtrace.join("\n")}"
+    { success: false, errors: ['訂位處理時發生錯誤，請稍後再試'] }
+  end
+
+  # 保存併桌組合
+  def save_table_combination(tables)
+    combination = @reservation.build_table_combination(
+      name: "併桌-#{tables.map(&:table_number).join('+')}",
+      # party_size: @reservation.party_size,
+      notes: '系統自動分配併桌'
+    )
+
+    combination.restaurant_tables = tables
+    combination.save!
   end
 
   # 處理訂位建立失敗
   def handle_reservation_creation_failure(errors)
+    # 檢查是否為併發衝突錯誤
+    has_conflict_error = errors.any? do |error|
+      error.include?('已被預訂') ||
+        error.include?('衝突') ||
+        error.include?('人數已滿') ||
+        error.include?('重複預訂') ||
+        error.include?('預訂人數眾多')
+    end
+
     # 檢查是否有敏感錯誤（黑名單、限制等）
     has_sensitive_error = errors.any? do |error|
       error.include?('黑名單') ||
@@ -529,6 +542,10 @@ class ReservationsController < ApplicationController
     if has_sensitive_error
       # 如果有敏感錯誤，只顯示一個通用錯誤訊息
       @reservation.errors.add(:base, '訂位失敗，請聯繫餐廳')
+    elsif has_conflict_error
+      # 如果是併發衝突，提供更友善的訊息
+      @reservation.errors.add(:base, '該時段預訂踴躍，請嘗試其他時間或稍後再試')
+      # 未來可以在這裡加入建議替代時段的邏輯
     else
       # 如果沒有敏感錯誤，顯示原始錯誤訊息並去重
       errors.uniq.each { |error| @reservation.errors.add(:base, error) }
@@ -542,12 +559,124 @@ class ReservationsController < ApplicationController
     render :new, status: :unprocessable_entity
   end
 
-  # 清除可用性相關快取
+  # 清除可用性相關快取（優化版本）
   def clear_availability_cache
-    # 清除當天和未來幾天的快取
-    (Date.current..3.days.from_now.to_date).each do |date|
-      Rails.cache.delete_matched("availability_status:#{@restaurant.id}:#{date}:*")
-      Rails.cache.delete_matched("available_slots:#{@restaurant.id}:#{date}:*")
+    # 由於 cache key 已包含 restaurant_updated_at，大部分情況下會自動失效
+    # 這裡只需要清除當天受直接影響的 cache
+
+    target_date = Date.current
+
+    # 計算餐廳設定的時間戳（用於建構正確的 cache key）
+    restaurant_updated_at = [@restaurant.updated_at,
+                             @restaurant.reservation_policy&.updated_at,
+                             @restaurant.reservation_periods.maximum(:updated_at)].compact.max
+
+    # 根據餐廳政策動態決定清除範圍，避免過度清除
+    max_party_size = @restaurant.policy&.max_party_size || 12
+    (1..max_party_size).each do |party_size|
+      # 使用正確的 cache key 格式進行清除
+      availability_key = "availability_status:#{@restaurant.id}:#{target_date}:#{party_size}:#{restaurant_updated_at.to_i}:v4"
+      Rails.cache.delete(availability_key)
+
+      # 清除可用時段快取（簡化組合）
+      (0..party_size).each do |children|
+        adults = party_size - children
+        slots_key = "available_slots:#{@restaurant.id}:#{target_date}:#{party_size}:#{adults}:#{children}:#{restaurant_updated_at.to_i}:v2"
+        Rails.cache.delete(slots_key)
+      end
     end
+
+    Rails.logger.info "Cleared availability cache for restaurant #{@restaurant.id} on #{target_date}"
+  end
+
+  # 根據日期和時間查找對應的預約時段ID
+  def find_reservation_period_for_time(date, time_string)
+    return nil if date.blank? || time_string.blank?
+
+    begin
+      target_datetime = Time.zone.parse("#{date} #{time_string}")
+
+      # 檢查是否為特殊訂位日（自訂時段）
+      special_date = @restaurant.special_date_for(date)
+      if special_date&.custom_hours?
+        # 使用新的方法查找對應的 ReservationPeriod
+        period = special_date.find_reservation_period_for_time(time_string)
+        return period&.id
+      end
+
+      # 常規日期：查找該日期和星期的預約時段
+      periods = @restaurant.reservation_periods_for_date(date)
+
+      periods.each do |period|
+        # 檢查時間是否落在該時段範圍內
+        start_time = period.local_start_time
+        end_time = period.local_end_time
+
+        # 將時間轉換為同一天進行比較
+        period_start = Time.zone.parse("#{date} #{start_time.strftime('%H:%M')}")
+        period_end = Time.zone.parse("#{date} #{end_time.strftime('%H:%M')}")
+
+        # 檢查目標時間是否在時段範圍內
+        return period.id if target_datetime >= period_start && target_datetime <= period_end
+      end
+
+      nil
+    rescue StandardError => e
+      Rails.logger.error "尋找預約時段ID時發生錯誤: #{e.message}"
+      nil
+    end
+  end
+
+  # 發送訂位確認簡訊（使用 Rails.logger 模擬）
+  def send_reservation_confirmation_sms(reservation)
+    return unless reservation.customer_phone.present?
+
+    begin
+      # 使用 Rails.logger 模擬簡訊發送過程
+      Rails.logger.info '📱 [SMS模擬] 開始發送訂位確認簡訊'
+      Rails.logger.info "📱 [SMS模擬] 收件人: #{reservation.customer_name} (#{reservation.customer_phone})"
+
+      # 生成短網址
+      short_url = reservation.short_cancellation_url
+      cancel_url = short_url || reservation.cancellation_url
+
+      # 建立簡訊內容
+      restaurant = reservation.restaurant
+      date = reservation.reservation_datetime.strftime('%m/%d')
+      weekday = format_weekday_for_sms(reservation.reservation_datetime.wday)
+      time = reservation.reservation_datetime.strftime('%H:%M')
+
+      message = "您已預約【#{restaurant.name}】#{date}（#{weekday}）#{time}，#{reservation.party_size} 位。"
+      message += "訂位資訊：#{cancel_url}" if cancel_url.present?
+
+      Rails.logger.info "📱 [SMS模擬] 簡訊內容: #{message}"
+      Rails.logger.info "📱 [SMS模擬] 內容長度: #{message.length} 字"
+      Rails.logger.info "📱 [SMS模擬] 短網址: #{short_url.present? ? '✅ 已生成' : '❌ 使用原始網址'}"
+
+      # 模擬發送成功
+      Rails.logger.info '📱 [SMS模擬] ✅ 簡訊發送成功'
+
+      # 創建 SMS 日誌記錄（如果 SmsLog 模型存在）
+      if defined?(SmsLog)
+        SmsLog.create!(
+          reservation: reservation,
+          phone_number: reservation.customer_phone,
+          message_type: 'reservation_confirmation',
+          content: message,
+          status: 'sent',
+          response_data: { simulation: true, timestamp: Time.current }.to_json
+        )
+        Rails.logger.info '📱 [SMS模擬] SMS 日誌已記錄'
+      end
+    rescue StandardError => e
+      Rails.logger.error "📱 [SMS模擬] ❌ 簡訊發送失敗: #{e.message}"
+      Rails.logger.error "📱 [SMS模擬] 錯誤堆疊: #{e.backtrace.first(3).join("\n")}"
+    end
+  end
+
+  # 格式化星期顯示（簡訊用）
+  def format_weekday_for_sms(wday)
+    weekdays = %w[日 一 二 三 四 五 六]
+    weekdays[wday]
   end
 end

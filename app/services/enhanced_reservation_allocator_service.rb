@@ -1,208 +1,163 @@
 class EnhancedReservationAllocatorService < ReservationAllocatorService
-  # 增強的分配方法，具有更強的併發控制
-  def allocate_table_with_lock
+  # 使用樂觀鎖的分配方法（真正的樂觀鎖實現）
+  def allocate_table_with_optimistic_locking
     return nil if (@party_size || total_party_size) < 1
+    return nil unless valid_reservation_datetime?
     return nil if exceeds_restaurant_capacity?
 
-    # 生成分配令牌，用於併發控制
-    allocation_token = SecureRandom.uuid
+    # 樂觀鎖核心：無鎖查詢，信任數據一致性
+    available_tables = @restaurant.restaurant_tables
+      .active
+      .available_for_booking
+      .includes(:table_group)
 
-    ActiveRecord::Base.transaction do
-      # 使用 SELECT FOR UPDATE 鎖定相關記錄
-      locked_tables = lock_available_tables_for_update
+    # 嘗試分配單桌
+    suitable_table = find_suitable_table_from(available_tables)
+    return suitable_table if suitable_table
 
-      # 重新檢查可用性（在鎖定後）
-      suitable_table = find_suitable_table_from_locked(locked_tables)
-
-      if suitable_table && mark_table_allocated(suitable_table, allocation_token)
-        # 原子性檢查和標記
-        return suitable_table
-      end
-
-      # 嘗試併桌（如果支援）
-      if @restaurant.can_combine_tables?
-        suitable_tables = find_combinable_tables_from_locked(locked_tables)
-        return suitable_tables if suitable_tables&.any? && mark_tables_allocated(suitable_tables, allocation_token)
-      end
-
-      nil
+    # 嘗試併桌（如果支援）
+    if @restaurant.can_combine_tables?
+      suitable_tables = find_combinable_tables_from(available_tables)
+      return suitable_tables if suitable_tables&.any?
     end
-  rescue ActiveRecord::RecordNotUnique => e
-    Rails.logger.warn "併發分配衝突: #{e.message}"
+
     nil
   rescue StandardError => e
     Rails.logger.error "桌位分配錯誤: #{e.message}"
     nil
   end
 
-  # 檢查可用性（帶併發控制）
-  def check_availability_with_lock
-    ActiveRecord::Base.transaction do
-      locked_tables = lock_available_tables_for_update
+  # 檢查可用性（無鎖定版本）
+  def check_availability_without_locking
+    available_tables = @restaurant.restaurant_tables
+      .active
+      .available_for_booking
+      .includes(:table_group)
 
-      # 檢查是否有合適的單桌
-      suitable_single = find_suitable_table_from_locked(locked_tables)
-      return { has_availability: true, allocation_type: :single } if suitable_single
+    # 檢查是否有合適的單桌
+    suitable_single = find_suitable_table_from(available_tables)
+    return { has_availability: true, allocation_type: :single } if suitable_single
 
-      # 檢查是否可併桌
-      if @restaurant.can_combine_tables?
-        suitable_combination = find_combinable_tables_from_locked(locked_tables)
-        return { has_availability: true, allocation_type: :combination } if suitable_combination&.any?
-      end
-
-      { has_availability: false, allocation_type: :none }
+    # 檢查是否可併桌
+    if @restaurant.can_combine_tables?
+      suitable_combination = find_combinable_tables_from(available_tables)
+      return { has_availability: true, allocation_type: :combination } if suitable_combination&.any?
     end
+
+    { has_availability: false, allocation_type: :none }
+  rescue StandardError => e
+    Rails.logger.error "可用性檢查錯誤: #{e.message}"
+    { has_availability: false, allocation_type: :error }
   end
 
   private
 
-  # 使用 SELECT FOR UPDATE 鎖定可用桌位
-  def lock_available_tables_for_update
-    reservation_datetime = @reservation&.reservation_datetime || @reservation_datetime
+  # 驗證預訂日期時間的有效性
+  def valid_reservation_datetime?
+    datetime = @reservation&.reservation_datetime || @reservation_datetime
+    return false unless datetime.present?
 
-    # 獲取基本可用桌位
-    base_tables = @restaurant.restaurant_tables.active.available_for_booking
-
-    # 過濾桌位群組
-    base_tables = base_tables.where(table_group_id: @table_group_id) if @table_group_id.present?
-
-    # 過濾兒童座位限制
-    children_count = @children || @reservation&.children_count || 0
-    base_tables = base_tables.where.not(table_type: 'bar') if children_count.positive?
-
-    # 使用 SELECT FOR UPDATE 鎖定桌位記錄
-    locked_tables = base_tables.lock('FOR UPDATE').to_a
-
-    # 獲取在目標時間已被預約的桌位 ID（也使用鎖定）
-    reserved_table_ids = get_reserved_table_ids_with_lock(reservation_datetime)
-
-    # 過濾掉已被預約的桌位
-    locked_tables.reject { |table| reserved_table_ids.include?(table.id) }
+    # 檢查是否為有效的時間類型
+    datetime.is_a?(Time) || datetime.is_a?(DateTime)
+  rescue StandardError
+    false
   end
 
-  # 帶鎖定的保留桌位 ID 查詢
-  def get_reserved_table_ids_with_lock(datetime)
-    return [] unless datetime
+  # 從可用桌位中尋找合適的單桌（保留舊方法以保持兼容性）
+  def find_suitable_table_from(available_tables)
+    target_party_size = @party_size || total_party_size
 
-    if @restaurant.policy.unlimited_dining_time?
-      get_reserved_table_ids_unlimited_with_lock(datetime)
-    else
-      get_reserved_table_ids_limited_with_lock(datetime)
+    # 尋找適合的單桌，優先選擇容量剛好或接近的桌位
+    suitable_tables = available_tables.select do |table|
+      table.capacity >= target_party_size &&
+        !table_occupied_at_time?(table, @reservation_datetime) &&
+        (!@children || @children == 0 || !table.bar_seating?)
     end
+
+    # 按容量排序，選擇最適合的桌位
+    suitable_tables.min_by(&:capacity)
   end
 
-  def get_reserved_table_ids_unlimited_with_lock(datetime)
-    return [] unless @business_period_id
+  # 從可用桌位中尋找合適的併桌組合
+  def find_combinable_tables_from(available_tables)
+    return nil unless @restaurant.can_combine_tables?
 
+    target_party_size = @party_size || total_party_size
+
+    # 篩選可併桌的桌位
+    combinable_tables = available_tables.select do |table|
+      table.can_combine? &&
+        !table_occupied_at_time?(table, @reservation_datetime) &&
+        (!@children || @children == 0 || !table.bar_seating?)
+    end
+
+    # 尋找併桌組合
+    find_table_combination(combinable_tables, target_party_size)
+  end
+
+  # 檢查桌位在指定時間是否被佔用（樂觀鎖版本）
+  def table_occupied_at_time?(table, datetime)
+    return false unless datetime.is_a?(Time) || datetime.is_a?(DateTime)
+    return false unless table.present?
+
+    duration_minutes = @restaurant.dining_duration_minutes || 120
+    new_start = datetime
+    new_end = datetime + duration_minutes.minutes
     target_date = datetime.to_date
-    business_period = BusinessPeriod.find(@business_period_id)
 
-    # 使用 FOR UPDATE 鎖定衝突的訂位記錄
-    conflicting_reservations = Reservation.where(restaurant: @restaurant)
-      .where(status: %w[pending confirmed])
-      .where('DATE(reservation_datetime) = ?', target_date)
-      .where(business_period: business_period)
-      .lock('FOR UPDATE')
-      .includes(:table, table_combination: :restaurant_tables)
+    # 獲取所有可能衝突的預訂
+    conflicting_reservations = get_conflicting_reservations(table, new_start, new_end, target_date)
 
-    extract_table_ids_from_reservations(conflicting_reservations)
-  end
+    # 精確的時間重疊檢測
+    conflicting_reservations.any? do |reservation|
+      existing_start = reservation.reservation_datetime
+      existing_end = existing_start + duration_minutes.minutes
 
-  def get_reserved_table_ids_limited_with_lock(datetime)
-    duration_minutes = @restaurant.dining_duration_with_buffer
-    return [] unless duration_minutes
-
-    start_time = datetime
-    end_time = datetime + duration_minutes.minutes
-
-    # 使用 FOR UPDATE 鎖定時間重疊的訂位記錄
-    # 計算結束時間以避免 SQL 注入
-    reservation_end_time = start_time + duration_minutes.minutes
-    conflict_end_time = end_time + duration_minutes.minutes
-
-    conflicting_reservations = Reservation.where(restaurant: @restaurant)
-      .where(status: %w[pending confirmed])
-      .where(
-        '(reservation_datetime <= ? AND ? > ?) OR ' \
-        '(reservation_datetime < ? AND ? >= ?)',
-        start_time, reservation_end_time, start_time,
-        end_time, conflict_end_time, end_time
-      )
-      .lock('FOR UPDATE')
-      .includes(:table, table_combination: :restaurant_tables)
-
-    extract_table_ids_from_reservations(conflicting_reservations)
-  end
-
-  def extract_table_ids_from_reservations(reservations)
-    reserved_table_ids = []
-
-    reservations.each do |reservation|
-      # 單一桌位
-      reserved_table_ids << reservation.table_id if reservation.table_id.present?
-
-      # 併桌桌位
-      next if reservation.table_combination.blank?
-
-      reserved_table_ids.concat(
-        reservation.table_combination.restaurant_tables.pluck(:id)
-      )
+      # 時間重疊邏輯：排除邊界接續（14:00-16:00 不與 12:00-14:00 衝突）
+      reservations_overlap?(new_start, new_end, existing_start, existing_end)
     end
-
-    reserved_table_ids.uniq
+  rescue StandardError => e
+    Rails.logger.error "檢查桌位佔用狀態時發生錯誤: #{e.message}"
+    true # 發生錯誤時保守地認為桌位被佔用
   end
 
-  # 從已鎖定的桌位中尋找合適的單桌
-  def find_suitable_table_from_locked(locked_tables)
-    party_size = total_party_size
-    suitable_tables = locked_tables.select { |table| table.suitable_for?(party_size) }
+  # 獲取可能衝突的預訂（直接桌位 + 併桌）
+  def get_conflicting_reservations(table, new_start, new_end, target_date)
+    duration_minutes = @restaurant.dining_duration_minutes || 120
 
-    return nil if suitable_tables.empty?
+    # 合理的查詢範圍：只查詢真正可能重疊的預訂
+    search_start = new_start - duration_minutes.minutes
+    search_end = new_end
 
-    # 智慧選擇邏輯（與原始版本相同）
-    exact_match = suitable_tables.find { |table| table.capacity == party_size }
-    return exact_match if exact_match
+    # 直接桌位預訂
+    direct_reservations = Reservation.where(
+      restaurant_id: @restaurant.id,
+      table_id: table.id,
+      status: %w[confirmed pending]
+    ).where('DATE(reservation_datetime) = ?', target_date)
+      .where('reservation_datetime >= ? AND reservation_datetime <= ?', search_start, search_end)
 
-    larger_tables = suitable_tables.select { |table| table.capacity > party_size }
-      .sort_by { |table| [table.capacity, table.sort_order] }
-    return larger_tables.first if larger_tables.any?
+    # 併桌預訂（優化查詢）
+    combination_reservations = Reservation.joins(table_combination: :restaurant_tables)
+      .where(restaurant_id: @restaurant.id, status: %w[confirmed pending])
+      .where(restaurant_tables: { id: table.id })
+      .where('DATE(reservations.reservation_datetime) = ?', target_date)
+      .where('reservations.reservation_datetime >= ? AND reservations.reservation_datetime <= ?', search_start, search_end)
 
-    suitable_tables.min_by do |table|
-      max_cap = table.max_capacity.presence || table.capacity
-      [max_cap, table.sort_order]
-    end
+    # 合併並去重
+    (direct_reservations + combination_reservations).uniq
   end
 
-  # 從已鎖定的桌位中尋找可併桌的組合
-  def find_combinable_tables_from_locked(locked_tables)
-    party_size = total_party_size
+  # 檢查兩個時間區間是否重疊
+  def reservations_overlap?(new_start, new_end, existing_start, existing_end)
+    # 明確的不重疊條件：
+    # 1. 新預訂完全在既有預訂之前：new_end <= existing_start
+    # 2. 新預訂完全在既有預訂之後：new_start >= existing_end
 
-    # 按桌位群組分類
-    tables_by_group = locked_tables.group_by(&:table_group_id)
+    no_overlap = (new_end <= existing_start) || (new_start >= existing_end)
 
-    tables_by_group.each_value do |group_tables|
-      # 嘗試找到能滿足人數需求的桌位組合
-      combination = find_table_combination(group_tables, party_size)
-      return combination if combination&.any?
-    end
-
-    nil
-  end
-
-  # 原子性標記桌位已分配
-  def mark_table_allocated(table, _allocation_token)
-    # 再次檢查桌位是否仍然可用（防止 race condition）
-    reservation_datetime = @reservation&.reservation_datetime || @reservation_datetime
-
-    # 雙重檢查：確保沒有新的訂位在我們鎖定期間創建
-    table_still_available?(table, reservation_datetime)
-  end
-
-  def mark_tables_allocated(tables, _allocation_token)
-    reservation_datetime = @reservation&.reservation_datetime || @reservation_datetime
-
-    # 檢查所有桌位是否仍然可用
-    tables.all? { |table| table_still_available?(table, reservation_datetime) }
+    # 返回是否重疊
+    !no_overlap
   end
 
   # 最終檢查桌位是否仍然可用
@@ -215,16 +170,16 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
   end
 
   def check_table_available_unlimited(table, datetime)
-    return true unless @business_period_id
+    return true unless @reservation_period_id
 
     target_date = datetime.to_date
-    business_period = BusinessPeriod.find(@business_period_id)
+    reservation_period = ReservationPeriod.find(@reservation_period_id)
 
     # 最終檢查：是否有新的訂位
     !Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
       .where('DATE(reservation_datetime) = ?', target_date)
-      .where(business_period: business_period)
+      .where(reservation_period: reservation_period)
       .exists?([
                  '(table_id = ?) OR (id IN (SELECT reservation_id FROM table_combinations tc JOIN table_combination_tables tct ON tc.id = tct.table_combination_id WHERE tct.restaurant_table_id = ?))', table.id, table.id
                ])
@@ -237,22 +192,28 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     start_time = datetime
     end_time = datetime + duration_minutes.minutes
 
-    # 最終檢查：是否有時間重疊的新訂位
-    # 計算結束時間以避免 SQL 注入
-    reservation_end_time = start_time + duration_minutes.minutes
-    conflict_end_time = end_time + duration_minutes.minutes
+    # 最終檢查：是否有時間重疊的新訂位，限制在同一天
+    target_date = datetime.to_date
 
-    !Reservation.where(restaurant: @restaurant)
+    # 查詢可能衝突的預訂，限制在同一天
+    potentially_conflicting = Reservation.where(restaurant: @restaurant)
       .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) = ?', target_date)
       .where(
-        '(reservation_datetime <= ? AND ? > ?) OR ' \
-        '(reservation_datetime < ? AND ? >= ?)',
-        start_time, reservation_end_time, start_time,
-        end_time, conflict_end_time, end_time
+        reservation_datetime: (start_time - duration_minutes.minutes)..(end_time)
       )
-      .exists?([
-                 '(table_id = ?) OR (id IN (SELECT reservation_id FROM table_combinations tc JOIN table_combination_tables tct ON tc.id = tct.table_combination_id WHERE tct.restaurant_table_id = ?))', table.id, table.id
-               ])
+      .where(
+        '(table_id = ?) OR (id IN (SELECT reservation_id FROM table_combinations tc JOIN table_combination_tables tct ON tc.id = tct.table_combination_id WHERE tct.restaurant_table_id = ?))', table.id, table.id
+      )
+
+    # 在 Ruby 中進行精確的時間重疊檢測
+    !potentially_conflicting.any? do |reservation|
+      existing_start = reservation.reservation_datetime
+      existing_end = existing_start + duration_minutes.minutes
+
+      # 檢查時間重疊
+      start_time < existing_end && end_time > existing_start
+    end
   end
 
   # 尋找桌位組合的演算法
@@ -285,48 +246,90 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
 
     return false unless datetime
 
-    # 計算已預約的總人數（不使用 FOR UPDATE 避免與 aggregate 函數衝突）
-    reserved_capacity = if @restaurant.policy.unlimited_dining_time?
-                          return false unless @business_period_id # 如果沒有餐期ID，不檢查容量限制
-
-                          target_date = datetime.to_date
-                          business_period = BusinessPeriod.find(@business_period_id)
-
-                          query = Reservation.where(restaurant: @restaurant)
-                            .where(status: %w[pending confirmed])
-                            .where('DATE(reservation_datetime) = ?', target_date)
-                            .where(business_period: business_period)
-
-                          # 排除當前正在處理的預訂（如果有的話）
-                          query = query.where.not(id: @reservation.id) if @reservation&.persisted?
-                          query.sum(:party_size)
-                        else
-                          # 計算該時段已預約的總人數
-                          duration_minutes = @restaurant.dining_duration_with_buffer
-                          return false unless duration_minutes # 如果沒有設定時間，不檢查容量限制
-
-                          # 計算結束時間以避免 SQL 注入
-                          end_time = datetime + duration_minutes.minutes
-
-                          query = Reservation.where(restaurant: @restaurant)
-                            .where(status: %w[pending confirmed])
-                            .where(
-                              'reservation_datetime <= ? AND ? > ?',
-                              datetime, end_time, datetime
-                            )
-
-                          # 排除當前正在處理的預訂（如果有的話）
-                          query = query.where.not(id: @reservation.id) if @reservation&.persisted?
-                          query.sum(:party_size)
-                        end
-
-    # 計算剩餘容量
-    total_capacity = @restaurant.total_capacity || @restaurant.restaurant_tables.sum do |t|
-      t.max_capacity || t.capacity
+    # 日期驗證
+    unless datetime.is_a?(Time) || datetime.is_a?(DateTime)
+      Rails.logger.error "Invalid datetime parameter in exceeds_restaurant_capacity?: #{datetime.class}"
+      return false
     end
-    remaining_capacity = total_capacity - reserved_capacity
 
-    # 如果剩餘容量小於所需容量，則超過餐廳容量
+    # 在同一查詢中原子性地計算容量，確保併發安全性
+    begin
+      policy = @restaurant.policy || @restaurant.reservation_policy
+      if policy&.unlimited_dining_time?
+        check_unlimited_capacity_exceeded(datetime, party_size)
+      else
+        check_limited_capacity_exceeded(datetime, party_size)
+      end
+    rescue StandardError => e
+      Rails.logger.error "Capacity check error: #{e.message}"
+      # 發生錯誤時採用保守策略，假設不超過容量
+      false
+    end
+  end
+
+  # 檢查無限用餐時間模式下的容量
+  def check_unlimited_capacity_exceeded(datetime, party_size)
+    return false unless @reservation_period_id
+
+    target_date = datetime.to_date
+    reservation_period = ReservationPeriod.find(@reservation_period_id)
+
+    # 使用安全的 ActiveRecord 查詢
+    reserved_capacity = Reservation.where(restaurant: @restaurant)
+      .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) = ?', target_date)
+      .where(reservation_period: reservation_period)
+      .tap { |q| q.where.not(id: @reservation.id) if @reservation&.persisted? }
+      .sum(:party_size)
+
+    total_capacity = @restaurant.total_capacity ||
+                     @restaurant.restaurant_tables.active.sum('COALESCE(max_capacity, capacity)')
+
+    remaining_capacity = total_capacity - reserved_capacity
+    party_size > remaining_capacity
+  end
+
+  # 檢查限定用餐時間模式下的容量
+  def check_limited_capacity_exceeded(datetime, party_size)
+    duration_minutes = @restaurant.dining_duration_with_buffer
+    return false unless duration_minutes
+
+    new_start = datetime
+    new_end = datetime + duration_minutes.minutes
+    target_date = datetime.to_date
+
+    # 使用安全的 ActiveRecord 查詢計算重疊容量
+    potentially_conflicting = Reservation.where(restaurant: @restaurant)
+      .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) = ?', target_date)
+      .where(
+        reservation_datetime: (new_start - duration_minutes.minutes)..(new_end)
+      )
+      .tap { |q| q.where.not(id: @reservation.id) if @reservation&.persisted? }
+
+    # 在 Ruby 中進行精確的時間重疊檢測並計算總人數
+    overlapping_capacity = 0
+    potentially_conflicting.each do |reservation|
+      existing_start = reservation.reservation_datetime
+      existing_end = existing_start + duration_minutes.minutes
+
+      # 檢查時間重疊 - 修正邊界檢測
+      if reservations_overlap?(new_start, new_end, existing_start, existing_end)
+        overlapping_capacity += reservation.party_size
+      end
+    end
+
+    total_capacity = @restaurant.total_capacity ||
+                     @restaurant.restaurant_tables.active.sum('COALESCE(max_capacity, capacity)')
+
+    remaining_capacity = total_capacity - overlapping_capacity
+
+    if Rails.logger.debug?
+      Rails.logger.debug do
+        "Capacity check: party_size=#{party_size}, overlapping=#{overlapping_capacity}, total=#{total_capacity}, remaining=#{remaining_capacity}"
+      end
+    end
+
     party_size > remaining_capacity
   end
 end

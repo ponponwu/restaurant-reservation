@@ -1,0 +1,85 @@
+<div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+  <!-- 頁面標題 -->
+  <div class="mb-8">
+    <div class="flex items-center justify-between">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">營業時間管理</h1>
+        <p class="mt-2 text-sm text-gray-600">管理 <%= @restaurant.name %> 的營業時間設定</p>
+      </div>
+      <div class="flex space-x-3">
+        <%= link_to admin_restaurant_path(@restaurant),
+            class: "inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50" do %>
+          <svg class="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"></path>
+          </svg>
+          回到餐廳
+        <% end %>
+      </div>
+    </div>
+  </div>
+
+  <!-- 營業時間列表 -->
+  <div class="bg-white shadow rounded-lg" data-controller="admin-operating-hours">
+    <div class="px-6 py-4 border-b border-gray-200">
+      <div class="flex items-center justify-between">
+        <h2 class="text-lg font-medium text-gray-900">營業時間</h2>
+        <%= button_to admin_restaurant_operating_hours_path(@restaurant),
+                      method: :get,
+                      params: { weekday: 1 },
+                      class: "inline-flex items-center px-3 py-2 border border-transparent text-sm leading-4 font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                      form_class: "inline-block",
+                      data: { 
+                        # action: "admin-operating-hours#addNew",
+                        turbo_stream: true 
+                      } do %>
+          <svg class="mr-1 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+          </svg>
+          新增營業時間
+        <% end %>
+      </div>
+    </div>
+
+    <div class="p-6">
+      <!-- 星期分組顯示 -->
+      <% OperatingHour::CHINESE_WEEKDAYS.each do |weekday, chinese_name| %>
+        <div class="mb-8 last:mb-0">
+          <h3 class="text-lg font-medium text-gray-900 mb-4"><%= chinese_name %></h3>
+          
+          <!-- 該星期的營業時間列表 -->
+          <div class="space-y-2" id="weekday_<%= weekday %>_operating_hours">
+            <% weekday_hours = @operating_hours.select { |oh| oh.weekday == weekday } %>
+            <% if weekday_hours.any? %>
+              <% weekday_hours.each do |operating_hour| %>
+                <%= render 'operating_hour_row', operating_hour: operating_hour, restaurant: @restaurant %>
+              <% end %>
+            <% else %>
+              <div class="text-center py-4 text-gray-500" id="empty_weekday_<%= weekday %>">
+                此日無營業時間設定
+              </div>
+            <% end %>
+          </div>
+          
+          <!-- 新增該星期營業時間的按鈕 -->
+          <div class="mt-3">
+            <%= button_to new_admin_restaurant_operating_hour_path(@restaurant),
+                          method: :get,
+                          params: { weekday: weekday },
+                          class: "inline-flex items-center px-3 py-1.5 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500",
+                          form_class: "inline-block",
+                          data: { 
+                            action: "admin-operating-hours#addNewForWeekday",
+                            weekday: weekday,
+                            turbo_stream: true 
+                          } do %>
+              <svg class="mr-1 h-3 w-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"></path>
+              </svg>
+              新增<%= chinese_name %>時段
+            <% end %>
+          </div>
+        </div>
+      <% end %>
+    </div>
+  </div>
+</div>

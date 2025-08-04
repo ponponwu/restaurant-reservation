@@ -5,7 +5,7 @@ require 'rails_helper'
 RSpec.describe '桌位分配系統', :js, type: :system do
   let!(:restaurant) { create(:restaurant, name: '測試餐廳') }
   let!(:admin_user) { create(:user, :super_admin, restaurant: restaurant) }
-  let!(:business_period) { create(:business_period, restaurant: restaurant) }
+  let!(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
 
   before do
     sign_in admin_user
@@ -25,7 +25,7 @@ RSpec.describe '桌位分配系統', :js, type: :system do
 
     find('.flatpickr-next-month').click
     first('.flatpickr-day', text: date.day.to_s).click
-    select business_period.name, from: 'reservation[business_period_id]'
+    select reservation_period.name, from: 'reservation[reservation_period_id]'
     fill_in 'reservation[reservation_time]', with: time
     select first('#reservation_table_id option:not([value=""])').text, from: 'reservation_table_id'
 

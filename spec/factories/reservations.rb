@@ -1,7 +1,7 @@
 FactoryBot.define do
   factory :reservation do
     restaurant
-    business_period
+    reservation_period
 
     sequence(:customer_name) { |n| "顧客#{n}" }
     sequence(:customer_phone) { |n| "0912#{format('%06d', n)}" }

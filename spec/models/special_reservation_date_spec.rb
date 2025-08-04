@@ -1,8 +1,9 @@
 require 'rails_helper'
 
 RSpec.describe SpecialReservationDate, type: :model do
-  let(:restaurant) { create(:restaurant) }
   subject { build(:special_reservation_date, restaurant: restaurant) }
+
+  let(:restaurant) { create(:restaurant) }
 
   # 1. 關聯測試
   describe 'associations' do
@@ -17,10 +18,11 @@ RSpec.describe SpecialReservationDate, type: :model do
       it { is_expected.to validate_length_of(:description).is_at_most(500) }
       it { is_expected.to validate_presence_of(:start_date) }
       it { is_expected.to validate_presence_of(:end_date) }
+
       it 'validates operation_mode inclusion' do
         expect(subject).to allow_value('closed').for(:operation_mode)
         expect(subject).to allow_value('custom_hours').for(:operation_mode)
-        
+
         # Test that invalid operation_mode raises an error
         expect { subject.operation_mode = 'invalid_mode' }.to raise_error(ArgumentError, /'invalid_mode' is not a valid operation_mode/)
       end
@@ -29,45 +31,45 @@ RSpec.describe SpecialReservationDate, type: :model do
     describe 'table_usage_minutes validation' do
       context 'when operation_mode is custom_hours' do
         subject { build(:special_reservation_date, :custom_hours, restaurant: restaurant) }
-        
+
         it { is_expected.to validate_presence_of(:table_usage_minutes) }
         it { is_expected.to validate_numericality_of(:table_usage_minutes).is_greater_than(0) }
       end
 
       context 'when operation_mode is closed' do
         subject { build(:special_reservation_date, :closed, restaurant: restaurant) }
-        
+
         it { is_expected.not_to validate_presence_of(:table_usage_minutes) }
       end
     end
 
     describe 'date validations' do
       it 'validates end_date is after start_date' do
-        special_date = build(:special_reservation_date, 
-                           restaurant: restaurant,
-                           start_date: Date.current + 2.days,
-                           end_date: Date.current + 1.day)
-        
+        special_date = build(:special_reservation_date,
+                             restaurant: restaurant,
+                             start_date: Date.current + 2.days,
+                             end_date: Date.current + 1.day)
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:end_date]).to include('結束日期不能早於開始日期')
       end
 
       it 'validates start_date is not in the past' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           start_date: Date.current - 1.day,
-                           end_date: Date.current + 1.day)
-        
+                             restaurant: restaurant,
+                             start_date: Date.current - 1.day,
+                             end_date: Date.current + 1.day)
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:start_date]).to include('開始日期不能是過去的日期')
       end
 
       it 'allows start_date to be today' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           start_date: Date.current,
-                           end_date: Date.current)
-        
+                             restaurant: restaurant,
+                             start_date: Date.current,
+                             end_date: Date.current)
+
         expect(special_date).to be_valid
       end
     end
@@ -82,41 +84,41 @@ RSpec.describe SpecialReservationDate, type: :model do
 
       it 'prevents overlapping date ranges' do
         overlapping_date = build(:special_reservation_date,
-                                restaurant: restaurant,
-                                start_date: Date.current + 6.days,
-                                end_date: Date.current + 8.days)
-        
+                                 restaurant: restaurant,
+                                 start_date: Date.current + 6.days,
+                                 end_date: Date.current + 8.days)
+
         expect(overlapping_date).not_to be_valid
         expect(overlapping_date.errors[:base]).to include(match(/日期範圍與現有特殊訂位日重疊/))
       end
 
       it 'allows non-overlapping date ranges' do
         non_overlapping_date = build(:special_reservation_date,
-                                    restaurant: restaurant,
-                                    start_date: Date.current + 10.days,
-                                    end_date: Date.current + 12.days)
-        
+                                     restaurant: restaurant,
+                                     start_date: Date.current + 10.days,
+                                     end_date: Date.current + 12.days)
+
         expect(non_overlapping_date).to be_valid
       end
 
       it 'allows overlapping dates for different restaurants' do
         other_restaurant = create(:restaurant)
         overlapping_date = build(:special_reservation_date,
-                                restaurant: other_restaurant,
-                                start_date: Date.current + 6.days,
-                                end_date: Date.current + 8.days)
-        
+                                 restaurant: other_restaurant,
+                                 start_date: Date.current + 6.days,
+                                 end_date: Date.current + 8.days)
+
         expect(overlapping_date).to be_valid
       end
 
       it 'ignores inactive special dates in overlap validation' do
         existing_special_date.update!(active: false)
-        
+
         overlapping_date = build(:special_reservation_date,
-                                restaurant: restaurant,
-                                start_date: Date.current + 6.days,
-                                end_date: Date.current + 8.days)
-        
+                                 restaurant: restaurant,
+                                 start_date: Date.current + 6.days,
+                                 end_date: Date.current + 8.days)
+
         expect(overlapping_date).to be_valid
       end
     end
@@ -124,22 +126,22 @@ RSpec.describe SpecialReservationDate, type: :model do
     describe 'custom_periods validation' do
       it 'validates custom_periods format for custom_hours mode' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           operation_mode: 'custom_hours',
-                           table_usage_minutes: 120,
-                           custom_periods: 'invalid_format')
-        
+                             restaurant: restaurant,
+                             operation_mode: 'custom_hours',
+                             table_usage_minutes: 120,
+                             custom_periods: 'invalid_format')
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:custom_periods]).to include('自訂時段格式錯誤')
       end
 
       it 'validates required fields in custom_periods' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           operation_mode: 'custom_hours',
-                           table_usage_minutes: 120,
-                           custom_periods: [{ start_time: '18:00' }])
-        
+                             restaurant: restaurant,
+                             operation_mode: 'custom_hours',
+                             table_usage_minutes: 120,
+                             custom_periods: [{ start_time: '18:00' }])
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:custom_periods]).to include('時段 1 缺少 end_time')
         expect(special_date.errors[:custom_periods]).to include('時段 1 缺少 interval_minutes')
@@ -147,45 +149,45 @@ RSpec.describe SpecialReservationDate, type: :model do
 
       it 'validates interval_minutes is in allowed options' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           operation_mode: 'custom_hours',
-                           table_usage_minutes: 120,
-                           custom_periods: [{
-                             start_time: '18:00',
-                             end_time: '20:00',
-                             interval_minutes: 45
-                           }])
-        
+                             restaurant: restaurant,
+                             operation_mode: 'custom_hours',
+                             table_usage_minutes: 120,
+                             custom_periods: [{
+                               start_time: '18:00',
+                               end_time: '20:00',
+                               interval_minutes: 45
+                             }])
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:custom_periods]).to include(match(/間隔時間必須是.*分鐘之一/))
       end
 
       it 'validates end_time is after start_time in periods' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           operation_mode: 'custom_hours',
-                           table_usage_minutes: 120,
-                           custom_periods: [{
-                             start_time: '20:00',
-                             end_time: '18:00',
-                             interval_minutes: 60
-                           }])
-        
+                             restaurant: restaurant,
+                             operation_mode: 'custom_hours',
+                             table_usage_minutes: 120,
+                             custom_periods: [{
+                               start_time: '20:00',
+                               end_time: '18:00',
+                               interval_minutes: 60
+                             }])
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:custom_periods]).to include('時段 1 的結束時間必須晚於開始時間')
       end
 
       it 'validates time format in periods' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           operation_mode: 'custom_hours',
-                           table_usage_minutes: 120,
-                           custom_periods: [{
-                             start_time: 'invalid_time',
-                             end_time: '20:00',
-                             interval_minutes: 60
-                           }])
-        
+                             restaurant: restaurant,
+                             operation_mode: 'custom_hours',
+                             table_usage_minutes: 120,
+                             custom_periods: [{
+                               start_time: 'invalid_time',
+                               end_time: '20:00',
+                               interval_minutes: 60
+                             }])
+
         expect(special_date).not_to be_valid
         expect(special_date.errors[:custom_periods]).to include('時段 1 的時間格式錯誤')
       end
@@ -252,9 +254,9 @@ RSpec.describe SpecialReservationDate, type: :model do
   describe 'enums' do
     it 'defines operation_mode enum' do
       expect(SpecialReservationDate.operation_modes).to eq({
-        'closed' => 'closed',
-        'custom_hours' => 'custom_hours'
-      })
+                                                             'closed' => 'closed',
+                                                             'custom_hours' => 'custom_hours'
+                                                           })
     end
 
     it 'provides query methods for operation_mode' do
@@ -280,10 +282,10 @@ RSpec.describe SpecialReservationDate, type: :model do
     describe '#date_range' do
       it 'returns formatted date range' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           start_date: Date.new(2024, 1, 15),
-                           end_date: Date.new(2024, 1, 17))
-        
+                             restaurant: restaurant,
+                             start_date: Date.new(2024, 1, 15),
+                             end_date: Date.new(2024, 1, 17))
+
         expect(special_date.date_range).to eq('2024-01-15 ~ 2024-01-17')
       end
     end
@@ -314,10 +316,10 @@ RSpec.describe SpecialReservationDate, type: :model do
     describe '#duration_days' do
       it 'calculates duration in days' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           start_date: Date.current + 1.day,
-                           end_date: Date.current + 3.days)
-        
+                             restaurant: restaurant,
+                             start_date: Date.current + 1.day,
+                             end_date: Date.current + 3.days)
+
         expect(special_date.duration_days).to eq(3)
       end
     end
@@ -434,14 +436,14 @@ RSpec.describe SpecialReservationDate, type: :model do
   describe 'callbacks' do
     describe 'before_validation :set_defaults' do
       it 'sets default values' do
-        special_date = build(:special_reservation_date, 
-                           restaurant: restaurant,
-                           active: nil,
-                           operation_mode: nil,
-                           custom_periods: nil)
-        
+        special_date = build(:special_reservation_date,
+                             restaurant: restaurant,
+                             active: nil,
+                             operation_mode: nil,
+                             custom_periods: nil)
+
         special_date.valid?
-        
+
         expect(special_date.active).to be true
         expect(special_date.operation_mode).to eq('closed')
         expect(special_date.custom_periods).to eq([])
@@ -451,12 +453,12 @@ RSpec.describe SpecialReservationDate, type: :model do
     describe 'before_validation :sanitize_inputs' do
       it 'strips whitespace from name and description' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           name: '  測試名稱  ',
-                           description: '  測試描述  ')
-        
+                             restaurant: restaurant,
+                             name: '  測試名稱  ',
+                             description: '  測試描述  ')
+
         special_date.valid?
-        
+
         expect(special_date.name).to eq('測試名稱')
         expect(special_date.description).to eq('測試描述')
       end
@@ -468,18 +470,18 @@ RSpec.describe SpecialReservationDate, type: :model do
     context 'creating a special date with custom hours' do
       it 'successfully creates with valid custom periods' do
         special_date = build(:special_reservation_date,
-                           restaurant: restaurant,
-                           name: '新年特殊營業',
-                           operation_mode: 'custom_hours',
-                           table_usage_minutes: 180,
-                           custom_periods: [
-                             {
-                               start_time: '17:00',
-                               end_time: '21:00',
-                               interval_minutes: 120
-                             }
-                           ])
-        
+                             restaurant: restaurant,
+                             name: '新年特殊營業',
+                             operation_mode: 'custom_hours',
+                             table_usage_minutes: 180,
+                             custom_periods: [
+                               {
+                                 start_time: '17:00',
+                                 end_time: '21:00',
+                                 interval_minutes: 120
+                               }
+                             ])
+
         expect(special_date).to be_valid
         expect(special_date.save).to be true
         expect(special_date.generate_available_time_slots).to eq(['17:00', '19:00', '21:00'])
@@ -496,10 +498,10 @@ RSpec.describe SpecialReservationDate, type: :model do
 
       it 'prevents creating overlapping special dates' do
         overlapping_date = build(:special_reservation_date,
-                                restaurant: restaurant,
-                                start_date: Date.current + 6.days,
-                                end_date: Date.current + 8.days)
-        
+                                 restaurant: restaurant,
+                                 start_date: Date.current + 6.days,
+                                 end_date: Date.current + 8.days)
+
         expect(overlapping_date).not_to be_valid
         expect(overlapping_date.save).to be false
       end

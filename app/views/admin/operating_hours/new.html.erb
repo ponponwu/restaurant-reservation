@@ -1,0 +1,7 @@
+<%# New operating hour form for Turbo Frame %>
+<%= turbo_frame_tag "new_operating_hour_#{@operating_hour.weekday}" do %>
+  <%= render 'operating_hour_row', 
+             operating_hour: @operating_hour, 
+             restaurant: @restaurant,
+             edit_mode: true %>
+<% end %>
