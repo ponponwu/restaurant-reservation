@@ -9,6 +9,7 @@ class Admin::PasswordChangesController < ApplicationController
   def update
     if current_user.update(password_params)
       current_user.mark_password_changed!
+      bypass_sign_in(current_user) # 重新登入使用者
 
       # 根據角色重定向到不同頁面
       if current_user.super_admin?

@@ -2,7 +2,7 @@ class Admin::TablesController < AdminController
   before_action :set_restaurant
   before_action :check_restaurant_access
   before_action :set_table_group, only: %i[create edit show update destroy update_status]
-  before_action :set_table, only: %i[show edit update destroy update_status toggle_active move_to_group]
+  before_action :set_table, only: %i[show edit update destroy update_status toggle_active move_to_group toggle_combinable]
 
   def index
     @table_groups = @restaurant.table_groups.active.ordered.includes(:restaurant_tables)
@@ -213,6 +213,28 @@ class Admin::TablesController < AdminController
       success: false,
       message: e.record.errors.full_messages.join(', ')
     }, status: :unprocessable_entity
+  end
+
+  def toggle_combinable
+    if @table.update(can_combine: params.dig(:restaurant_table, :can_combine))
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.replace("table_#{@table.id}",
+                                                    partial: 'admin/table_groups/table_row',
+                                                    locals: { table: @table, table_group: @table.table_group, global_priorities: {} })
+        end
+        format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), notice: '更新成功' }
+      end
+    else
+      respond_to do |format|
+        format.turbo_stream do
+          render turbo_stream: turbo_stream.update('flash_messages',
+                                                   partial: 'shared/flash',
+                                                   locals: { message: '更新失敗，請稍後再試', type: 'error' })
+        end
+        format.html { redirect_to admin_restaurant_table_groups_path(@restaurant), alert: '更新失敗，請稍後再試' }
+      end
+    end
   end
 
   private

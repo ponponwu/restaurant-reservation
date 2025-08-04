@@ -248,7 +248,7 @@
             修改密碼
           <% end %>
           
-          <%= link_to destroy_user_session_path, method: :delete,
+          <%= link_to destroy_user_session_path, data: { turbo_method: :delete },
               class: "flex items-center text-sm text-gray-500 hover:text-red-600 footer-link" do %>
             <svg class="mr-2 h-4 w-4 footer-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path>

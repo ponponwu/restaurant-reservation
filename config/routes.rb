@@ -97,6 +97,7 @@ Rails.application.routes.draw do
           patch :toggle_active
           patch :update_status
           patch :move_to_group
+          patch :toggle_combinable
         end
       end
 

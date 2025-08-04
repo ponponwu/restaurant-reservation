@@ -1,5 +1,5 @@
 class Admin::RestaurantsController < AdminController
-  before_action :set_restaurant, only: %i[show edit update destroy toggle_status]
+  before_action :set_restaurant, only: %i[show edit update destroy]
   before_action :check_restaurant_access, only: %i[show edit update]
 
   def index

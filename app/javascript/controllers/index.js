@@ -87,3 +87,6 @@ application.register('admin-operating-hours', AdminOperatingHoursController)
 
 import AdminOperatingHourRowController from './admin_operating_hour_row_controller'
 application.register('admin-operating-hour-row', AdminOperatingHourRowController)
+
+import AutosubmitController from './autosubmit_controller'
+application.register('autosubmit', AutosubmitController)
