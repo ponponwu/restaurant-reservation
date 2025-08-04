@@ -181,14 +181,14 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_25_070220) do
     t.boolean "admin_override", default: false, null: false, comment: "是否為管理員強制建立（無視容量限制）"
     t.integer "lock_version", default: 0, null: false
     t.string "allocation_token", limit: 36
-    t.index "restaurant_id, table_id, date(reservation_datetime), EXTRACT(hour FROM reservation_datetime), EXTRACT(minute FROM reservation_datetime)", name: "idx_reservations_table_time_conflict", unique: true, where: "(((status)::text = ANY ((ARRAY['confirmed'::character varying, 'pending'::character varying])::text[])) AND (table_id IS NOT NULL))"
+    t.index "restaurant_id, table_id, date(reservation_datetime), EXTRACT(hour FROM reservation_datetime), EXTRACT(minute FROM reservation_datetime)", name: "idx_reservations_table_time_conflict", unique: true, where: "(((status)::text = ANY (ARRAY[('confirmed'::character varying)::text, ('pending'::character varying)::text])) AND (table_id IS NOT NULL))"
     t.index ["admin_override"], name: "index_reservations_on_admin_override"
     t.index ["allocation_token"], name: "index_reservations_on_allocation_token", unique: true, where: "(allocation_token IS NOT NULL)"
     t.index ["cancellation_token"], name: "index_reservations_on_cancellation_token", unique: true
     t.index ["cancelled_at"], name: "index_reservations_on_cancelled_at"
     t.index ["cancelled_by"], name: "index_reservations_on_cancelled_by"
     t.index ["reservation_period_id"], name: "index_reservations_on_reservation_period_id"
-    t.index ["restaurant_id", "customer_phone", "reservation_datetime"], name: "idx_reservations_phone_time_conflict", unique: true, where: "(((status)::text = ANY ((ARRAY['confirmed'::character varying, 'pending'::character varying])::text[])) AND (customer_phone IS NOT NULL))"
+    t.index ["restaurant_id", "customer_phone", "reservation_datetime"], name: "idx_reservations_phone_time_conflict", unique: true, where: "(((status)::text = ANY (ARRAY[('confirmed'::character varying)::text, ('pending'::character varying)::text])) AND (customer_phone IS NOT NULL))"
     t.index ["restaurant_id", "customer_phone", "status", "reservation_datetime"], name: "index_reservations_on_restaurant_phone_status_datetime"
     t.index ["restaurant_id", "reservation_datetime", "status"], name: "index_reservations_on_restaurant_datetime_status"
     t.index ["restaurant_id"], name: "index_reservations_on_restaurant_id"

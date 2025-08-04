@@ -83,24 +83,47 @@ Rails.logger.debug { "桌位群組已創建: #{table_group.name}" }
   Rails.logger.debug { "桌位已創建: #{table.table_number} (#{table.capacity}人)" } if table.persisted?
 end
 
-# 建立營業時段
-lunch_period = restaurant.reservation_periods.find_or_create_by(name: 'lunch') do |bp|
-  bp.display_name = '午餐時段'
-  bp.start_time = '11:30'
-  bp.end_time = '14:30'
-  bp.days_of_week = %w[monday tuesday wednesday thursday friday saturday]
-  bp.status = 'active'
+# 建立營業時段 (Operating Hours)
+# 先找到或建立餐廳
+restaurant = Restaurant.find_or_create_by!(name: '測試餐廳')
+
+# 定義每週的營業時間
+# weekday: 0 (週日) to 6 (週六)
+weekly_hours_data = [
+  # 週一至週五 午餐
+  { weekday: 1, open_time: '11:30', close_time: '14:30', sort_order: 1 },
+  { weekday: 2, open_time: '11:30', close_time: '14:30', sort_order: 1 },
+  { weekday: 3, open_time: '11:30', close_time: '14:30', sort_order: 1 },
+  { weekday: 4, open_time: '11:30', close_time: '14:30', sort_order: 1 },
+  { weekday: 5, open_time: '11:30', close_time: '14:30', sort_order: 1 },
+  
+  # 週一至週五 晚餐
+  { weekday: 1, open_time: '17:30', close_time: '21:30', sort_order: 2 },
+  { weekday: 2, open_time: '17:30', close_time: '21:30', sort_order: 2 },
+  { weekday: 3, open_time: '17:30', close_time: '21:30', sort_order: 2 },
+  { weekday: 4, open_time: '17:30', close_time: '21:30', sort_order: 2 },
+  { weekday: 5, open_time: '17:30', close_time: '21:30', sort_order: 2 },
+
+  # 週六、週日 全天
+  { weekday: 6, open_time: '11:30', close_time: '21:30', sort_order: 1 },
+  { weekday: 0, open_time: '11:30', close_time: '21:30', sort_order: 1 }
+]
+
+# 清空現有的營業時間以避免重複
+restaurant.operating_hours.destroy_all
+
+# 遍歷並創建 OperatingHour
+weekly_hours_data.each do |hour_data|
+  OperatingHour.create!(
+    restaurant: restaurant,
+    weekday: hour_data[:weekday],
+    open_time: hour_data[:open_time],
+    close_time: hour_data[:close_time],
+    sort_order: hour_data[:sort_order]
+  )
 end
 
-dinner_period = restaurant.reservation_periods.find_or_create_by(name: 'dinner') do |bp|
-  bp.display_name = '晚餐時段'
-  bp.start_time = '17:30'
-  bp.end_time = '21:30'
-  bp.days_of_week = %w[monday tuesday wednesday thursday friday saturday sunday]
-  bp.status = 'active'
-end
-
-Rails.logger.debug { "營業時段已創建: #{lunch_period.display_name}, #{dinner_period.display_name}" }
+Rails.logger.debug { "為 #{restaurant.name} 創建了 #{weekly_hours_data.count} 個營業時段" }
 
 # 建立預約政策
 unless restaurant.reservation_policy
