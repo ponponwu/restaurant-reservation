@@ -32,13 +32,11 @@
     </div>
     
     <!-- 餐廳圖片區域 -->
-    <% if @restaurant.hero_image.attached? %>
-      <div class="w-full h-48 relative">
-        <%= image_tag @restaurant.hero_image, 
-            class: "w-full h-full object-cover",
-            alt: @restaurant.name %>
-      </div>
-    <% end %>
+    <div class="w-full h-48 relative">
+      <%= image_tag 'restaurant_image.png', 
+          class: "w-full h-full object-cover",
+          alt: @restaurant.name %>
+    </div>
 
     <!-- 餐廳名稱和 Info 區域 -->
     <div class="bg-gray-800 border-b border-gray-700 p-4">

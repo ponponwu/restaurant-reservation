@@ -1,6 +1,9 @@
 @import 'tailwindcss/base';
 @import 'tailwindcss/components';
 @import 'tailwindcss/utilities';
+
+/* Import toggle switch component */
+@import './toggle_switch.css';
 /* Import both flatpickr themes and use CSS scoping to apply different themes */
 @import 'flatpickr/dist/flatpickr.css';
 
@@ -266,14 +269,6 @@ tbody.sorting .table-row {
 /* 
 This file is in app/assets/stylesheets/application.tailwind.css 
 */
-
-/* Select 元件增強樣式 */
-.custom-select {
-    background-image: url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%236b7280' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='m6 8 4 4 4-4'/%3e%3c/svg%3e");
-    background-position: right 0.5rem center;
-    background-repeat: no-repeat;
-    background-size: 1.5em 1.5em;
-}
 
 .time-slot-button {
     @apply px-4 py-2 text-sm font-medium border border-gray-200 rounded-lg 

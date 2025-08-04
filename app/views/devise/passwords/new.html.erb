@@ -30,7 +30,7 @@
 
         <!-- 重設密碼表單 -->
         <div class="bg-white py-8 px-6 shadow-xl rounded-lg">
-          <%= form_for(resource, as: resource_name, url: password_path(resource_name), html: { method: :post }, local: true, class: "space-y-6") do |f| %>
+          <%= form_for(resource, as: resource_name, url: password_path(resource_name), html: { method: :post }, local: false, class: "space-y-6") do |f| %>
             
             <!-- 錯誤訊息 -->
             <%= render "devise/shared/error_messages", resource: resource %>

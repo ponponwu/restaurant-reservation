@@ -1,0 +1,83 @@
+/* Enhanced Toggle Switch Component with Checkmark */
+.toggle-switch {
+  position: relative;
+  background-color: #e5e7eb; /* Light gray for unchecked state */
+  transition: background-color 0.3s ease-in-out;
+  
+  /* Complete reset of native checkbox appearance */
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background: none;
+  border: none;
+  outline: none;
+  margin: 0;
+  padding: 0;
+  
+  /* Override any default checkbox styling */
+  color: transparent;
+  text-shadow: none;
+  
+  /* Remove Tailwind Forms plugin background images */
+  background-image: none !important;
+  
+  /* Ensure our custom background shows */
+  background-color: #e5e7eb !important;
+}
+
+.toggle-switch:checked {
+  background-color: #10b981 !important; /* Green/teal for checked state */
+  
+  /* Force hide any native checked styling */
+  -webkit-appearance: none !important;
+  -moz-appearance: none !important;
+  appearance: none !important;
+  color: transparent !important;
+  
+  /* Remove any background images from Tailwind Forms plugin */
+  background-image: none !important;
+}
+
+/* White circular handle */
+.toggle-switch::after {
+  content: '';
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 20px;
+  height: 20px;
+  background-color: white;
+  border-radius: 50%;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  transition: transform 0.3s ease-in-out;
+  pointer-events: none;
+}
+
+.toggle-switch:checked::after {
+  transform: translateX(20px);
+  /* Keep handle white - no background color change */
+}
+
+/* Remove custom checkmark to avoid double icons - rely on color change only */
+.toggle-switch::before {
+  display: none;
+}
+
+/* Focus state */
+.toggle-switch:focus {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
+}
+
+/* Hover effects */
+.toggle-switch:hover {
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.toggle-switch:checked:hover {
+  background-color: #059669; /* Darker green on hover */
+}
+
+.toggle-switch:hover::after {
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
