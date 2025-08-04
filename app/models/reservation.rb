@@ -178,20 +178,21 @@ class Reservation < ApplicationRecord
     false
   end
 
-  def cancel_by_admin!(user, reason = nil)
+  def cancel_by_admin!(user, reason = nil, method = 'admin_interface')
     return false unless can_cancel?
 
     transaction do
       self.status = :cancelled
-      self.cancelled_by = "admin:#{user.name}"
+      self.cancelled_by = "admin:#{user.full_name}"
       self.cancelled_at = Time.current
       self.cancellation_reason = reason if reason.present?
-      self.cancellation_method = 'admin_interface'
+      self.cancellation_method = method
 
       # 保留舊的 notes 記錄方式作為備份
       old_notes = notes
+      action_text = method == 'admin_delete' ? '刪除' : '取消'
       cancellation_info = [
-        "管理員#{user.name}取消於 #{cancelled_at.strftime('%Y/%m/%d %H:%M')}",
+        "管理員#{user.full_name}#{action_text}於 #{cancelled_at.strftime('%Y/%m/%d %H:%M')}",
         reason.present? ? "原因：#{reason}" : nil
       ].compact.join(' | ')
 

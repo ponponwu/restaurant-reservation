@@ -4,7 +4,9 @@ class Admin::ReservationsController < Admin::BaseController
   before_action :set_form_data, only: %i[new edit create update]
 
   def index
-    @q = @restaurant.reservations.ransack(params[:q])
+    # 預設只顯示活躍的訂位（排除已取消和未出席的）
+    base_query = params[:show_cancelled] == 'true' ? @restaurant.reservations : @restaurant.reservations.active
+    @q = base_query.ransack(params[:q])
     reservations_query = @q.result.includes(:table, :reservation_period)
 
     # 處理日期篩選，預設顯示今天的訂位
@@ -235,9 +237,43 @@ class Admin::ReservationsController < Admin::BaseController
   end
 
   def destroy
-    @reservation.destroy!
-    redirect_to admin_restaurant_reservations_path(@restaurant),
-                notice: '訂位已刪除'
+    # 檢查是否為硬刪除請求（需要超級管理員權限）
+    force_delete = params[:force_delete] == 'true' && current_user&.super_admin?
+    
+    if force_delete
+      # 硬刪除：完全移除記錄（僅限超級管理員）
+      @reservation.destroy!
+      message = '訂位已永久刪除'
+    else
+      # 軟刪除：變更狀態保留歷史記錄（一般管理員）
+      unless @reservation.cancel_by_admin!(current_user, '管理員刪除', 'admin_delete')
+
+        respond_to do |format|
+          format.html { redirect_to admin_restaurant_reservations_path(@restaurant), alert: '刪除訂位失敗' }
+          format.turbo_stream do
+            render turbo_stream: turbo_stream.update('flash_messages',
+                                                     partial: 'shared/flash',
+                                                     locals: { message: '刪除訂位失敗', type: 'error' })
+          end
+          format.json { render json: { status: 'error', message: '刪除訂位失敗' } }
+        end
+        return
+      end
+      message = '訂位已刪除'
+    end
+
+    respond_to do |format|
+      format.html { redirect_to admin_restaurant_reservations_path(@restaurant), notice: message }
+      format.turbo_stream do
+        render turbo_stream: [
+          turbo_stream.remove("reservation_#{@reservation.id}"),
+          turbo_stream.update('flash_messages',
+                              partial: 'shared/flash',
+                              locals: { message: message, type: 'success' })
+        ]
+      end
+      format.json { render json: { status: 'success', message: message } }
+    end
   end
 
   # 狀態管理方法
