@@ -33,7 +33,7 @@ class Restaurant < ApplicationRecord
   validates :phone, presence: true, length: { maximum: 20 }
   validates :address, presence: true, length: { maximum: 255 }
   validates :description, length: { maximum: 1000 }
-  # 移除統一間隔驗證，改為每日營業時段個別設定
+  validates :reservation_interval_minutes, presence: true, inclusion: { in: [15, 30, 60], message: '預約間隔必須是 15、30 或 60 分鐘' }
 
   # 新增欄位驗證
   validates :business_name, length: { maximum: 100 }
@@ -73,7 +73,7 @@ class Restaurant < ApplicationRecord
   after_create :create_default_policy
   after_update :update_cached_capacity, if: :saved_change_to_total_capacity?
 
-  validates :slug, presence: true, uniqueness: true
+  validates :slug, presence: true, uniqueness: { message: '已經被使用' }
 
   # Ransack 搜索屬性白名單
   def self.ransackable_attributes(_auth_object = nil)
@@ -443,8 +443,8 @@ class Restaurant < ApplicationRecord
     start_time = reservation_period.local_start_time
     end_time = reservation_period.local_end_time
 
-    # 獲取最小提前預訂時間（至少1小時）
-    minimum_advance_hours = [policy&.minimum_advance_hours || 1, 1].max
+    # 獲取最小提前預訂時間
+    minimum_advance_hours = policy&.minimum_advance_hours || 0
     # 使用本地時區計算最早預訂時間
     earliest_booking_time = Time.zone.now + minimum_advance_hours.hours
 
@@ -461,7 +461,7 @@ class Restaurant < ApplicationRecord
       # 增強時間過濾邏輯
       if date == Date.current
         # 當天：必須符合最小提前預訂時間，且不能是過去的時間
-        if slot_datetime >= earliest_booking_time && slot_datetime > Time.zone.now
+        if slot_datetime >= earliest_booking_time && (minimum_advance_hours > 0 ? slot_datetime > Time.zone.now : slot_datetime >= Time.zone.now)
           slots << {
             time: current_time.strftime('%H:%M'),
             datetime: slot_datetime,

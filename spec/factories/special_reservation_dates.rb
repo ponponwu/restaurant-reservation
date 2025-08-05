@@ -12,6 +12,14 @@ FactoryBot.define do
       operation_mode { 'closed' }
     end
 
+    trait :active do
+      active { true }
+    end
+
+    trait :inactive do
+      active { false }
+    end
+
     trait :custom_hours do
       operation_mode { 'custom_hours' }
       table_usage_minutes { 120 }
@@ -108,8 +116,5 @@ FactoryBot.define do
       end
     end
 
-    trait :inactive do
-      active { false }
-    end
   end
 end

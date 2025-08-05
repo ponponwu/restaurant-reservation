@@ -203,13 +203,20 @@ RSpec.describe Restaurant do
     end
 
     describe '#formatted_business_hours' do
-      let!(:reservation_period) do
-        create(:reservation_period,
+      let!(:monday_hours) do
+        create(:operating_hour,
                restaurant: restaurant,
-               days_of_week: %w[monday tuesday],
-               start_time: '09:00',
-               end_time: '17:00',
-               status: :active)
+               weekday: 1, # Monday
+               open_time: '09:00',
+               close_time: '17:00')
+      end
+      
+      let!(:tuesday_hours) do
+        create(:operating_hour,
+               restaurant: restaurant,
+               weekday: 2, # Tuesday
+               open_time: '09:00',
+               close_time: '17:00')
       end
 
       it 'returns formatted hours for all weekdays' do

@@ -12,7 +12,7 @@ RSpec.describe 'Reservation Period Determination' do
       display_name: '午餐',
       start_time: '11:30',
       end_time: '14:30',
-      days_of_week_mask: 127,
+      weekday: 1, # Monday
       active: true
     )
 
@@ -21,7 +21,7 @@ RSpec.describe 'Reservation Period Determination' do
       display_name: '晚餐',
       start_time: '17:30',
       end_time: '21:30',
-      days_of_week_mask: 127,
+      weekday: 1, # Monday
       active: true
     )
   end

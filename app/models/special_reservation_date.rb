@@ -26,6 +26,7 @@ class SpecialReservationDate < ApplicationRecord
   scope :for_restaurant, ->(restaurant) { where(restaurant: restaurant) }
   scope :for_date, ->(date) { where(start_date: ..date, end_date: date..) }
   scope :ordered_by_date, -> { order(created_at: :desc) }
+  scope :active, -> { where(active: true) }
 
   # 4. Enum 定義
   enum :operation_mode, {
@@ -78,6 +79,8 @@ class SpecialReservationDate < ApplicationRecord
   def duration_days
     (end_date - start_date).to_i + 1
   end
+
+  # Active field is now available in database
 
   # 檢查指定時間是否在自訂時段內
   def time_available?(time_string)
@@ -182,6 +185,7 @@ class SpecialReservationDate < ApplicationRecord
   def set_defaults
     self.operation_mode ||= 'closed'
     self.custom_periods ||= []
+    self.active = true if active.nil?
   end
 
   def sanitize_inputs
@@ -209,6 +213,7 @@ class SpecialReservationDate < ApplicationRecord
     return unless restaurant && start_date && end_date
 
     overlapping = restaurant.special_reservation_dates
+      .active
       .where.not(id: id)
       .where(
         '(start_date <= ? AND end_date >= ?) OR ' \
@@ -258,7 +263,11 @@ class SpecialReservationDate < ApplicationRecord
         start_time = Time.zone.parse(period['start_time'])
         end_time = Time.zone.parse(period['end_time'])
 
-        errors.add(:custom_periods, "時段 #{index + 1} 的結束時間必須晚於開始時間") if start_time >= end_time
+        if start_time.nil? || end_time.nil?
+          errors.add(:custom_periods, "時段 #{index + 1} 的時間格式錯誤")
+        elsif start_time >= end_time
+          errors.add(:custom_periods, "時段 #{index + 1} 的結束時間必須晚於開始時間")
+        end
       rescue ArgumentError
         errors.add(:custom_periods, "時段 #{index + 1} 的時間格式錯誤")
       end

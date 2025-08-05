@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_07_25_070220) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_05_060157) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -401,6 +401,7 @@ ActiveRecord::Schema[8.0].define(version: 2025_07_25_070220) do
     t.json "custom_periods", default: []
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
+    t.boolean "active", default: true, null: false
     t.index ["restaurant_id"], name: "index_special_reservation_dates_on_restaurant_id"
     t.index ["start_date", "end_date"], name: "index_special_reservation_dates_on_start_date_and_end_date"
   end

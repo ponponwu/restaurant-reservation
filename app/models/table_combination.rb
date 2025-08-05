@@ -4,7 +4,7 @@ class TableCombination < ApplicationRecord
   has_many :restaurant_tables, through: :table_combination_tables
 
   validates :name, presence: true, length: { maximum: 100 }
-  validates :reservation_id, uniqueness: true # 一個訂位只能有一個併桌組合
+  validates :reservation_id, uniqueness: { message: '已經被使用' } # 一個訂位只能有一個併桌組合
   validate :must_have_at_least_two_tables
   validate :tables_must_be_combinable
   validate :tables_must_be_available

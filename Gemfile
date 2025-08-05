@@ -96,6 +96,7 @@ group :development, :test do
 
   # 測試框架
   gem 'capybara', '~> 3.40'
+  gem 'database_cleaner-active_record', '~> 2.1'
   gem 'factory_bot_rails', '~> 6.2'
   gem 'rails-controller-testing'
   gem 'rspec-rails', '~> 6.0'

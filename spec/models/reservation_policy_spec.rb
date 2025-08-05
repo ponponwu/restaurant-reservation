@@ -324,12 +324,17 @@ RSpec.describe ReservationPolicy do
 
     describe '#count_phone_bookings_in_period' do
       before do
-        # 創建在限制期間內的訂位
-        create_list(:reservation, 2,
-                    restaurant: restaurant,
-                    customer_phone: phone_number,
-                    reservation_datetime: 5.days.from_now,
-                    status: :confirmed)
+        # 創建在限制期間內的訂位 - 使用不同時間避免唯一性衝突
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
+               status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 6.days.from_now.change(hour: 19, min: 0),
+               status: :confirmed)
 
         # 創建超出限制期間的訂位（不應計算）- 建立時跳過驗證
         reservation = build(:reservation,
@@ -343,14 +348,14 @@ RSpec.describe ReservationPolicy do
         create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
-               reservation_datetime: 10.days.from_now,
+               reservation_datetime: 10.days.from_now.change(hour: 12, min: 0),
                status: :cancelled)
 
         # 創建未到場的訂位（應該計算）
         create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
-               reservation_datetime: 15.days.from_now,
+               reservation_datetime: 15.days.from_now.change(hour: 20, min: 0),
                status: :no_show)
       end
 
@@ -370,18 +375,28 @@ RSpec.describe ReservationPolicy do
         create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
-               reservation_datetime: 5.days.from_now,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
                status: :confirmed)
 
         expect(reservation_policy.phone_booking_limit_exceeded?(phone_number)).to be false
       end
 
       it 'returns true when at limit' do
-        create_list(:reservation, 3,
-                    restaurant: restaurant,
-                    customer_phone: phone_number,
-                    reservation_datetime: 5.days.from_now,
-                    status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
+               status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 6.days.from_now.change(hour: 19, min: 0),
+               status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 7.days.from_now.change(hour: 20, min: 0),
+               status: :confirmed)
 
         expect(reservation_policy.phone_booking_limit_exceeded?(phone_number)).to be true
       end
@@ -396,7 +411,7 @@ RSpec.describe ReservationPolicy do
         create(:reservation,
                restaurant: restaurant,
                customer_phone: phone_number,
-               reservation_datetime: 5.days.from_now,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
                status: :confirmed)
 
         remaining = reservation_policy.remaining_bookings_for_phone(phone_number)
@@ -404,11 +419,21 @@ RSpec.describe ReservationPolicy do
       end
 
       it 'returns 0 when at limit' do
-        create_list(:reservation, 3,
-                    restaurant: restaurant,
-                    customer_phone: phone_number,
-                    reservation_datetime: 5.days.from_now,
-                    status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 5.days.from_now.change(hour: 18, min: 0),
+               status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 6.days.from_now.change(hour: 19, min: 0),
+               status: :confirmed)
+        create(:reservation,
+               restaurant: restaurant,
+               customer_phone: phone_number,
+               reservation_datetime: 7.days.from_now.change(hour: 20, min: 0),
+               status: :confirmed)
 
         remaining = reservation_policy.remaining_bookings_for_phone(phone_number)
         expect(remaining).to eq(0)

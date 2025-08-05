@@ -69,7 +69,7 @@ RSpec.describe '桌位分配系統' do
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+             weekday: 1) # Monday
     end
 
     context '人數驗證' do
@@ -162,7 +162,7 @@ RSpec.describe '桌位分配系統' do
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+             weekday: 1) # Monday
     end
 
     let(:table_group) { create(:table_group, restaurant: restaurant) }
@@ -239,13 +239,17 @@ RSpec.describe '桌位分配系統' do
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+             weekday: 1) # Monday
     end
 
     context '併桌驗證' do
       let(:table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4) }
       let(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4) }
-      let(:reservation) { create(:reservation, restaurant: restaurant, reservation_period: reservation_period, party_size: 6, adults_count: 6, children_count: 0) }
+      let(:reservation) do
+        reservation = build(:reservation, :future_datetime, restaurant: restaurant, reservation_period: reservation_period, party_size: 6, adults_count: 6, children_count: 0)
+        reservation.save!(validate: false)
+        reservation
+      end
 
       it '應該允許建立桌位組合' do
         combination = TableCombination.new(
@@ -279,7 +283,7 @@ RSpec.describe '桌位分配系統' do
              restaurant: restaurant,
              start_time: '11:30',
              end_time: '14:30',
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+             weekday: 1) # Monday
     end
 
     context '必要欄位驗證' do
@@ -456,7 +460,7 @@ RSpec.describe '桌位分配系統' do
                                 restaurant: restaurant,
                                 start_time: '10:00',
                                 end_time: '22:00',
-                                days_of_week: %w[saturday sunday])
+                                weekday: 6) # Saturday
 
         saturday_time = 1.week.from_now.beginning_of_week + 5.days + 11.hours
         table = create(:table, restaurant: restaurant)

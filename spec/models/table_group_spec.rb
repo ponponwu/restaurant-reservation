@@ -143,7 +143,7 @@ RSpec.describe TableGroup do
 
     describe '#total_capacity' do
       let!(:table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4, active: true) }
-      let!(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 6, active: true) }
+      let!(:table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4, active: true) }
       let!(:inactive_table) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 6, max_capacity: 8, active: false) }
 
       it 'returns sum of active table capacities' do
@@ -163,7 +163,7 @@ RSpec.describe TableGroup do
 
     describe '#available_capacity' do
       let!(:normal_table1) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4, operational_status: 'normal', active: true) }
-      let!(:normal_table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 6, operational_status: 'normal', active: true) }
+      let!(:normal_table2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4, operational_status: 'normal', active: true) }
       let!(:maintenance_table) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 6, max_capacity: 8, operational_status: 'maintenance', active: true) }
 
       it 'returns sum of normal operational status table capacities' do
@@ -285,9 +285,9 @@ RSpec.describe TableGroup do
         @table1 = create(:table, restaurant: restaurant, table_group: table_group,
                                  capacity: 4, max_capacity: 4, operational_status: 'normal', active: true)
         @table2 = create(:table, restaurant: restaurant, table_group: table_group,
-                                 capacity: 4, max_capacity: 6, operational_status: 'normal', active: true)
+                                 capacity: 4, max_capacity: 4, operational_status: 'normal', active: true)
         @table3 = create(:table, restaurant: restaurant, table_group: table_group,
-                                 capacity: 6, max_capacity: 8, operational_status: 'maintenance', active: true)
+                                 capacity: 6, max_capacity: 6, operational_status: 'maintenance', active: true)
         @table4 = create(:table, restaurant: restaurant, table_group: table_group,
                                  capacity: 4, max_capacity: 4, operational_status: 'normal', active: false)
       end

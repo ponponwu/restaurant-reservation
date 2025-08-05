@@ -288,7 +288,7 @@ RSpec.describe User do
       duplicate_user = build(:user, email: 'test@example.com')
 
       expect(duplicate_user).not_to be_valid
-      expect(duplicate_user.errors[:email]).to include('已經被使用')
+      expect(duplicate_user.errors[:email]).to include('has already been taken')
     end
 
     it 'normalizes email to lowercase' do

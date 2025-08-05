@@ -10,10 +10,30 @@ FactoryBot.define do
     party_size { 2 }
     adults_count { 2 }
     children_count { 0 }
-    reservation_datetime { 1.day.from_now.change(hour: 12, min: 0) }
+    sequence(:reservation_datetime) { |n| (n.days.from_now + (n * 8).hours).change(min: 0) }
     status { 'pending' }
     special_requests { '' }
     notes { '' }
+    admin_override { true }  # 跳過容量檢查
+
+    # 確保 table 和 reservation_period 屬於同一餐廳
+    after(:build) do |reservation|
+      # 確保 reservation_period 屬於正確的餐廳
+      if reservation.reservation_period && reservation.reservation_period.restaurant != reservation.restaurant
+        reservation.reservation_period = FactoryBot.create(:reservation_period, restaurant: reservation.restaurant)
+      elsif !reservation.reservation_period
+        reservation.reservation_period = FactoryBot.create(:reservation_period, restaurant: reservation.restaurant)
+      end
+
+      # 從餐廳的桌位中選擇一張
+      if reservation.restaurant.restaurant_tables.active.any?
+        reservation.table = reservation.restaurant.restaurant_tables.active.first
+      else
+        # 如果餐廳沒有桌位，創建一張
+        table_group = reservation.restaurant.table_groups.first || FactoryBot.create(:table_group, restaurant: reservation.restaurant)
+        reservation.table = FactoryBot.create(:table, restaurant: reservation.restaurant, table_group: table_group)
+      end
+    end
 
     trait :with_table do
       table

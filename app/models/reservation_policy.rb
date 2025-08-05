@@ -3,13 +3,13 @@ class ReservationPolicy < ApplicationRecord
   belongs_to :restaurant
 
   # 2. 驗證規則
-  validates :advance_booking_days, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  validates :minimum_advance_hours, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  validates :max_party_size, presence: true, numericality: { greater_than: 0 }
-  validates :min_party_size, presence: true, numericality: { greater_than: 0 }
-  validates :deposit_amount, presence: true, numericality: { greater_than_or_equal_to: 0 }
-  validates :max_bookings_per_phone, presence: true, numericality: { greater_than: 0 }
-  validates :phone_limit_period_days, presence: true, numericality: { greater_than: 0 }
+  validates :advance_booking_days, presence: { message: '不能為空白' }, numericality: { greater_than_or_equal_to: 0, message: '必須大於或等於0' }
+  validates :minimum_advance_hours, presence: { message: '不能為空白' }, numericality: { greater_than_or_equal_to: 0, message: '必須大於或等於0' }
+  validates :max_party_size, presence: { message: '不能為空白' }, numericality: { greater_than: 0, message: '必須大於0' }
+  validates :min_party_size, presence: { message: '不能為空白' }, numericality: { greater_than: 0, message: '必須大於0' }
+  validates :deposit_amount, presence: { message: '不能為空白' }, numericality: { greater_than_or_equal_to: 0, message: '必須大於或等於0' }
+  validates :max_bookings_per_phone, presence: { message: '不能為空白' }, numericality: { greater_than: 0, message: '必須大於0' }
+  validates :phone_limit_period_days, presence: { message: '不能為空白' }, numericality: { greater_than: 0, message: '必須大於0' }
   validates :default_dining_duration_minutes, presence: true, numericality: { greater_than: 0 },
                                               unless: :unlimited_dining_time?
   validates :max_combination_tables, presence: true, numericality: { greater_than: 1 }

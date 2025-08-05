@@ -2,18 +2,18 @@ require 'rails_helper'
 
 RSpec.describe Reservation do
   let(:restaurant) { create(:restaurant) }
-  let(:reservation) { create(:reservation, restaurant: restaurant) }
+  let(:reservation) { create(:reservation, :future_datetime, restaurant: restaurant) }
 
   describe 'cancellation token generation' do
     it 'automatically generates cancellation_token on creation' do
-      new_reservation = create(:reservation, restaurant: restaurant)
+      new_reservation = create(:reservation, :future_datetime, restaurant: restaurant)
       expect(new_reservation.cancellation_token).to be_present
       expect(new_reservation.cancellation_token).to match(/\A[0-9a-f]{32}\z/i)
     end
 
     it 'ensures cancellation_token uniqueness' do
-      reservation1 = create(:reservation, restaurant: restaurant)
-      reservation2 = create(:reservation, restaurant: restaurant)
+      reservation1 = create(:reservation, :future_datetime, restaurant: restaurant)
+      reservation2 = create(:reservation, restaurant: restaurant, reservation_datetime: 3.days.from_now.change(hour: 19, min: 0))
 
       expect(reservation1.cancellation_token).not_to eq(reservation2.cancellation_token)
     end
@@ -165,19 +165,36 @@ RSpec.describe Reservation do
   # 測試快取清除機制
   describe 'cache clearing' do
     it 'clears availability cache after creation' do
-      cache_key = "availability_status:#{restaurant.id}:#{Date.current}:4:v3"
+      # 創建新訂位
+      new_reservation = build(:reservation, restaurant: restaurant, party_size: 4, adults_count: 4, children_count: 0)
+      
+      # 計算正確的快取鍵格式，包含時間戳 - 使用與清除邏輯相同的方法
+      restaurant_updated_at = [restaurant.updated_at,
+                               restaurant.reservation_policy&.updated_at,
+                               restaurant.reservation_periods.maximum(:updated_at)].compact.max
+      target_date = new_reservation.reservation_datetime&.to_date || Date.current
+      
+      # 設定快取 - 測試 4 人訂位會清除 2-6 人的快取
+      cache_key = "availability_status:#{restaurant.id}:#{target_date}:4:#{restaurant_updated_at.to_i}:v4"
       Rails.cache.write(cache_key, { test: 'data' })
 
       expect(Rails.cache.read(cache_key)).to be_present
 
-      # 創建新訂位應該清除快取
-      create(:reservation, restaurant: restaurant)
+      # 保存訂位應該觸發快取清除回調
+      new_reservation.save!
 
       expect(Rails.cache.read(cache_key)).to be_nil
     end
 
     it 'clears availability cache after status update' do
-      cache_key = "availability_status:#{restaurant.id}:#{Date.current}:2:v3"
+      # 計算正確的快取鍵格式，包含時間戳
+      restaurant_updated_at = [restaurant.updated_at,
+                               restaurant.reservation_policy&.updated_at,
+                               restaurant.reservation_periods.maximum(:updated_at)].compact.max
+      target_date = reservation.reservation_datetime&.to_date || Date.current
+      
+      # 針對訂位的 party_size (預設為 2) 設定快取
+      cache_key = "availability_status:#{restaurant.id}:#{target_date}:2:#{restaurant_updated_at.to_i}:v4"
       Rails.cache.write(cache_key, { test: 'data' })
 
       expect(Rails.cache.read(cache_key)).to be_present
@@ -189,7 +206,14 @@ RSpec.describe Reservation do
     end
 
     it 'clears availability cache after deletion' do
-      cache_key = "availability_status:#{restaurant.id}:#{Date.current}:2:v3"
+      # 計算正確的快取鍵格式，包含時間戳
+      restaurant_updated_at = [restaurant.updated_at,
+                               restaurant.reservation_policy&.updated_at,
+                               restaurant.reservation_periods.maximum(:updated_at)].compact.max
+      target_date = reservation.reservation_datetime&.to_date || Date.current
+      
+      # 針對訂位的 party_size (預設為 2) 設定快取
+      cache_key = "availability_status:#{restaurant.id}:#{target_date}:2:#{restaurant_updated_at.to_i}:v4"
       Rails.cache.write(cache_key, { test: 'data' })
 
       expect(Rails.cache.read(cache_key)).to be_present
@@ -201,19 +225,33 @@ RSpec.describe Reservation do
     end
 
     it 'clears multiple party size cache keys' do
+      # 創建測試訂位
+      new_reservation = build(:reservation, restaurant: restaurant, party_size: 2, adults_count: 2, children_count: 0)
+      
+      # 計算正確的快取鍵格式，包含時間戳
+      restaurant_updated_at = [restaurant.updated_at,
+                               restaurant.reservation_policy&.updated_at,
+                               restaurant.reservation_periods.maximum(:updated_at)].compact.max
+      target_date = new_reservation.reservation_datetime&.to_date || Date.current
+      
       # 設定多個不同人數的快取
       (1..5).each do |party_size|
-        cache_key = "availability_status:#{restaurant.id}:#{Date.current}:#{party_size}:v3"
+        cache_key = "availability_status:#{restaurant.id}:#{target_date}:#{party_size}:#{restaurant_updated_at.to_i}:v4"
         Rails.cache.write(cache_key, { party_size: party_size })
       end
 
-      # 創建訂位應該清除所有相關快取
-      create(:reservation, restaurant: restaurant)
+      # 保存訂位應該清除所有相關快取（2人訂位影響範圍：party_size ±2 = 1-4人）
+      new_reservation.save!
 
-      (1..5).each do |party_size|
-        cache_key = "availability_status:#{restaurant.id}:#{Date.current}:#{party_size}:v3"
+      # 檢查受影響的人數範圍的快取是否被清除（1-4 人範圍）
+      (1..4).each do |party_size|
+        cache_key = "availability_status:#{restaurant.id}:#{target_date}:#{party_size}:#{restaurant_updated_at.to_i}:v4"
         expect(Rails.cache.read(cache_key)).to be_nil
       end
+      
+      # 第5人的快取不應被清除，因為不在影響範圍內
+      cache_key = "availability_status:#{restaurant.id}:#{target_date}:5:#{restaurant_updated_at.to_i}:v4"
+      expect(Rails.cache.read(cache_key)).to be_present
     end
   end
 

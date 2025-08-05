@@ -75,8 +75,11 @@ class Reservation < ApplicationRecord
   before_validation :sanitize_inputs
   before_create :generate_cancellation_token
   after_create_commit :send_sms_notification_on_create
+  after_create_commit :clear_availability_cache
   after_update_commit :broadcast_status_change, if: :saved_change_to_status?
   after_update_commit :send_sms_notification, if: :saved_change_to_status?
+  after_update_commit :clear_availability_cache, if: :saved_change_to_status?
+  after_destroy_commit :clear_availability_cache
 
   # 6. 實例方法
   def display_name
@@ -183,7 +186,7 @@ class Reservation < ApplicationRecord
 
     transaction do
       self.status = :cancelled
-      self.cancelled_by = "admin:#{user.full_name}"
+      self.cancelled_by = "admin:#{user.name}"
       self.cancelled_at = Time.current
       self.cancellation_reason = reason if reason.present?
       self.cancellation_method = method
@@ -192,7 +195,7 @@ class Reservation < ApplicationRecord
       old_notes = notes
       action_text = method == 'admin_delete' ? '刪除' : '取消'
       cancellation_info = [
-        "管理員#{user.full_name}#{action_text}於 #{cancelled_at.strftime('%Y/%m/%d %H:%M')}",
+        "管理員#{user.name}#{action_text}於 #{cancelled_at.strftime('%Y/%m/%d %H:%M')}",
         reason.present? ? "原因：#{reason}" : nil
       ].compact.join(' | ')
 

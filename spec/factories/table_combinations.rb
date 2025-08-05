@@ -4,22 +4,43 @@ FactoryBot.define do
     name { '併桌組合' }
     notes { '併桌備註' }
 
-    # 使用 after(:build) 而不是 after(:create) 來在驗證前建立關聯
-    after(:build) do |combination|
-      if combination.restaurant_tables.empty?
+    # 簡化版本：不自動創建桌位，避免複雜的依賴問題
+    trait :without_tables do
+      # 預設版本：不自動創建桌位
+      # 這避免了批次執行時的複雜依賴問題
+    end
+
+    trait :with_default_tables do
+      # 只在明確需要時才創建桌位
+      after(:create) do |combination|
         restaurant = combination.reservation.restaurant
-        table_group = create(:table_group, restaurant: restaurant)
-        table1 = create(:table, restaurant: restaurant, table_group: table_group, can_combine: true)
-        table2 = create(:table, restaurant: restaurant, table_group: table_group, can_combine: true)
+        table_group = restaurant.table_groups.first || create(:table_group, restaurant: restaurant)
+        
+        # 使用批次安全的創建方法
+        table1 = create(:table, 
+          restaurant: restaurant, 
+          table_group: table_group, 
+          can_combine: true, 
+          table_number: "C#{combination.id}-1"
+        )
+        table2 = create(:table, 
+          restaurant: restaurant, 
+          table_group: table_group, 
+          can_combine: true, 
+          table_number: "C#{combination.id}-2"
+        )
+        
         combination.restaurant_tables = [table1, table2]
+        combination.save!
       end
     end
 
-    trait :without_tables do
-      # 用於需要手動控制桌位的驗證測試
-      after(:build) do |combination|
-        # 清空預設桌位，允許手動控制
-        combination.restaurant_tables = []
+    trait :with_specific_tables do |tables|
+      # 用於測試中需要特定桌位的情況
+      after(:build) do |combination, evaluator|
+        if evaluator.respond_to?(:tables) && evaluator.tables
+          combination.restaurant_tables = evaluator.tables
+        end
       end
     end
   end
