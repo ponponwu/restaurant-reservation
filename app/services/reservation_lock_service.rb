@@ -1,64 +1,39 @@
-# ReservationLockService 現在是 EnhancedReservationLockService 的別名
-# 這確保了向後相容性，現有代碼無需修改
-
-# 載入新的增強服務
-require_dependency Rails.root.join('app', 'services', 'enhanced_reservation_lock_service')
+# ReservationLockService 使用 SolidCacheReservationLockService 作為後端
+# 提供統一的介面給應用程式使用
 
 class ReservationLockService
   class << self
-    # 將所有方法委派給 EnhancedReservationLockService
-    def with_lock(restaurant_id, datetime, party_size, &)
-      EnhancedReservationLockService.with_lock(restaurant_id, datetime, party_size, &)
+    # 主要鎖定方法 - 委派給 SolidCacheReservationLockService
+    def with_lock(restaurant_id, datetime, party_size, &block)
+      SolidCacheReservationLockService.with_lock(restaurant_id, datetime, party_size, &block)
     end
 
-    delegate :locked?, to: :EnhancedReservationLockService
+    # 檢查鎖定狀態
+    def locked?(restaurant_id, datetime, party_size)
+      SolidCacheReservationLockService.locked?(restaurant_id, datetime, party_size)
+    end
 
-    delegate :force_unlock, to: :EnhancedReservationLockService
+    # 強制解鎖
+    def force_unlock(restaurant_id, datetime, party_size)
+      SolidCacheReservationLockService.force_unlock(restaurant_id, datetime, party_size)
+    end
 
-    delegate :active_locks, to: :EnhancedReservationLockService
+    # 取得活躍的鎖定
+    def active_locks
+      SolidCacheReservationLockService.active_locks
+    end
 
-    # 提供遷移信息的方法
-    def migration_info
+    # 服務資訊
+    def service_info
       {
-        version: '2.0 (Enhanced Redis)',
-        backend: 'Redis',
-        legacy_file: 'reservation_lock_service_legacy.rb',
-        new_service: 'EnhancedReservationLockService',
-        upgrade_date: Time.current.to_s
+        version: '3.0 (Solid Cache)',
+        backend: 'Solid Cache',
+        service: 'SolidCacheReservationLockService'
       }
     end
-
-    # 檢查是否已升級
-    def upgraded?
-      true
-    end
-
-    # 記錄升級訊息
-    def log_upgrade_info
-      info = migration_info
-      Rails.logger.info 'ReservationLockService 已升級：'
-      Rails.logger.info "  版本: #{info[:version]}"
-      Rails.logger.info "  後端: #{info[:backend]}"
-      Rails.logger.info "  新服務: #{info[:new_service]}"
-      Rails.logger.info "  升級時間: #{info[:upgrade_date]}"
-    end
   end
 end
 
-# 確保例外類別仍然可用
+# 確保例外類別可用
 class ConcurrentReservationError < StandardError; end
 class RedisConnectionError < StandardError; end
-
-# 記錄升級訊息（僅在第一次載入時）
-module ReservationLockServiceUpgradeLogger
-  @upgrade_logged = false
-
-  def self.log_upgrade_once
-    return if @upgrade_logged
-
-    @upgrade_logged = true
-    Rails.logger.info 'ReservationLockService 已成功升級為使用 Redis 後端'
-  end
-end
-
-ReservationLockServiceUpgradeLogger.log_upgrade_once
