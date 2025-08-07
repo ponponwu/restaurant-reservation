@@ -2,13 +2,15 @@ require 'rails_helper'
 
 RSpec.describe ReservationAllocatorService, type: :service do
   let(:restaurant) { create(:restaurant) }
-  let(:reservation_period) do
-    create(:reservation_period,
-           restaurant: restaurant,
-           start_time: '11:30',
-           end_time: '14:30',
-           days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+  let(:reservation_periods) do
+    create_full_week_periods(restaurant, {
+      periods: {
+        lunch: { start_time: '11:30', end_time: '14:30', name: '午餐' }
+      }
+    })
   end
+  
+  let(:reservation_period) { reservation_periods.first }
   let(:base_time) { 1.day.from_now.change(hour: 12, min: 0) }
 
   before do

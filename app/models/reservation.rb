@@ -455,6 +455,7 @@ class Reservation < ApplicationRecord
   # 樂觀鎖併發衝突檢測驗證
   def check_table_availability_conflict
     return unless table_id.present? && reservation_datetime.present?
+    return if admin_override?  # 管理員可以覆蓋桌位衝突檢查
 
     # 計算用餐時間範圍
     duration_minutes = restaurant.dining_duration_minutes || 120

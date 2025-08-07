@@ -119,7 +119,7 @@ class RestaurantTable < ApplicationRecord
     current_reservation.present?
   end
 
-  def available_for_datetime?(datetime, duration_minutes = nil)
+  def available_for_datetime?(datetime, duration_minutes = nil, exclude_reservation: nil)
     # 如果餐廳是無限用餐時間，則不檢查時間衝突
     return true if restaurant.unlimited_dining_time?
 
@@ -132,6 +132,9 @@ class RestaurantTable < ApplicationRecord
         "reservation_datetime < ? AND reservation_datetime + (INTERVAL '1 minute' * ?) > ?",
         end_time, duration_minutes.to_i, datetime
       )
+
+    # 排除特定預訂（通常是自己）
+    conflicting_reservations = conflicting_reservations.where.not(id: exclude_reservation.id) if exclude_reservation
 
     conflicting_reservations.empty?
   end

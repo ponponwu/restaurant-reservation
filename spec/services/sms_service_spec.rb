@@ -2,7 +2,13 @@ require 'rails_helper'
 
 RSpec.describe SmsService, type: :service do
   let(:restaurant) { create(:restaurant, name: '測試餐廳', phone: '02-12345678') }
-  let(:reservation) { create(:reservation, restaurant: restaurant, customer_name: '張三', customer_phone: '0912345678') }
+  let(:reservation) { 
+    create(:reservation, 
+           restaurant: restaurant, 
+           customer_name: '張三', 
+           customer_phone: '0912345678',
+           reservation_datetime: Time.zone.parse('2025-08-08 18:00'))
+  }
   let(:sms_service) { described_class.new }
 
   before do
@@ -31,10 +37,10 @@ RSpec.describe SmsService, type: :service do
         result = sms_service.send_reservation_confirmation(reservation)
 
         sms_log = result[:sms_log]
-        expect(sms_log.content).to include('測試餐廳 訂位確認')
-        expect(sms_log.content).to include('張三')
-        expect(sms_log.content).to include('02-12345678')
-        expect(sms_log.content).to include('期待您的光臨！🌟')
+        expect(sms_log.content).to include('您已預約【測試餐廳】')
+        expect(sms_log.content).to include('18:00')
+        expect(sms_log.content).to include('2 位')
+        expect(sms_log.content).to include('訂位資訊：')
       end
     end
 
@@ -66,9 +72,10 @@ RSpec.describe SmsService, type: :service do
       result = sms_service.send_dining_reminder(reservation)
 
       sms_log = result[:sms_log]
-      expect(sms_log.content).to include('用餐提醒')
-      expect(sms_log.content).to include('提醒您明天的用餐時間')
-      expect(sms_log.content).to include('張三')
+      expect(sms_log.content).to include('明日用餐提醒')
+      expect(sms_log.content).to include('【測試餐廳】')
+      expect(sms_log.content).to include('18:00')
+      expect(sms_log.content).to include('2位')
     end
   end
 
@@ -88,8 +95,11 @@ RSpec.describe SmsService, type: :service do
       result = sms_service.send_reservation_cancellation(reservation, cancellation_reason)
 
       sms_log = result[:sms_log]
-      expect(sms_log.content).to include('訂位取消')
-      expect(sms_log.content).to include(cancellation_reason)
+      expect(sms_log.content).to include('【測試餐廳】訂位已取消')
+      expect(sms_log.content).to include('18:00')
+      expect(sms_log.content).to include('2位')
+      expect(sms_log.content).to include('，原因：客戶主動取消')
+      expect(sms_log.content).to include('如需重新預約：02-12345678')
     end
   end
 
@@ -123,27 +133,27 @@ RSpec.describe SmsService, type: :service do
       result = sms_service.send_reservation_confirmation(reservation)
       content = result[:sms_log].content
 
-      expect(content).to include('🍽️')
-      expect(content).to include('━━━━━━━━━━━━━━━━━━━━')
-      expect(content).to include('👤 訂位人：張三')
-      expect(content).to include('📅 用餐時間：')
-      expect(content).to include('👥 用餐人數：')
-      expect(content).to include('🪑 桌位：')
-      expect(content).to include('📞 如需異動或取消，請撥打：02-12345678')
+      expect(content).to include('您已預約【測試餐廳】')
+      expect(content).to include('18:00')
+      expect(content).to include('2 位')
+      expect(content).to include('訂位資訊：')
     end
 
-    it 'includes special requests in confirmation message' do
-      reservation.update(special_requests: '素食')
+    it 'includes cancellation URL in confirmation message' do
+      # Mock short URL generation
+      allow(reservation).to receive(:short_cancellation_url).and_return('https://short.ly/abc123')
       result = sms_service.send_reservation_confirmation(reservation)
 
-      expect(result[:sms_log].content).to include('📝 特殊要求：素食')
+      expect(result[:sms_log].content).to include('訂位資訊：https://short.ly/abc123')
     end
 
-    it 'includes children count in confirmation message' do
-      reservation.update(children_count: 2)
+    it 'formats concise message within SMS limits' do
       result = sms_service.send_reservation_confirmation(reservation)
-
-      expect(result[:sms_log].content).to include('(含兒童 2人)')
+      content = result[:sms_log].content
+      
+      # SMS messages should be concise (typically under 70 characters for single SMS)
+      expect(content.length).to be < 200 # reasonable limit for confirmation with URL
+      expect(content).to match(/您已預約【測試餐廳】\d{2}\/\d{2}（.）\d{2}:\d{2}，\d+ 位。/)
     end
   end
 end

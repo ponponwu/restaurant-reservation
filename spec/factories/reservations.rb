@@ -25,13 +25,15 @@ FactoryBot.define do
         reservation.reservation_period = FactoryBot.create(:reservation_period, restaurant: reservation.restaurant)
       end
 
-      # 從餐廳的桌位中選擇一張
-      if reservation.restaurant.restaurant_tables.active.any?
-        reservation.table = reservation.restaurant.restaurant_tables.active.first
-      else
-        # 如果餐廳沒有桌位，創建一張
-        table_group = reservation.restaurant.table_groups.first || FactoryBot.create(:table_group, restaurant: reservation.restaurant)
-        reservation.table = FactoryBot.create(:table, restaurant: reservation.restaurant, table_group: table_group)
+      # 只有在沒有指定桌位時才自動分配桌位
+      unless reservation.table
+        if reservation.restaurant.restaurant_tables.active.any?
+          reservation.table = reservation.restaurant.restaurant_tables.active.first
+        else
+          # 如果餐廳沒有桌位，創建一張
+          table_group = reservation.restaurant.table_groups.first || FactoryBot.create(:table_group, restaurant: reservation.restaurant)
+          reservation.table = FactoryBot.create(:table, restaurant: reservation.restaurant, table_group: table_group)
+        end
       end
     end
 

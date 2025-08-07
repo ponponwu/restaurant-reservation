@@ -6,7 +6,8 @@ RSpec.describe 'Admin::ReservationPeriods' do
   let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
 
   before do
-    sign_in user
+    post user_session_path, params: { user: { email: user.email, password: 'password123' } }
+    follow_redirect!
   end
 
   describe 'GET /admin/restaurants/:restaurant_id/reservation_periods' do
@@ -125,8 +126,9 @@ RSpec.describe 'Admin::ReservationPeriods' do
       let(:regular_user) { create(:user, :manager, restaurant: other_restaurant) }
 
       before do
-        sign_out user
-        sign_in regular_user
+        delete destroy_user_session_path
+        post user_session_path, params: { user: { email: regular_user.email, password: 'password123' } }
+        follow_redirect!
       end
 
       it 'redirects to unauthorized page' do
@@ -140,8 +142,9 @@ RSpec.describe 'Admin::ReservationPeriods' do
       let(:employee_without_restaurant) { create(:user, role: :employee) }
 
       before do
-        sign_out user
-        sign_in employee_without_restaurant
+        delete destroy_user_session_path
+        post user_session_path, params: { user: { email: employee_without_restaurant.email, password: 'password123' } }
+        follow_redirect!
       end
 
       it 'redirects to unauthorized page' do

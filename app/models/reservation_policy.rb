@@ -115,6 +115,7 @@ class ReservationPolicy < ApplicationRecord
     restaurant.reservations
       .where(customer_phone: phone_number)
       .where(reservation_datetime: start_date.beginning_of_day..end_date.end_of_day)
+      .where.not(status: :cancelled)
       .count
   end
 

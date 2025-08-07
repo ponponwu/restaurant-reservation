@@ -42,11 +42,30 @@ class RestaurantsController < ApplicationController
 
     # 獲取特殊公休日
     date_range = Date.current..(Date.current + max_days.days)
-    special_closure_dates = @restaurant.closure_dates
+    
+    # 獲取傳統closure_dates的特殊公休日
+    closure_dates = @restaurant.closure_dates
       .where(recurring: false)
       .where(date: date_range)
       .pluck(:date)
       .map(&:to_s)
+
+    # 獲取special_reservation_dates中的封閉日期
+    special_closed_dates = []
+    @restaurant.special_reservation_dates.active.closed.each do |special_date|
+      # 檢查special date的日期範圍與查詢範圍的交集
+      start_date = [special_date.start_date, Date.current].max
+      end_date = [special_date.end_date, Date.current + max_days.days].min
+      
+      if start_date <= end_date
+        (start_date..end_date).each do |date|
+          special_closed_dates << date.to_s
+        end
+      end
+    end
+
+    # 合併所有特殊公休日
+    special_closure_dates = (closure_dates + special_closed_dates).uniq
 
     # 如果餐廳有容量，檢查實際可用日期（優化版本）
     unavailable_dates = []
@@ -190,10 +209,9 @@ class RestaurantsController < ApplicationController
       return
     end
 
-    # 使用新的service處理業務邏輯，並傳遞該日的間隔設定
+    # 使用新的service處理業務邏輯
     availability_service = RestaurantAvailabilityService.new(@restaurant)
-    daily_interval = @restaurant.reservation_interval_for_date(date)
-    time_slots = availability_service.get_available_times(date, party_size, adults, children, daily_interval)
+    time_slots = availability_service.get_available_times(date, party_size, adults, children)
 
     Rails.logger.info "Got #{time_slots.size} time slots, rendering response"
 

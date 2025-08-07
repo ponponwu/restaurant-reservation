@@ -6,9 +6,14 @@ RSpec.describe 'API Special Dates Integration', type: :request do
   let(:day_after_tomorrow) { Date.current + 2.days }
 
   before do
-    # Create some basic business periods
-    create(:reservation_period, restaurant: restaurant) # Default is lunch
-    create(:reservation_period, :dinner, restaurant: restaurant)
+    # Create reservation periods for all weekdays
+    create_full_week_periods(restaurant)
+
+    # Create operating hours for all weekdays
+    (0..6).each do |weekday|
+      create(:operating_hour, restaurant: restaurant, weekday: weekday, 
+             open_time: Time.parse('11:00'), close_time: Time.parse('22:00'))
+    end
 
     # Create table groups and tables
     table_group = create(:table_group, restaurant: restaurant)

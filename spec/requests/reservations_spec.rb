@@ -3,11 +3,20 @@ require 'rails_helper'
 RSpec.describe 'Reservations' do
   let(:restaurant) { create(:restaurant) }
   let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
-  let(:table) { create(:table, restaurant: restaurant, table_number: 'A1', capacity: 4) }
+  let(:table_group) { create(:table_group, restaurant: restaurant) }
+  let(:table) { create(:table, restaurant: restaurant, table_group: table_group, table_number: 'A1', capacity: 4) }
 
   before do
-    # 確保餐廳有營業時段和桌位
-    reservation_period.update!(days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday]) # 設定為每天營業
+    # 確保餐廳有營業時段和桌位 - 使用新的全週設定
+    create_full_week_periods(restaurant)
+    
+    # 創建營業時間（operating_hours）
+    (0..6).each do |weekday|
+      create(:operating_hour, restaurant: restaurant, weekday: weekday, 
+             open_time: Time.parse('11:00'), close_time: Time.parse('22:00'))
+    end
+    
+    table_group
     table
   end
 
@@ -180,8 +189,8 @@ RSpec.describe 'Reservations' do
     context '當沒有可用桌位時' do
       before do
         # Mock 增強的桌位分配服務檢查可用性失敗
-        allow_any_instance_of(EnhancedReservationAllocatorService).to receive(:check_availability_with_lock).and_return({ has_availability: false })
-        allow_any_instance_of(EnhancedReservationAllocatorService).to receive(:allocate_table_with_lock).and_return(nil)
+        allow_any_instance_of(EnhancedReservationAllocatorService).to receive(:check_availability_without_locking).and_return({ has_availability: false })
+        allow_any_instance_of(EnhancedReservationAllocatorService).to receive(:allocate_table_with_optimistic_locking).and_return(nil)
       end
 
       it '不創建訂位記錄' do

@@ -5,24 +5,22 @@ RSpec.describe 'Admin Available Days API' do
   let(:admin_user) { create(:user, :admin, restaurant: restaurant) }
 
   before do
-    # 設定餐廳的營業時段
-    @lunch_period = restaurant.reservation_periods.create!(
-      name: 'lunch',
-      display_name: '午餐',
-      start_time: '11:30',
-      end_time: '14:30',
-      days_of_week_mask: 127, # 預設全週營業
-      active: true
-    )
-
-    @dinner_period = restaurant.reservation_periods.create!(
-      name: 'dinner',
-      display_name: '晚餐',
-      start_time: '17:30',
-      end_time: '21:30',
-      days_of_week_mask: 127,
-      active: true
-    )
+    # 設定餐廳的營業時段 - 使用新的每日設定模式
+    @lunch_periods = create_full_week_periods(restaurant, {
+      periods: {
+        lunch: { start_time: '11:30', end_time: '14:30', name: '午餐' }
+      }
+    })
+    
+    @dinner_periods = create_full_week_periods(restaurant, {
+      periods: {
+        dinner: { start_time: '17:30', end_time: '21:30', name: '晚餐' }
+      }
+    })
+    
+    # 為了向後兼容，設定參考變數
+    @lunch_period = @lunch_periods.first
+    @dinner_period = @dinner_periods.first
 
     # 設定桌位群組和桌位
     table_group = restaurant.table_groups.create!(
@@ -36,6 +34,10 @@ RSpec.describe 'Admin Available Days API' do
       capacity: 4,
       min_capacity: 1,
       max_capacity: 4,
+      table_type: 'regular',
+      operational_status: 'normal',
+      sort_order: 1,
+      can_combine: true,
       table_group: table_group,
       active: true
     )
@@ -50,8 +52,8 @@ RSpec.describe 'Admin Available Days API' do
         # 設定週一和週二休息（days_of_week_mask 不包含這些天）
         # 127 = 1+2+4+8+16+32+64 (全週)
         # 124 = 4+8+16+32+64 (週三到週日，排除週一週二)
-        @lunch_period.update!(days_of_week_mask: 124)
-        @dinner_period.update!(days_of_week_mask: 124)
+        # 停用週一和週二的餐期 (weekday 1, 2)
+        restaurant.reservation_periods.where(weekday: [1, 2]).update_all(active: false)
       end
 
       it '應該回傳正確的週休息日資訊' do
@@ -133,8 +135,8 @@ RSpec.describe 'Admin Available Days API' do
 
       before do
         # 設定週一休息
-        @lunch_period.update!(days_of_week_mask: 126) # 排除週一(1)
-        @dinner_period.update!(days_of_week_mask: 126)
+        # 停用週一的餐期 (weekday 1)
+        restaurant.reservation_periods.where(weekday: 1).update_all(active: false)
 
         # 設定特殊休息日
         restaurant.closure_dates.create!(

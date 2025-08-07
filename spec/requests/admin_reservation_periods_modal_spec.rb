@@ -6,7 +6,8 @@ RSpec.describe 'Admin Reservation Periods Modal Fix', type: :request do
   let(:reservation_period) { create(:reservation_period, restaurant: restaurant) }
 
   before do
-    sign_in user
+    post user_session_path, params: { user: { email: user.email, password: 'password123' } }
+    follow_redirect!
   end
 
   describe 'Modal functionality' do

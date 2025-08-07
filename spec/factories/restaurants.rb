@@ -54,7 +54,7 @@ FactoryBot.define do
         )
 
         # 更新總容量
-        restaurant.calculate_and_cache_capacity
+        restaurant.update_cached_capacity
       end
     end
 
@@ -126,7 +126,7 @@ FactoryBot.define do
           table_number: 'A2',
           capacity: 8,
           max_capacity: 10,
-          table_type: 'large',
+          table_type: 'regular',
           operational_status: 'normal',
           active: true,
           can_combine: true,
@@ -135,7 +135,7 @@ FactoryBot.define do
         )
 
         # 更新總容量
-        restaurant.calculate_and_cache_capacity
+        restaurant.update_cached_capacity
       end
     end
 

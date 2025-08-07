@@ -3,8 +3,9 @@ require 'rails_helper'
 RSpec.describe AvailabilityService, type: :service do
   let(:restaurant) { create(:restaurant) }
   let(:service) { described_class.new(restaurant) }
-  let(:lunch_period) { create(:reservation_period, restaurant: restaurant, name: '午餐', start_time: '11:30', end_time: '14:00') }
-  let(:dinner_period) { create(:reservation_period, restaurant: restaurant, name: '晚餐', start_time: '17:30', end_time: '21:00') }
+  let(:test_date) { Date.current + 1.day }
+  let(:lunch_period) { create(:reservation_period, restaurant: restaurant, name: '午餐', start_time: '11:30', end_time: '14:00', weekday: test_date.wday) }
+  let(:dinner_period) { create(:reservation_period, restaurant: restaurant, name: '晚餐', start_time: '17:30', end_time: '21:00', weekday: test_date.wday) }
   let(:table_group) { create(:table_group, restaurant: restaurant, name: '主用餐區') }
   let!(:table_2) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 2, max_capacity: 2, table_number: 'A1') }
   let!(:table_4) { create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4, table_number: 'A2') }
@@ -15,9 +16,15 @@ RSpec.describe AvailabilityService, type: :service do
     dinner_period
     restaurant.reload
   end
+  
+  # 輔助方法：創建測試用訂位（跳過驗證）
+  def create_test_reservation(attributes = {})
+    reservation = build(:reservation, attributes)
+    reservation.save!(validate: false)
+    reservation
+  end
 
   describe '#has_any_availability_on_date?' do
-    let(:test_date) { Date.current + 1.day }
 
     before do
       # Mock restaurant methods to return available time options
@@ -48,24 +55,27 @@ RSpec.describe AvailabilityService, type: :service do
 
     context '桌位被預訂的情況' do
       before do
-        # 預訂所有桌位的午餐時段
-        create(:reservation,
+        # 預訂所有桌位的午餐時段（使用不同時間避免衝突）
+        create_test_reservation(
                restaurant: restaurant,
                reservation_period: lunch_period,
                table: table_2,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
+               customer_phone: '0912000001',
                status: 'confirmed')
-        create(:reservation,
+        create_test_reservation(
                restaurant: restaurant,
                reservation_period: lunch_period,
                table: table_4,
-               reservation_datetime: test_date.beginning_of_day + 12.hours,
+               reservation_datetime: test_date.beginning_of_day + 12.hours + 30.minutes,
+               customer_phone: '0912000002',
                status: 'confirmed')
-        create(:reservation,
+        create_test_reservation(
                restaurant: restaurant,
                reservation_period: lunch_period,
                table: table_6,
-               reservation_datetime: test_date.beginning_of_day + 12.hours,
+               reservation_datetime: test_date.beginning_of_day + 12.hours + 60.minutes,
+               customer_phone: '0912000003',
                status: 'confirmed')
       end
 
@@ -134,19 +144,19 @@ RSpec.describe AvailabilityService, type: :service do
 
     context '部分時段被預訂' do
       before do
-        create(:reservation,
+        create_test_reservation(
                restaurant: restaurant,
                reservation_period: lunch_period,
                table: table_2,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
-        create(:reservation,
+        create_test_reservation(
                restaurant: restaurant,
                reservation_period: lunch_period,
                table: table_4,
                reservation_datetime: test_date.beginning_of_day + 12.hours,
                status: 'confirmed')
-        create(:reservation,
+        create_test_reservation(
                restaurant: restaurant,
                reservation_period: lunch_period,
                table: table_6,
@@ -166,7 +176,7 @@ RSpec.describe AvailabilityService, type: :service do
         [12, 13, 18, 19].each do |hour|
           period = hour < 15 ? lunch_period : dinner_period
           [table_2, table_4, table_6].each do |table|
-            create(:reservation,
+            create_test_reservation(
                    restaurant: restaurant,
                    reservation_period: period,
                    table: table,
@@ -219,7 +229,7 @@ RSpec.describe AvailabilityService, type: :service do
 
         [lunch_period, dinner_period].each do |period|
           [table_2, table_4, table_6].each do |table|
-            create(:reservation,
+            create_test_reservation(
                    restaurant: restaurant,
                    reservation_period: period,
                    table: table,
@@ -302,13 +312,13 @@ RSpec.describe AvailabilityService, type: :service do
       it '當所有桌位都被預訂時返回 false' do
         future_datetime = (Date.current + 2.days).beginning_of_day + 12.hours
         reservations = [
-          create(:reservation,
+          create_test_reservation(
                  restaurant: restaurant,
                  reservation_period: lunch_period,
                  table: table_2,
                  reservation_datetime: future_datetime,
                  status: 'confirmed'),
-          create(:reservation,
+          create_test_reservation(
                  restaurant: restaurant,
                  reservation_period: lunch_period,
                  table: table_4,
@@ -329,7 +339,7 @@ RSpec.describe AvailabilityService, type: :service do
       it '當部分桌位被預訂但仍有適合桌位時返回 true' do
         future_datetime = (Date.current + 2.days).beginning_of_day + 12.hours
         reservations = [
-          create(:reservation,
+          create_test_reservation(
                  restaurant: restaurant,
                  reservation_period: lunch_period,
                  table: table_2,

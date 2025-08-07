@@ -8,6 +8,12 @@ RSpec.describe AvailabilityService, type: :service do
   before do
     # Clear any existing special dates
     restaurant.special_reservation_dates.destroy_all
+    
+    # 創建營業時間 - 確保餐廳每天都有營業時間
+    (0..6).each do |weekday|
+      create(:operating_hour, restaurant: restaurant, weekday: weekday, 
+             open_time: Time.parse('11:00'), close_time: Time.parse('23:00'))
+    end
   end
 
   describe 'special dates availability checking' do

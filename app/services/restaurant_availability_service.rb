@@ -94,9 +94,9 @@ class RestaurantAvailabilityService
 
   # 計算額滿日期
   def calculate_full_booked_until(party_size, _adults = nil, _children = nil)
-    start_date = Date.current
+    start_date = Date.current + 1.day # Start from tomorrow since same-day booking is usually not allowed
     advance_booking_days = @restaurant.reservation_policy&.advance_booking_days || 30
-    end_date = start_date + advance_booking_days.days
+    end_date = Date.current + advance_booking_days.days
 
     # 在迴圈外初始化，避免重複建立和查詢
     availability_service = AvailabilityService.new(@restaurant)

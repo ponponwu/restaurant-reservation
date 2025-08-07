@@ -239,6 +239,7 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
     end
 
     respond_to do |format|
+      format.html { redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant.slug), notice: '營業時段更新成功' }
       format.turbo_stream do
         @closure_dates = @restaurant.closure_dates.order(:date, :created_at)
         render turbo_stream: [
@@ -254,6 +255,7 @@ class Admin::RestaurantSettings::RestaurantSettingsController < AdminController
     end
   rescue StandardError => e
     respond_to do |format|
+      format.html { redirect_to admin_restaurant_settings_restaurant_closure_dates_path(@restaurant.slug), alert: "更新失敗: #{e.message}" }
       format.turbo_stream do
         render turbo_stream: turbo_stream.update('flash_messages',
                                                  partial: 'shared/flash_message',

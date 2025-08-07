@@ -6,7 +6,8 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController do
   let(:reservation_policy) { restaurant.reservation_policy || restaurant.create_reservation_policy! }
 
   before do
-    sign_in user
+    post user_session_path, params: { user: { email: user.email, password: 'password123' } }
+    follow_redirect!
   end
 
   describe 'GET #reservation_policies' do
@@ -266,8 +267,9 @@ RSpec.describe Admin::RestaurantSettings::RestaurantSettingsController do
       let(:regular_user) { create(:user) }
 
       before do
-        sign_out user
-        sign_in regular_user
+        delete destroy_user_session_path
+        post user_session_path, params: { user: { email: regular_user.email, password: 'password123' } }
+        follow_redirect!
       end
 
       it 'redirects to unauthorized page' do

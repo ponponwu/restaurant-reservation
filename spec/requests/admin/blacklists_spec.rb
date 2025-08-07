@@ -6,7 +6,8 @@ RSpec.describe 'Admin::Blacklists' do
   let(:blacklist) { create(:blacklist, restaurant: restaurant) }
 
   before do
-    sign_in admin_user
+    post user_session_path, params: { user: { email: admin_user.email, password: 'password123' } }
+    follow_redirect!
   end
 
   describe 'GET /admin/restaurants/:restaurant_id/blacklists' do

@@ -68,9 +68,12 @@ class TableCombination < ApplicationRecord
 
   def tables_must_be_available
     return if restaurant_tables.empty? || reservation.blank?
+    
+    # 如果是管理員覆蓋的預訂，跳過可用性檢查
+    return if reservation.admin_override?
 
     unavailable_tables = restaurant_tables.reject do |table|
-      table.available_for_datetime?(reservation.reservation_datetime)
+      table.available_for_datetime?(reservation.reservation_datetime, exclude_reservation: reservation)
     end
 
     return unless unavailable_tables.any?

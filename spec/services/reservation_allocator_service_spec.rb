@@ -6,13 +6,17 @@ RSpec.describe ReservationAllocatorService, type: :service do
   let!(:table_group_square) { create(:table_group, restaurant: restaurant, name: '方桌', sort_order: 2) }
   let!(:table_group_bar) { create(:table_group, restaurant: restaurant, name: '吧台', sort_order: 3) }
 
-  let!(:reservation_period) do
-    create(:reservation_period,
-           restaurant: restaurant,
-           start_time: '11:30',
-           end_time: '14:30',
-           days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+  let!(:reservation_periods) do
+    # 使用新的全週營業設定
+    create_full_week_periods(restaurant, {
+      periods: {
+        lunch: { start_time: '11:30', end_time: '14:30', name: '午餐' }
+      }
+    })
   end
+  
+  # 為了向後兼容測試，提供 reservation_period 變數
+  let!(:reservation_period) { reservation_periods.first }
 
   before do
     # 建立測試用桌位環境
@@ -283,14 +287,15 @@ RSpec.describe ReservationAllocatorService, type: :service do
       let(:lunch_time) { 1.day.from_now.change(hour: 12, min: 0) }
       let(:dinner_time) { 1.day.from_now.change(hour: 18, min: 0) }
 
-      let(:dinner_period) do
-        create(:reservation_period,
-               restaurant: restaurant,
-               name: '晚餐時段',
-               start_time: '17:30',
-               end_time: '21:30',
-               days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      let(:dinner_periods) do
+        create_full_week_periods(restaurant, {
+          periods: {
+            dinner: { start_time: '17:30', end_time: '21:30', name: '晚餐時段' }
+          }
+        })
       end
+      
+      let(:dinner_period) { dinner_periods.first }
 
       it '不同營業時段可以使用相同桌位' do
         # 設定餐廳為無限時模式，確保不同餐期不會衝突

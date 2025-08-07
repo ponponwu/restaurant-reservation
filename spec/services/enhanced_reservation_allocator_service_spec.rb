@@ -12,13 +12,13 @@ RSpec.describe EnhancedReservationAllocatorService, type: :service do
            weekday: 1) # 星期一
   end
 
-  let!(:table1) { create(:table, restaurant: restaurant, table_group: table_group, table_number: 'A1', capacity: 4, can_combine: true) }
-  let!(:table2) { create(:table, restaurant: restaurant, table_group: table_group, table_number: 'A2', capacity: 4, can_combine: true) }
+  let!(:table1) { create(:table, restaurant: restaurant, table_group: table_group, table_number: 'A1', capacity: 4, max_capacity: 4, can_combine: true) }
+  let!(:table2) { create(:table, restaurant: restaurant, table_group: table_group, table_number: 'A2', capacity: 4, max_capacity: 4, can_combine: true) }
   let!(:table3) { create(:table, restaurant: restaurant, table_group: table_group, table_number: 'A3', capacity: 2, max_capacity: 2, can_combine: true) }
 
   before do
     # 更新餐廳總容量和政策
-    restaurant.update!(total_capacity: restaurant.calculate_total_capacity)
+    restaurant.update_cached_capacity
 
     policy = restaurant.reservation_policy || restaurant.create_reservation_policy
     policy.update!(

@@ -6,43 +6,46 @@ class AvailabilityService
   end
 
   # 檢查指定日期是否有任何可預訂的時段
-  # def has_any_availability_on_date?(date, party_size = 2)
-  #   # 使用餐廳的動態時間產生方法
-  #   available_time_options = @restaurant.available_time_options_for_date(date)
-  #   return false if available_time_options.empty?
+  def has_any_availability_on_date?(date, party_size = 2)
+    # 處理無效輸入
+    return false if party_size <= 0
+    
+    # 使用餐廳的動態時間產生方法
+    available_time_options = @restaurant.available_time_options_for_date(date)
+    return false if available_time_options.empty?
 
-  #   # 預載入當天所有相關的訂位資料
-  #   existing_reservations = @restaurant.reservations
-  #     .where(status: %w[pending confirmed])
-  #     .where('DATE(reservation_datetime) = ?', date)
-  #     .includes(:table, :reservation_period, table_combination: :restaurant_tables)
+    # 預載入當天所有相關的訂位資料
+    existing_reservations = @restaurant.reservations
+      .where(status: %w[pending confirmed])
+      .where('DATE(reservation_datetime) = ?', date)
+      .includes(:table, :reservation_period, table_combination: :restaurant_tables)
 
-  #   # 預載入餐廳桌位資料
-  #   restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
-  #     .includes(:table_group)
+    # 預載入餐廳桌位資料
+    restaurant_tables = @restaurant.restaurant_tables.active.available_for_booking
+      .includes(:table_group)
 
-  #   # 按餐期分組現有訂位（避免 N+1 查詢）
-  #   reservations_by_period = existing_reservations.to_a.group_by(&:reservation_period_id)
+    # 按餐期分組現有訂位（避免 N+1 查詢）
+    reservations_by_period = existing_reservations.to_a.group_by(&:reservation_period_id)
 
-  #   # 檢查是否有任何時段可用
-  #   available_time_options.each do |time_option|
-  #     reservation_period_id = time_option[:reservation_period_id]
-  #     datetime = time_option[:datetime]
+    # 檢查是否有任何時段可用
+    available_time_options.each do |time_option|
+      reservation_period_id = time_option[:reservation_period_id]
+      datetime = time_option[:datetime]
 
-  #     # 檢查該時段是否有可用桌位
-  #     if has_availability_for_slot?(
-  #       restaurant_tables,
-  #       reservations_by_period[reservation_period_id] || [],
-  #       datetime,
-  #       party_size,
-  #       reservation_period_id
-  #     )
-  #       return true
-  #     end
-  #   end
+      # 檢查該時段是否有可用桌位
+      if has_availability_for_slot?(
+        restaurant_tables,
+        reservations_by_period[reservation_period_id] || [],
+        datetime,
+        party_size,
+        reservation_period_id
+      )
+        return true
+      end
+    end
 
-  #   false
-  # end
+    false
+  end
 
   # 獲取按餐期分類的可用時間槽
   def get_available_slots_by_period(date, party_size, _adults, children)

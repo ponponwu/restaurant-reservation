@@ -11,8 +11,14 @@ RSpec.describe AvailabilityService, type: :service do
     table_group = create(:table_group, restaurant: restaurant)
     create(:table, restaurant: restaurant, table_group: table_group, capacity: 4, max_capacity: 4)
 
-    # 確保 reservation_period 在測試日期有營業 (設定為每天營業)
-    reservation_period.update!(days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+    # 確保餐廳在測試日期有營業 (設定為每天營業)
+    create_full_week_periods(restaurant)
+    
+    # 創建營業時間
+    (0..6).each do |weekday|
+      create(:operating_hour, restaurant: restaurant, weekday: weekday, 
+             open_time: Time.parse('11:00'), close_time: Time.parse('22:00'))
+    end
   end
 
   describe 'Integration with both closure systems' do

@@ -5,7 +5,8 @@ RSpec.describe 'Admin::RestaurantSettings' do
   let(:restaurant) { create(:restaurant) }
 
   before do
-    sign_in user
+    post user_session_path, params: { user: { email: user.email, password: 'password123' } }
+    follow_redirect!
   end
 
   describe 'GET /admin/restaurant_settings/restaurants/:restaurant_slug' do
@@ -62,8 +63,9 @@ RSpec.describe 'Admin::RestaurantSettings' do
       let(:regular_user) { create(:user) }
 
       before do
-        sign_out user
-        sign_in regular_user
+        delete destroy_user_session_path
+        post user_session_path, params: { user: { email: regular_user.email, password: 'password123' } }
+        follow_redirect!
       end
 
       it 'redirects to unauthorized page' do

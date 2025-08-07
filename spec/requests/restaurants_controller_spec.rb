@@ -52,9 +52,7 @@ RSpec.describe RestaurantsController do
     before do
       reservation_policy.update!(reservation_enabled: true)
       # 創建必要的營業時間和桌位
-      create(:reservation_period,
-             restaurant: restaurant,
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      create_full_week_periods(restaurant)
       create(:table, restaurant: restaurant)
     end
 
@@ -102,9 +100,7 @@ RSpec.describe RestaurantsController do
         advance_booking_days: 30,
         minimum_advance_hours: 1
       )
-      create(:reservation_period,
-             restaurant: restaurant,
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      create_full_week_periods(restaurant)
       create(:table, restaurant: restaurant)
     end
 
@@ -180,9 +176,7 @@ RSpec.describe RestaurantsController do
         phone_limit_period_days: 30
       )
       # 創建必要的營業時間和桌位
-      create(:reservation_period,
-             restaurant: restaurant,
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      create_full_week_periods(restaurant)
       create(:table, restaurant: restaurant)
     end
 
@@ -244,9 +238,7 @@ RSpec.describe RestaurantsController do
         min_party_size: 2,
         max_party_size: 6
       )
-      create(:reservation_period,
-             restaurant: restaurant,
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      create_full_week_periods(restaurant)
       create(:table, restaurant: restaurant, capacity: 8, max_capacity: 8)
     end
 
@@ -298,9 +290,7 @@ RSpec.describe RestaurantsController do
         advance_booking_days: 7,
         minimum_advance_hours: 24
       )
-      create(:reservation_period,
-             restaurant: restaurant,
-             days_of_week: %w[monday tuesday wednesday thursday friday saturday sunday])
+      create_full_week_periods(restaurant)
       create(:table, restaurant: restaurant)
     end
 
