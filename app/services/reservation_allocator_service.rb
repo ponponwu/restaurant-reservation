@@ -177,8 +177,8 @@ class ReservationAllocatorService
         .where(reservation_period: reservation_period)
         .includes(:table, table_combination: :restaurant_tables)
     else
-      # 使用餐廳設定的用餐時間
-      duration_minutes = @restaurant.dining_duration_with_buffer
+      # 使用餐廳設定的用餐時間，如果沒有設定則使用預設值
+      duration_minutes = @restaurant.dining_duration_with_buffer || 135 # 預設 120 + 15 分鐘緩衝
       return [] unless duration_minutes # 如果沒有設定時間，不檢查衝突
 
       # 計算新訂位的時間範圍
@@ -186,11 +186,15 @@ class ReservationAllocatorService
       new_end_time = datetime + duration_minutes.minutes
 
       # 查詢與此時間範圍重疊的預訂
-      # 先查詢可能重疊的預訂，然後在 Ruby 中計算時間重疊
       potential_conflicts = Reservation.where(restaurant: @restaurant)
         .where(status: %w[pending confirmed])
         .where('reservation_datetime BETWEEN ? AND ?', new_start_time - duration_minutes.minutes, new_end_time)
         .includes(:table, table_combination: :restaurant_tables)
+      
+      # 排除當前正在處理的預訂（如果有的話）
+      if @reservation&.persisted?
+        potential_conflicts = potential_conflicts.where.not(id: @reservation.id)
+      end
 
       # 在 Ruby 中過濾真正重疊的預訂
       conflicting_reservations = potential_conflicts.select do |reservation|
@@ -284,8 +288,8 @@ class ReservationAllocatorService
       query = query.where.not(id: @reservation.id) if @reservation&.persisted?
 
     else
-      # 計算該時段已預約的總人數
-      duration_minutes = @restaurant.dining_duration_with_buffer
+      # 計算該時段已預約的總人數，如果沒有設定則使用預設值
+      duration_minutes = @restaurant.dining_duration_with_buffer || 135 # 預設 120 + 15 分鐘緩衝
       return false unless duration_minutes # 如果沒有設定時間，不檢查容量限制
 
       # 計算結束時間以避免 SQL 注入

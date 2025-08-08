@@ -32,7 +32,9 @@ RSpec.describe ReservationAllocatorService, type: :service do
       max_party_size: [total_capacity, 20].max, # 至少要等於總容量
       min_party_size: 1,
       advance_booking_days: 30,
-      minimum_advance_hours: 1
+      minimum_advance_hours: 1,
+      unlimited_dining_time: false, # 明確設定為限時用餐
+      default_dining_duration_minutes: 120 # 確保有設定用餐時間
     )
   end
 
