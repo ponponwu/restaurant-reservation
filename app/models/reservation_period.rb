@@ -171,7 +171,7 @@ class ReservationPeriod < ApplicationRecord
     reservation_slots.active.ordered
   end
 
-  def generate_time_slots(interval_minutes = 30)
+  def generate_time_slots(interval_minutes)
     slots = []
     current_time = start_time
 
@@ -183,16 +183,16 @@ class ReservationPeriod < ApplicationRecord
     slots
   end
 
-  def create_slots_for_interval(interval_minutes = 30)
+  def create_slots_for_interval
     # 清除現有時段
     reservation_slots.destroy_all
 
     # 產生新時段
-    generate_time_slots(interval_minutes).each do |slot_time|
+    generate_time_slots(self.reservation_interval_minutes).each do |slot_time|
       reservation_slots.create!(
         slot_time: slot_time,
         max_capacity: default_slot_capacity,
-        interval_minutes: interval_minutes,
+        interval_minutes: self.reservation_interval_minutes || 30,
         reservation_deadline: default_reservation_deadline
       )
     end
@@ -231,8 +231,7 @@ class ReservationPeriod < ApplicationRecord
   end
 
   def create_default_slots
-    # 在餐期建立後自動建立預設時段（30分鐘間隔）
-    create_slots_for_interval(30)
+    create_slots_for_interval
   end
 
   def default_slot_capacity
@@ -259,6 +258,6 @@ class ReservationPeriod < ApplicationRecord
     Rails.logger.info "🔄 ReservationPeriod #{id}: 時間欄位變更 #{time_fields_changed}, 重新生成 slots"
 
     # 重新生成時段，使用當前的間隔設定
-    create_slots_for_interval(reservation_interval_minutes || 30)
+    create_slots_for_interval
   end
 end
