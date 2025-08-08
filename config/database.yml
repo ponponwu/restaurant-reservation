@@ -80,10 +80,24 @@ test:
 production:
     <<: *default
     url: <%= ENV["DATABASE_URL"] %>
-    queue:
-        adapter: postgresql # or your database adapter
-        encoding: unicode
-        pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+# Solid Queue database configuration
+queue: &queue_default
+    adapter: postgresql
+    encoding: unicode
+    pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
+
+queue_development:
+    <<: *queue_default
+    database: restaurant_reservation_queue_development
+
+queue_test:
+    <<: *queue_default
+    database: restaurant_reservation_queue_test
+
+queue_production:
+    <<: *queue_default
+    url: <%= ENV["QUEUE_DATABASE_URL"] || ENV["DATABASE_URL"] %>
 
 # Solid Cache database configuration
 cache: &cache_default
