@@ -1,9 +1,15 @@
 class Admin::PasswordChangesController < ApplicationController
   before_action :authenticate_user!
-  before_action :ensure_needs_password_change
 
   def show
-    # 顯示密碼修改表單
+    # 根據使用者狀態決定渲染哪個視圖
+    if current_user.needs_password_change?
+      # 強制修改密碼：使用 show 視圖（全屏模式）
+      render :show
+    else
+      # 自主修改密碼：使用 edit 視圖（管理員布局）
+      render :edit
+    end
   end
 
   def update
@@ -26,17 +32,6 @@ class Admin::PasswordChangesController < ApplicationController
 
   private
 
-  def ensure_needs_password_change
-    return if current_user.needs_password_change?
-    # 如果不需要修改密碼，根據角色重定向
-    if current_user.super_admin?
-      redirect_to admin_root_path and return
-    elsif current_user.manager?
-      redirect_to admin_restaurant_reservations_path(current_user.restaurant) and return
-    else
-      redirect_to admin_root_path and return
-    end
-  end
 
   def password_params
     params.require(:user).permit(:password, :password_confirmation)
