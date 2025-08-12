@@ -100,7 +100,7 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
     return false unless datetime.is_a?(Time) || datetime.is_a?(DateTime)
     return false unless table.present?
 
-    duration_minutes = @restaurant.dining_duration_minutes || 120
+    duration_minutes = @restaurant.dining_duration_with_buffer || 135
     new_start = datetime
     new_end = datetime + duration_minutes.minutes
     target_date = datetime.to_date
@@ -123,7 +123,7 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
 
   # 獲取可能衝突的預訂（直接桌位 + 併桌）
   def get_conflicting_reservations(table, new_start, new_end, target_date)
-    duration_minutes = @restaurant.dining_duration_minutes || 120
+    duration_minutes = @restaurant.dining_duration_with_buffer || 135
 
     # 合理的查詢範圍：只查詢真正可能重疊的預訂
     search_start = new_start - duration_minutes.minutes
@@ -145,7 +145,15 @@ class EnhancedReservationAllocatorService < ReservationAllocatorService
       .where('reservations.reservation_datetime >= ? AND reservations.reservation_datetime <= ?', search_start, search_end)
 
     # 合併並去重
-    (direct_reservations + combination_reservations).uniq
+    all_reservations = (direct_reservations + combination_reservations).uniq
+    
+    # 排除當前正在處理的預訂（如果有的話）
+    # 注意：在測試中可能沒有 @reservation 實例，所以不應該排除任何預訂
+    if @reservation&.persisted?
+      all_reservations = all_reservations.reject { |r| r.id == @reservation.id }
+    end
+    
+    all_reservations
   end
 
   # 檢查兩個時間區間是否重疊

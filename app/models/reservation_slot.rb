@@ -6,7 +6,6 @@ class ReservationSlot < ApplicationRecord
   validates :slot_time, presence: true
   validates :max_capacity, presence: true, numericality: { greater_than_or_equal_to: 0 }
   validates :interval_minutes, presence: true, numericality: { greater_than: 0 }
-  validates :reservation_deadline, presence: true, numericality: { greater_than_or_equal_to: 0 }
 
   # 3. Scope 定義
   scope :active, -> { where(active: true) }
@@ -51,9 +50,9 @@ class ReservationSlot < ApplicationRecord
     return false unless active?
     return false unless reservation_period.active?
 
-    # 檢查是否在預約截止時間之前
-    deadline = datetime - reservation_deadline.minutes
-    Time.current <= deadline
+    # 委派給餐廳政策檢查預約截止時間
+    restaurant = reservation_period.restaurant
+    restaurant&.policy&.can_book_at_time?(datetime) || false
   end
 
   def has_capacity_for?(party_size, date)
@@ -71,6 +70,5 @@ class ReservationSlot < ApplicationRecord
     self.active = true if active.nil?
     self.max_capacity ||= 0
     self.interval_minutes ||= 30
-    self.reservation_deadline ||= 60
   end
 end

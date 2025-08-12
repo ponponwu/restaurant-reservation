@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[8.0].define(version: 2025_08_05_060157) do
+ActiveRecord::Schema[8.0].define(version: 2025_08_08_134535) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "pg_catalog.plpgsql"
 
@@ -148,7 +148,6 @@ ActiveRecord::Schema[8.0].define(version: 2025_08_05_060157) do
     t.time "slot_time", null: false
     t.integer "max_capacity", default: 0
     t.integer "interval_minutes", default: 30
-    t.integer "reservation_deadline", default: 60
     t.boolean "active", default: true
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false

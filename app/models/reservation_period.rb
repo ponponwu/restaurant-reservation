@@ -193,7 +193,6 @@ class ReservationPeriod < ApplicationRecord
         slot_time: slot_time,
         max_capacity: default_slot_capacity,
         interval_minutes: self.reservation_interval_minutes || 30,
-        reservation_deadline: default_reservation_deadline
       )
     end
   end
@@ -241,9 +240,6 @@ class ReservationPeriod < ApplicationRecord
     restaurant.total_capacity / 2 # 假設每個時段可容納一半的桌位
   end
 
-  def default_reservation_deadline
-    60 # 預設提前60分鐘截止預約
-  end
 
   def clear_restaurant_cache
     restaurant&.clear_operating_hours_cache

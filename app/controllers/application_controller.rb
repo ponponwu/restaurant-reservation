@@ -86,17 +86,15 @@ class ApplicationController < ActionController::Base
   helper_method :current_restaurant
 
   def ensure_admin_access
-    # 暫時移除權限檢查，讓系統可以不登入使用
-    # unless current_user&.can_access_admin?
-    #   redirect_to root_path, alert: '您沒有權限存取管理後台'
-    # end
+    unless current_user&.can_access_admin?
+      redirect_to new_user_session_path, alert: '請先登入以存取管理後台'
+    end
   end
 
   def ensure_manager_access
-    # 暫時移除權限檢查，讓系統可以不登入使用
-    # unless current_user&.can_manage_restaurant?
-    #   redirect_to admin_root_path, alert: '您沒有權限執行此操作'
-    # end
+    unless current_user&.can_manage_restaurant?
+      redirect_to admin_root_path, alert: '您沒有權限執行此操作'
+    end
   end
 
   def check_password_change_required

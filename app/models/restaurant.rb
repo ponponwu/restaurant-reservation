@@ -148,6 +148,10 @@ class Restaurant < ApplicationRecord
     users.active.count
   end
 
+  def soft_delete!
+    update!(active: false, deleted_at: Time.current)
+  end
+
   # 桌位統計
   def total_tables_count
     restaurant_tables.count
